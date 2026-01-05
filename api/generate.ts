@@ -29,21 +29,32 @@ export default async function handler(
       return res.status(400).json({ error: 'Missing prompt or apiKey' });
     }
 
-    // Use Hugging Face Inference Client approach
+    // Use Hugging Face Inference Providers (new API)
     const HF_MODEL = "black-forest-labs/FLUX.1-schnell";
-    const apiUrl = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
-
-    const response = await fetch(apiUrl, {
+    
+    // Try the new Inference Providers endpoint
+    const response = await fetch('https://api-inference.huggingface.co/models/' + HF_MODEL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'x-use-cache': 'false'
       },
       body: JSON.stringify({
         inputs: prompt,
+        options: {
+          wait_for_model: true
+        }
       })
     });
 
     if (!response.ok) {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('text/html')) {
+        return res.status(503).json({ 
+          error: 'Hugging Face Inference API is currently unavailable. The free tier may have been deprecated. Please consider using a paid API service like Replicate or OpenAI DALL-E.' 
+        });
+      }
       const errorText = await response.text();
       console.error('HF API Error:', errorText);
       return res.status(response.status).json({ error: errorText });
