@@ -32,16 +32,16 @@ vercel --prod
 
 ## Environment Variables
 
-Your Hugging Face API key should be set as an environment variable. For production, you should:
+Your Replicate API key should be set as an environment variable. For production, you should:
 
 1. Go to your Vercel project dashboard
 2. Settings → Environment Variables
-3. Add: `VITE_HF_API_KEY` = `YOUR_HUGGING_FACE_TOKEN`
+3. Add: `VITE_REPLICATE_API_KEY` = `YOUR_REPLICATE_TOKEN`
 4. Redeploy
 
 For local development, create a `.env` file:
 ```
-VITE_HF_API_KEY=your_hugging_face_token_here
+VITE_REPLICATE_API_KEY=your_replicate_token_here
 ```
 
 ## How It Works

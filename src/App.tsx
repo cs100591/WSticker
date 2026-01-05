@@ -10,7 +10,7 @@ function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const apiKey = import.meta.env.VITE_HF_API_KEY || "";
+  const apiKey = import.meta.env.VITE_REPLICATE_API_KEY || "";
 
   const handleGenerate = async () => {
     console.log("Generate clicked!", { prompt, uploadedFile, hasPrompt: !!prompt, hasFile: !!uploadedFile });

@@ -29,42 +29,68 @@ export default async function handler(
       return res.status(400).json({ error: 'Missing prompt or apiKey' });
     }
 
-    // Use Hugging Face Inference Providers (new API)
-    const HF_MODEL = "black-forest-labs/FLUX.1-schnell";
-    
-    // Try the new Inference Providers endpoint
-    const response = await fetch('https://api-inference.huggingface.co/models/' + HF_MODEL, {
+    // Use Replicate API for FLUX image generation
+    const response = await fetch('https://api.replicate.com/v1/predictions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'x-use-cache': 'false'
       },
       body: JSON.stringify({
-        inputs: prompt,
-        options: {
-          wait_for_model: true
+        version: "5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637",
+        input: {
+          prompt: prompt,
+          num_outputs: 1,
+          aspect_ratio: "1:1",
+          output_format: "png",
+          output_quality: 90
         }
       })
     });
 
     if (!response.ok) {
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('text/html')) {
-        return res.status(503).json({ 
-          error: 'Hugging Face Inference API is currently unavailable. The free tier may have been deprecated. Please consider using a paid API service like Replicate or OpenAI DALL-E.' 
-        });
-      }
       const errorText = await response.text();
-      console.error('HF API Error:', errorText);
+      console.error('Replicate API Error:', errorText);
       return res.status(response.status).json({ error: errorText });
     }
 
-    const imageBuffer = await response.arrayBuffer();
-    const base64Image = Buffer.from(imageBuffer).toString('base64');
+    const prediction = await response.json();
+    
+    // Poll for completion
+    let imageUrl = null;
+    let attempts = 0;
+    const maxAttempts = 60; // 60 seconds max wait
+    
+    while (!imageUrl && attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const statusResponse = await fetch(
+        `https://api.replicate.com/v1/predictions/${prediction.id}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+          }
+        }
+      );
+      
+      const status = await statusResponse.json();
+      
+      if (status.status === 'succeeded') {
+        imageUrl = status.output[0];
+        break;
+      } else if (status.status === 'failed') {
+        return res.status(500).json({ error: 'Image generation failed' });
+      }
+      
+      attempts++;
+    }
+    
+    if (!imageUrl) {
+      return res.status(408).json({ error: 'Image generation timeout' });
+    }
 
     return res.status(200).json({ 
-      image: `data:image/png;base64,${base64Image}` 
+      image: imageUrl 
     });
 
   } catch (error: any) {
