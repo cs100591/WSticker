@@ -32,16 +32,16 @@ vercel --prod
 
 ## Environment Variables
 
-Your Replicate API key should be set as an environment variable. For production, you should:
+Your Gemini (Nano Banana) API key should be set as an environment variable. For production, you should:
 
 1. Go to your Vercel project dashboard
 2. Settings → Environment Variables
-3. Add: `VITE_REPLICATE_API_KEY` = `YOUR_REPLICATE_TOKEN`
+3. Add: `VITE_GEMINI_API_KEY` = `YOUR_GEMINI_API_KEY`
 4. Redeploy
 
 For local development, create a `.env` file:
 ```
-VITE_REPLICATE_API_KEY=your_replicate_token_here
+VITE_GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
 ## How It Works

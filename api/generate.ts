@@ -29,68 +29,44 @@ export default async function handler(
       return res.status(400).json({ error: 'Missing prompt or apiKey' });
     }
 
-    // Use Replicate API for FLUX image generation
-    const response = await fetch('https://api.replicate.com/v1/predictions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        version: "5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637",
-        input: {
-          prompt: prompt,
-          num_outputs: 1,
-          aspect_ratio: "1:1",
-          output_format: "png",
-          output_quality: 90
-        }
-      })
-    });
+    // Use Gemini Nano Banana (gemini-2.5-flash-image) for image generation
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: prompt }]
+          }],
+          generationConfig: {
+            responseModalities: ['IMAGE']
+          }
+        })
+      }
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Replicate API Error:', errorText);
+      console.error('Gemini API Error:', errorText);
       return res.status(response.status).json({ error: errorText });
     }
 
-    const prediction = await response.json();
+    const data = await response.json();
     
-    // Poll for completion
-    let imageUrl = null;
-    let attempts = 0;
-    const maxAttempts = 60; // 60 seconds max wait
+    // Extract image from response
+    const imagePart = data.candidates[0]?.content?.parts?.find((part: any) => part.inlineData);
     
-    while (!imageUrl && attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const statusResponse = await fetch(
-        `https://api.replicate.com/v1/predictions/${prediction.id}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-          }
-        }
-      );
-      
-      const status = await statusResponse.json();
-      
-      if (status.status === 'succeeded') {
-        imageUrl = status.output[0];
-        break;
-      } else if (status.status === 'failed') {
-        return res.status(500).json({ error: 'Image generation failed' });
-      }
-      
-      attempts++;
-    }
-    
-    if (!imageUrl) {
-      return res.status(408).json({ error: 'Image generation timeout' });
+    if (!imagePart || !imagePart.inlineData) {
+      return res.status(500).json({ error: 'No image generated' });
     }
 
+    const base64Image = imagePart.inlineData.data;
+
     return res.status(200).json({ 
-      image: imageUrl 
+      image: `data:image/png;base64,${base64Image}` 
     });
 
   } catch (error: any) {
