@@ -29,27 +29,23 @@ export default async function handler(
       return res.status(400).json({ error: 'Missing prompt or apiKey' });
     }
 
-    const HF_MODEL = "stabilityai/stable-diffusion-xl-base-1.0";
+    // Use Hugging Face Inference Client approach
+    const HF_MODEL = "black-forest-labs/FLUX.1-schnell";
     const apiUrl = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
 
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         inputs: prompt,
-        parameters: {
-          negative_prompt: "blurry, low quality, text, watermark, background",
-          num_inference_steps: 25,
-          guidance_scale: 7.5,
-        }
       })
     });
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error('HF API Error:', errorText);
       return res.status(response.status).json({ error: errorText });
     }
 
