@@ -3,42 +3,45 @@ import { NextRequest, NextResponse } from 'next/server';
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_BASE_URL = 'https://api.deepseek.com';
 
-const SYSTEM_PROMPT = `You are an OCR assistant that extracts expense information from receipt images.
+const SYSTEM_PROMPT = `你是一个收据解析助手。从OCR识别的收据文本中提取消费信息。
 
-Analyze the image and extract:
-1. Total amount (look for "Total", "合计", "总计", "Amount Due")
-2. Category based on merchant/items
-3. Description (merchant name or main items)
-4. Date if visible
+分析文本并提取：
+1. 总金额（查找 "Total", "合计", "总计", "实付", "应付", "￥", "$" 等）
+2. 根据商家/商品判断分类
+3. 描述（商家名称或主要商品）
 
-Return JSON format:
+返回 JSON 格式：
 {
   "success": true,
   "data": {
-    "amount": number,
+    "amount": 数字,
     "category": "food" | "transport" | "shopping" | "entertainment" | "bills" | "health" | "education" | "other",
-    "description": "merchant or item description",
-    "date": "YYYY-MM-DD or null"
+    "description": "商家或商品描述"
   }
 }
 
-If cannot parse, return:
+如果无法解析，返回：
 {
   "success": false,
-  "error": "reason"
+  "error": "原因"
 }
 
-Category rules:
-- food: restaurants, cafes, groceries, 餐厅, 超市, 外卖
-- transport: taxi, uber, gas station, parking, 打车, 加油
-- shopping: retail stores, online shopping, 购物
-- entertainment: movies, games, 娱乐
-- bills: utilities, phone, rent, 水电费
-- health: pharmacy, hospital, 医院, 药店
-- education: books, courses, 书店, 培训
-- other: anything else
+分类规则：
+- food: 餐厅、咖啡、超市、外卖、饮料、食品
+- transport: 出租车、滴滴、加油站、停车、地铁、公交
+- shopping: 零售店、网购、服装、电子产品
+- entertainment: 电影、游戏、KTV、酒吧
+- bills: 水电费、话费、房租、物业
+- health: 药店、医院、诊所
+- education: 书店、培训、课程
+- other: 其他
 
-Only return JSON.`;
+金额提取规则：
+- 优先找 "实付"、"应付"、"合计"、"总计" 后面的数字
+- 注意中文金额格式如 "￥15.00" 或 "15元"
+- 英文格式如 "$15.00" 或 "15.00"
+
+只返回 JSON，不要其他内容。`;
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,32 +49,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
     }
 
-    const { image } = await request.json();
+    const { text } = await request.json();
     
-    if (!image || typeof image !== 'string') {
-      return NextResponse.json({ error: 'Image data is required' }, { status: 400 });
+    if (!text || typeof text !== 'string') {
+      return NextResponse.json({ error: 'Text is required' }, { status: 400 });
     }
 
-    // DeepSeek 目前不支持图片，使用文字描述方式
-    // 实际生产环境应该用支持视觉的 API（如 GPT-4V, Claude 3）
-    // 这里我们用一个简化方案：让用户描述收据内容
-    
-    // 检查是否是 base64 图片
-    if (image.startsWith('data:image')) {
-      // 由于 DeepSeek 不支持图片，返回提示让用户手动输入
-      return NextResponse.json({
-        success: false,
-        needManualInput: true,
-        message: 'Please enter the receipt details manually',
-        suggestedFields: {
-          amount: null,
-          category: 'other',
-          description: '',
-        }
-      });
-    }
-
-    // 如果是文字描述，用 DeepSeek 解析
+    // 用 DeepSeek 解析 OCR 文本
     const response = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -82,7 +66,7 @@ export async function POST(request: NextRequest) {
         model: 'deepseek-chat',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: `Parse this receipt description: ${image}` },
+          { role: 'user', content: `解析这段收据OCR文本：\n\n${text}` },
         ],
         temperature: 0.1,
         max_tokens: 500,
@@ -101,8 +85,16 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      const parsed = JSON.parse(content);
-      return NextResponse.json(parsed);
+      // 尝试提取 JSON
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return NextResponse.json(parsed);
+      }
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to parse response',
+      });
     } catch {
       return NextResponse.json({
         success: false,
@@ -110,7 +102,7 @@ export async function POST(request: NextRequest) {
       });
     }
   } catch (error) {
-    console.error('OCR error:', error);
+    console.error('OCR parse error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

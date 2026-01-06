@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 
 interface ParsedIntent {
-  type: 'create_todo' | 'create_expense' | 'unknown';
+  type: 'create_todo' | 'create_expense' | 'create_calendar' | 'unknown';
   confidence: number;
   data: {
     title?: string;
@@ -12,11 +12,11 @@ interface ParsedIntent {
     amount?: number;
     category?: string;
     description?: string;
+    startTime?: string;
+    endTime?: string;
   };
   originalText: string;
 }
-
-type VoiceLanguage = 'auto' | 'zh-CN' | 'en-US';
 
 interface UseVoiceAssistantReturn {
   isListening: boolean;
@@ -25,8 +25,6 @@ interface UseVoiceAssistantReturn {
   error: string | null;
   parsedIntent: ParsedIntent | null;
   isSupported: boolean;
-  language: VoiceLanguage;
-  setLanguage: (lang: VoiceLanguage) => void;
   startListening: () => void;
   stopListening: () => void;
   reset: () => void;
@@ -72,26 +70,26 @@ interface SpeechRecognitionInstance {
 
 // 检测文本语言
 function detectLanguage(text: string): 'zh' | 'en' {
-  // 检测是否包含中文字符
   const chineseRegex = /[\u4e00-\u9fa5]/;
-  const hasChineseChars = chineseRegex.test(text);
-  
-  // 如果包含中文字符，认为是中文
-  if (hasChineseChars) {
-    return 'zh';
-  }
-  
+  if (chineseRegex.test(text)) return 'zh';
   return 'en';
 }
 
-// 获取浏览器语言
-function getBrowserLanguage(): 'zh-CN' | 'en-US' {
+// 获取浏览器首选语言
+function getBrowserLanguage(): string {
   if (typeof navigator === 'undefined') return 'zh-CN';
   const lang = navigator.language || 'zh-CN';
-  // 默认优先中文，因为大部分用户是中文
-  if (lang.startsWith('en')) return 'en-US';
-  return 'zh-CN';
+  return lang;
 }
+
+// 多语言识别列表（按优先级）
+const RECOGNITION_LANGUAGES = [
+  'zh-CN',  // 中文简体
+  'en-US',  // 英语
+  'zh-TW',  // 中文繁体
+  'ja-JP',  // 日语
+  'ko-KR',  // 韩语
+];
 
 export function useVoiceAssistant(): UseVoiceAssistantReturn {
   const [isListening, setIsListening] = useState(false);
@@ -100,7 +98,6 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
   const [error, setError] = useState<string | null>(null);
   const [parsedIntent, setParsedIntent] = useState<ParsedIntent | null>(null);
   const [isSupported, setIsSupported] = useState(false);
-  const [language, setLanguage] = useState<VoiceLanguage>('auto');
   
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const finalTranscriptRef = useRef('');
@@ -120,7 +117,7 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
     setError(null);
     
     try {
-      // 检测语言用于 API 解析
+      // 自动检测语言
       const detectedLang = detectLanguage(text);
       
       const response = await fetch('/api/voice/parse', {
@@ -142,13 +139,16 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
     }
   }, []);
 
-  // 获取实际使用的语言
+  // 智能获取识别语言 - 优先使用浏览器语言，然后尝试其他语言
   const getRecognitionLanguage = useCallback((): string => {
-    if (language === 'auto') {
-      return getBrowserLanguage();
+    const browserLang = getBrowserLanguage();
+    // 如果浏览器语言在支持列表中，优先使用
+    if (RECOGNITION_LANGUAGES.some(lang => browserLang.startsWith(lang.split('-')[0] || ''))) {
+      return browserLang;
     }
-    return language;
-  }, [language]);
+    // 否则使用中文作为默认
+    return 'zh-CN';
+  }, []);
 
   // 开始监听
   const startListening = useCallback(() => {
@@ -195,14 +195,20 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      // 对于 no-speech 错误，不显示错误，静默处理
+      if (event.error === 'no-speech') {
+        setIsListening(false);
+        return;
+      }
+      
       // Handle iOS-specific errors
       const errorMessages: Record<string, string> = {
-        'service-not-allowed': 'Voice input not available on this device. Please use text input.',
-        'not-allowed': 'Microphone permission denied. Please allow microphone access or use text input.',
-        'no-speech': 'No speech detected. Please try again.',
-        'network': 'Network error. Please check your connection.',
+        'service-not-allowed': '此设备不支持语音输入，请使用文字输入',
+        'not-allowed': '麦克风权限被拒绝，请允许麦克风访问或使用文字输入',
+        'network': '网络错误，请检查网络连接',
+        'aborted': '语音识别被中断',
       };
-      const message = errorMessages[event.error] || `Speech recognition error: ${event.error}`;
+      const message = errorMessages[event.error] || `语音识别错误: ${event.error}`;
       setError(message);
       setIsListening(false);
     };
@@ -248,8 +254,6 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
     error,
     parsedIntent,
     isSupported,
-    language,
-    setLanguage,
     startListening,
     stopListening,
     reset,

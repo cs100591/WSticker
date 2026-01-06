@@ -26,8 +26,6 @@ export function VoiceAssistant({ isOpen, onClose }: VoiceAssistantProps) {
     error,
     parsedIntent,
     isSupported,
-    language,
-    setLanguage,
     startListening,
     stopListening,
     reset,
@@ -41,12 +39,6 @@ export function VoiceAssistant({ isOpen, onClose }: VoiceAssistantProps) {
   const [createError, setCreateError] = useState<string | null>(null);
   const [showTextInput, setShowTextInput] = useState(false);
   const [textInput, setTextInput] = useState('');
-
-  const languageOptions = [
-    { value: 'auto', label: 'Auto' },
-    { value: 'zh-CN', label: '中文' },
-    { value: 'en-US', label: 'English' },
-  ] as const;
 
   if (!isOpen) return null;
 
@@ -186,29 +178,11 @@ export function VoiceAssistant({ isOpen, onClose }: VoiceAssistantProps) {
               {/* 状态提示 */}
               <p className="text-center text-sm text-gray-500">
                 {isListening
-                  ? t.voice?.listening || 'Listening...'
+                  ? '正在聆听... 🎤'
                   : isProcessing
-                  ? t.voice?.processing || 'Processing...'
-                  : t.voice?.tapToSpeak || 'Tap to speak'}
+                  ? '正在处理...'
+                  : '点击开始说话（支持中英文）'}
               </p>
-
-              {/* 语言选择 */}
-              <div className="flex justify-center gap-2">
-                {languageOptions.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setLanguage(opt.value)}
-                    className={cn(
-                      'px-3 py-1 rounded-full text-xs font-medium transition-all',
-                      language === opt.value
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    )}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
 
               {/* 切换到文字输入 */}
               <button
@@ -216,7 +190,7 @@ export function VoiceAssistant({ isOpen, onClose }: VoiceAssistantProps) {
                 className="w-full text-sm text-gray-400 hover:text-blue-500 flex items-center justify-center gap-1"
               >
                 <Keyboard className="w-4 h-4" />
-                Or type instead
+                或使用文字输入
               </button>
 
               {/* 转录文本 */}
