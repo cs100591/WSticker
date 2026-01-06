@@ -7,7 +7,8 @@ import { useExpenses } from '@/lib/hooks/useExpenses';
 import { useI18n } from '@/lib/i18n';
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
 import { Button } from '@/components/ui/button';
-import { Mic, MicOff, Loader2, Check, X, AlertCircle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Mic, MicOff, Loader2, Check, X, AlertCircle, Send, Keyboard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ExpenseCategory } from '@/types/expense';
 
@@ -28,14 +29,23 @@ export function VoiceAssistant({ isOpen, onClose }: VoiceAssistantProps) {
     startListening,
     stopListening,
     reset,
+    parseText,
   } = useVoiceAssistant();
 
   const { createTodo } = useTodos();
   const { createExpense } = useExpenses();
   const [isCreating, setIsCreating] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [showTextInput, setShowTextInput] = useState(false);
+  const [textInput, setTextInput] = useState('');
 
   if (!isOpen) return null;
+
+  const handleTextSubmit = async () => {
+    if (!textInput.trim()) return;
+    await parseText(textInput.trim());
+    setTextInput('');
+  };
 
   const handleConfirm = async () => {
     if (!parsedIntent || parsedIntent.type === 'unknown') return;
@@ -44,7 +54,7 @@ export function VoiceAssistant({ isOpen, onClose }: VoiceAssistantProps) {
     try {
       if (parsedIntent.type === 'create_todo') {
         const todoInput: Parameters<typeof createTodo>[0] = {
-          title: parsedIntent.data.title || transcript,
+          title: parsedIntent.data.title || transcript || textInput,
           priority: parsedIntent.data.priority || 'medium',
         };
         if (parsedIntent.data.dueDate) {
@@ -55,7 +65,7 @@ export function VoiceAssistant({ isOpen, onClose }: VoiceAssistantProps) {
         await createExpense({
           amount: parsedIntent.data.amount || 0,
           category: (parsedIntent.data.category as ExpenseCategory) || 'other',
-          description: parsedIntent.data.description ?? transcript,
+          description: parsedIntent.data.description ?? transcript ?? textInput,
           expenseDate: new Date().toISOString().split('T')[0] as string,
         });
       }
@@ -64,6 +74,8 @@ export function VoiceAssistant({ isOpen, onClose }: VoiceAssistantProps) {
         onClose();
         reset();
         setSuccess(false);
+        setShowTextInput(false);
+        setTextInput('');
       }, 1500);
     } catch {
       // Error handled
@@ -74,10 +86,13 @@ export function VoiceAssistant({ isOpen, onClose }: VoiceAssistantProps) {
 
   const handleCancel = () => {
     reset();
+    setTextInput('');
   };
 
   const handleClose = () => {
     reset();
+    setShowTextInput(false);
+    setTextInput('');
     onClose();
   };
 
@@ -91,10 +106,40 @@ export function VoiceAssistant({ isOpen, onClose }: VoiceAssistantProps) {
           </button>
         </GlassCardHeader>
         <GlassCardContent className="space-y-4">
-          {!isSupported ? (
-            <div className="text-center py-8">
-              <AlertCircle className="w-12 h-12 mx-auto text-yellow-500 mb-4" />
-              <p className="text-gray-600">{t.voice?.notSupported || 'Voice input not supported in this browser'}</p>
+          {!isSupported || showTextInput ? (
+            <div className="space-y-4">
+              {!isSupported && (
+                <div className="text-center py-4">
+                  <AlertCircle className="w-8 h-8 mx-auto text-yellow-500 mb-2" />
+                  <p className="text-sm text-gray-600">Voice not supported. Use text input instead.</p>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Type: 'Buy groceries tomorrow' or 'Lunch $15'"
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleTextSubmit()}
+                  className="flex-1 h-12 rounded-xl"
+                  autoFocus
+                />
+                <Button
+                  onClick={handleTextSubmit}
+                  disabled={isProcessing || !textInput.trim()}
+                  className="h-12 px-4 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500"
+                >
+                  {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                </Button>
+              </div>
+              {isSupported && (
+                <button
+                  onClick={() => setShowTextInput(false)}
+                  className="w-full text-sm text-blue-500 hover:text-blue-600"
+                >
+                  <Mic className="w-4 h-4 inline mr-1" />
+                  Switch to voice input
+                </button>
+              )}
             </div>
           ) : success ? (
             <div className="text-center py-8">
@@ -135,6 +180,15 @@ export function VoiceAssistant({ isOpen, onClose }: VoiceAssistantProps) {
                   ? t.voice?.processing || 'Processing...'
                   : t.voice?.tapToSpeak || 'Tap to speak'}
               </p>
+
+              {/* 切换到文字输入 */}
+              <button
+                onClick={() => setShowTextInput(true)}
+                className="w-full text-sm text-gray-400 hover:text-blue-500 flex items-center justify-center gap-1"
+              >
+                <Keyboard className="w-4 h-4" />
+                Or type instead
+              </button>
 
               {/* 转录文本 */}
               {transcript && (

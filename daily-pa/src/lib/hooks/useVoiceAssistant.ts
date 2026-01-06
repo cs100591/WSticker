@@ -26,6 +26,7 @@ interface UseVoiceAssistantReturn {
   startListening: () => void;
   stopListening: () => void;
   reset: () => void;
+  parseText: (text: string) => Promise<void>;
 }
 
 // SpeechRecognition 类型定义
@@ -187,6 +188,12 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
     finalTranscriptRef.current = '';
   }, []);
 
+  // 解析文本输入（用于手动输入）
+  const parseText = useCallback(async (text: string) => {
+    setTranscript(text);
+    await parseIntent(text);
+  }, [parseIntent]);
+
   return {
     isListening,
     isProcessing,
@@ -197,5 +204,6 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
     startListening,
     stopListening,
     reset,
+    parseText,
   };
 }

@@ -2,12 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { expenseRowToExpense, type UpdateExpenseInput } from '@/types/expense';
 
-const DEV_USER_ID = '00000000-0000-0000-0000-000000000001';
-
 async function getUserId() {
-  if (process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === 'true') {
-    return DEV_USER_ID;
-  }
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   return user?.id;

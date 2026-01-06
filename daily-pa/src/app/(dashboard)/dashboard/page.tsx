@@ -6,15 +6,22 @@ import { Button } from '@/components/ui/button';
 import { Header } from '@/components/layout/Header';
 import { useI18n } from '@/lib/i18n';
 import { VoiceAssistant } from '@/components/voice/VoiceAssistant';
-import { CheckSquare, Calendar, DollarSign, Mic, TrendingUp, Clock, Sparkles, ArrowRight } from 'lucide-react';
+import { CameraCapture } from '@/components/camera/CameraCapture';
+import { CheckSquare, Calendar, DollarSign, Mic, TrendingUp, Clock, Sparkles, ArrowRight, Camera } from 'lucide-react';
 import Link from 'next/link';
-
-const isDevSkipAuth = process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === 'true';
 
 export default function DashboardPage() {
   const { t } = useI18n();
-  const displayName = 'Developer';
+  const displayName = 'User';
   const [showVoiceAssistant, setShowVoiceAssistant] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+
+  const handleCameraCapture = (imageData: string) => {
+    // TODO: Process image with OCR to extract receipt data
+    console.log('Captured image:', imageData.substring(0, 100) + '...');
+    // For now, just close the camera
+    setShowCamera(false);
+  };
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -28,11 +35,6 @@ export default function DashboardPage() {
               {t.dashboard.hello}, {displayName}! 👋
             </h2>
             <p className="text-gray-500 mt-1">{t.dashboard.welcomeMessage}</p>
-            {isDevSkipAuth && (
-              <span className="inline-flex items-center gap-1 px-2 py-1 mt-2 text-xs font-medium text-orange-600 bg-orange-100 rounded-full">
-                🔧 {t.dashboard.devMode}
-              </span>
-            )}
           </div>
         </div>
 
@@ -103,14 +105,25 @@ export default function DashboardPage() {
                 <p className="text-gray-600 mb-4">{t.dashboard.voiceDescription}</p>
                 <p className="text-sm text-gray-400">{t.dashboard.voiceHint}</p>
               </div>
-              <Button 
-                size="lg"
-                className="w-full md:w-auto px-8 py-6 rounded-2xl bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold shadow-lg shadow-blue-500/30 transition-all duration-200 hover:scale-105"
-                onClick={() => setShowVoiceAssistant(true)}
-              >
-                <Mic className="w-5 h-5 mr-2" />
-                {t.dashboard.startVoiceInput}
-              </Button>
+              <div className="flex gap-3">
+                <Button 
+                  size="lg"
+                  className="flex-1 md:flex-none px-6 py-6 rounded-2xl bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold shadow-lg shadow-blue-500/30 transition-all duration-200 hover:scale-105"
+                  onClick={() => setShowVoiceAssistant(true)}
+                >
+                  <Mic className="w-5 h-5 mr-2" />
+                  {t.dashboard.startVoiceInput}
+                </Button>
+                <Button 
+                  size="lg"
+                  variant="outline"
+                  className="flex-1 md:flex-none px-6 py-6 rounded-2xl font-semibold transition-all duration-200 hover:scale-105"
+                  onClick={() => setShowCamera(true)}
+                >
+                  <Camera className="w-5 h-5 mr-2" />
+                  Scan Receipt
+                </Button>
+              </div>
             </div>
           </GlassCardContent>
         </GlassCard>
@@ -169,6 +182,14 @@ export default function DashboardPage() {
       <VoiceAssistant 
         isOpen={showVoiceAssistant} 
         onClose={() => setShowVoiceAssistant(false)} 
+      />
+
+      {/* Camera Modal */}
+      <CameraCapture
+        isOpen={showCamera}
+        onClose={() => setShowCamera(false)}
+        onCapture={handleCameraCapture}
+        title="Scan Receipt"
       />
     </div>
   );

@@ -1,15 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { todoRowToTodo, createTodoInputToInsert, type CreateTodoInput, type TodoFilters } from '@/types/todo';
-import type { Database } from '@/types/database.types';
-
-// 开发模式下的模拟用户 ID
-const DEV_USER_ID = '00000000-0000-0000-0000-000000000001';
 
 async function getUserId() {
-  if (process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === 'true') {
-    return DEV_USER_ID;
-  }
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   return user?.id;
@@ -102,7 +95,7 @@ export async function POST(request: NextRequest) {
 
     const { data, error } = await supabase
       .from('todos')
-      .insert(insertData as Database['public']['Tables']['todos']['Insert'])
+      .insert(insertData)
       .select()
       .single();
 
