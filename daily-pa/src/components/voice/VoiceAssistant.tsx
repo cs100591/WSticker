@@ -18,7 +18,7 @@ interface VoiceAssistantProps {
 }
 
 export function VoiceAssistant({ isOpen, onClose }: VoiceAssistantProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const {
     isListening,
     isProcessing,
@@ -30,7 +30,7 @@ export function VoiceAssistant({ isOpen, onClose }: VoiceAssistantProps) {
     stopListening,
     reset,
     parseText,
-  } = useVoiceAssistant();
+  } = useVoiceAssistant({ locale });
 
   const { createTodo } = useTodos();
   const { createExpense } = useExpenses();
