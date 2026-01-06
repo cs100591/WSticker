@@ -14,7 +14,7 @@ export default function HomePage() {
         {/* 标题 */}
         <div className="space-y-4">
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-            Daily PA
+            CLASP
           </h1>
           <p className="text-xl text-muted-foreground">
             你的虚拟私人助理

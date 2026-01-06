@@ -65,7 +65,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl font-bold">登录 Daily PA</CardTitle>
+          <CardTitle className="text-2xl font-bold">登录 CLASP</CardTitle>
           <CardDescription>
             输入您的邮箱和密码登录账户
           </CardDescription>

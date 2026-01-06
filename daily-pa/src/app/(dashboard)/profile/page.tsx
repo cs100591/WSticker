@@ -140,8 +140,8 @@ export default function ProfilePage() {
 
         {/* App Info */}
         <div className="text-center text-sm text-gray-400 py-6">
-          <p className="font-medium">Daily PA v1.0.0</p>
-          <p className="mt-1">© 2026 Daily PA Team</p>
+          <p className="font-medium">CLASP v1.0.0</p>
+          <p className="mt-1">© 2026 CLASP Team</p>
         </div>
       </div>
     </div>

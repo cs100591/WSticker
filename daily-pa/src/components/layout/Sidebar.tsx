@@ -39,7 +39,7 @@ export function Sidebar() {
             <Sparkles className="w-5 h-5 text-white" />
           </div>
           <div>
-            <span className="text-xl font-bold text-gradient">Daily PA</span>
+            <span className="text-xl font-bold text-gradient">CLASP</span>
             <p className="text-xs text-gray-400">Your AI Assistant</p>
           </div>
         </div>

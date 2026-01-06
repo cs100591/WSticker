@@ -90,7 +90,7 @@ export default function RegisterPage() {
         <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-2xl font-bold">创建账户</CardTitle>
           <CardDescription>
-            输入您的信息创建 Daily PA 账户
+            输入您的信息创建 CLASP 账户
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
