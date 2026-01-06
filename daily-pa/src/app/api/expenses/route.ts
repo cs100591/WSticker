@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { expenseRowToExpense, createExpenseInputToInsert, type CreateExpenseInput, type ExpenseFilters } from '@/types/expense';
+import { isDevMode, getDevExpenses, addDevExpense } from '@/lib/dev-store';
 
 async function getUserId() {
-  // 开发模式下跳过认证，返回固定的 dev user ID
-  if (process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === 'true') {
+  if (isDevMode()) {
     return 'dev-user-id';
   }
   
@@ -16,6 +16,17 @@ async function getUserId() {
 // GET /api/expenses - 获取消费记录列表
 export async function GET(request: NextRequest) {
   try {
+    // 开发模式：从内存存储获取
+    if (isDevMode()) {
+      const expenses = getDevExpenses();
+      return NextResponse.json({
+        expenses,
+        total: expenses.length,
+        page: 1,
+        limit: 50,
+      });
+    }
+
     const userId = await getUserId();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -97,23 +108,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Category is required' }, { status: 400 });
     }
 
-    // 开发模式下返回模拟数据（因为数据库有外键约束需要真实用户）
-    if (process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === 'true') {
-      const mockId = `dev-${Date.now()}`;
-      const today = new Date().toISOString().split('T')[0];
-      console.log('[DEV MODE] Mock expense created:', body.amount, body.category);
-      return NextResponse.json({
-        id: mockId,
+    // 开发模式：存入内存存储
+    if (isDevMode()) {
+      const expenseDateStr = typeof body.expenseDate === 'string' 
+        ? body.expenseDate 
+        : body.expenseDate?.toISOString().split('T')[0];
+      const expense = addDevExpense({
         amount: body.amount,
-        currency: body.currency || 'CNY',
+        currency: body.currency,
         category: body.category,
-        description: body.description || null,
-        expenseDate: body.expenseDate || today,
-        receiptUrl: body.receiptUrl || null,
-        tags: body.tags || [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }, { status: 201 });
+        description: body.description,
+        expenseDate: expenseDateStr,
+        receiptUrl: body.receiptUrl,
+        tags: body.tags,
+      });
+      return NextResponse.json(expense, { status: 201 });
     }
 
     const userId = await getUserId();
