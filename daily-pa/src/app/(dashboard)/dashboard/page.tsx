@@ -5,16 +5,28 @@ import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/layout/Header';
 import { useI18n } from '@/lib/i18n';
-import { VoiceAssistant } from '@/components/voice/VoiceAssistant';
+import { AIChatbot } from '@/components/chat/AIChatbot';
 import { ReceiptScanner } from '@/components/camera/ReceiptScanner';
-import { CheckSquare, Calendar, DollarSign, Mic, TrendingUp, Clock, Sparkles, ArrowRight, Camera } from 'lucide-react';
+import { CheckSquare, Calendar, DollarSign, MessageCircle, TrendingUp, Clock, Sparkles, ArrowRight, Camera } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DashboardPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const displayName = 'User';
-  const [showVoiceAssistant, setShowVoiceAssistant] = useState(false);
+  const [showChatbot, setShowChatbot] = useState(false);
   const [showReceiptScanner, setShowReceiptScanner] = useState(false);
+
+  const chatT = {
+    title: locale === 'zh' ? 'AI 助手' : 'AI Assistant',
+    description: locale === 'zh' 
+      ? '用自然语言告诉我你想做什么，我会帮你创建待办、记录消费或安排日程。'
+      : 'Tell me what you want to do in natural language. I\'ll help you create todos, record expenses, or schedule events.',
+    hint: locale === 'zh'
+      ? '试试说："明天下午3点开会" 或 "午饭花了50块"'
+      : 'Try: "Meeting tomorrow at 3pm" or "Lunch $15"',
+    button: locale === 'zh' ? '开始对话' : 'Start Chat',
+    scan: locale === 'zh' ? '扫描收据' : 'Scan Receipt',
+  };
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -85,27 +97,27 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {/* Voice Assistant Card */}
+        {/* AI Chatbot Card */}
         <GlassCard className="overflow-hidden relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 via-purple-500/10 to-cyan-500/20" />
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 via-pink-500/10 to-blue-500/20" />
           <GlassCardContent className="relative">
             <div className="flex flex-col md:flex-row md:items-center gap-6">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
-                  <Sparkles className="w-5 h-5 text-blue-500" />
-                  <h3 className="text-xl font-semibold text-gray-900">{t.dashboard.voiceAssistant}</h3>
+                  <Sparkles className="w-5 h-5 text-purple-500" />
+                  <h3 className="text-xl font-semibold text-gray-900">{chatT.title}</h3>
                 </div>
-                <p className="text-gray-600 mb-4">{t.dashboard.voiceDescription}</p>
-                <p className="text-sm text-gray-400">{t.dashboard.voiceHint}</p>
+                <p className="text-gray-600 mb-4">{chatT.description}</p>
+                <p className="text-sm text-gray-400">{chatT.hint}</p>
               </div>
               <div className="flex gap-3">
                 <Button 
                   size="lg"
-                  className="flex-1 md:flex-none px-6 py-6 rounded-2xl bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold shadow-lg shadow-blue-500/30 transition-all duration-200 hover:scale-105"
-                  onClick={() => setShowVoiceAssistant(true)}
+                  className="flex-1 md:flex-none px-6 py-6 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold shadow-lg shadow-purple-500/30 transition-all duration-200 hover:scale-105"
+                  onClick={() => setShowChatbot(true)}
                 >
-                  <Mic className="w-5 h-5 mr-2" />
-                  {t.dashboard.startVoiceInput}
+                  <MessageCircle className="w-5 h-5 mr-2" />
+                  {chatT.button}
                 </Button>
                 <Button 
                   size="lg"
@@ -114,7 +126,7 @@ export default function DashboardPage() {
                   onClick={() => setShowReceiptScanner(true)}
                 >
                   <Camera className="w-5 h-5 mr-2" />
-                  Scan Receipt
+                  {chatT.scan}
                 </Button>
               </div>
             </div>
@@ -171,10 +183,10 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Voice Assistant Modal */}
-      <VoiceAssistant 
-        isOpen={showVoiceAssistant} 
-        onClose={() => setShowVoiceAssistant(false)} 
+      {/* AI Chatbot Modal */}
+      <AIChatbot 
+        isOpen={showChatbot} 
+        onClose={() => setShowChatbot(false)} 
       />
 
       {/* Receipt Scanner Modal */}
