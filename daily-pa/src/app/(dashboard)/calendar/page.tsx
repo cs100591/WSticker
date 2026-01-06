@@ -1,27 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Header } from '@/components/layout/Header';
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useI18n } from '@/lib/i18n';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Clock, Loader2, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface CalendarEvent {
   id: string;
   title: string;
-  date: string;
-  time?: string;
+  description?: string;
+  startTime: string;
+  endTime: string;
+  allDay: boolean;
   color: string;
 }
-
-const sampleEvents: CalendarEvent[] = [
-  { id: '1', title: 'Team Meeting', date: '2026-01-06', time: '10:00', color: 'from-blue-500 to-blue-600' },
-  { id: '2', title: 'Client Demo', date: '2026-01-08', time: '14:00', color: 'from-green-500 to-emerald-600' },
-  { id: '3', title: 'Project Deadline', date: '2026-01-10', color: 'from-red-500 to-rose-600' },
-  { id: '4', title: 'Birthday Party', date: '2026-01-15', time: '19:00', color: 'from-purple-500 to-violet-600' },
-];
 
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
@@ -35,17 +31,59 @@ function formatDate(year: number, month: number, day: number) {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
+const eventColors = [
+  'from-blue-500 to-blue-600',
+  'from-green-500 to-emerald-600',
+  'from-purple-500 to-violet-600',
+  'from-orange-500 to-amber-600',
+  'from-pink-500 to-rose-600',
+  'from-cyan-500 to-teal-600',
+];
+
 export default function CalendarPage() {
   const { t } = useI18n();
   const today = new Date();
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [events] = useState<CalendarEvent[]>(sampleEvents);
+  const [selectedDate, setSelectedDate] = useState<string | null>(formatDate(today.getFullYear(), today.getMonth(), today.getDate()));
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newEvent, setNewEvent] = useState({
+    title: '',
+    description: '',
+    startTime: '09:00',
+    endTime: '10:00',
+    allDay: false,
+    color: eventColors[0],
+  });
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const firstDay = getFirstDayOfMonth(currentYear, currentMonth);
   const todayStr = formatDate(today.getFullYear(), today.getMonth(), today.getDate());
+
+  // Fetch events from API
+  const fetchEvents = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const startDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
+      const endDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${daysInMonth}`;
+      
+      const res = await fetch(`/api/calendar?start=${startDate}&end=${endDate}`);
+      if (res.ok) {
+        const data = await res.json();
+        setEvents(data.events || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch events:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentYear, currentMonth, daysInMonth]);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
 
   const prevMonth = () => {
     if (currentMonth === 0) {
@@ -71,8 +109,64 @@ export default function CalendarPage() {
     setSelectedDate(todayStr);
   };
 
-  const getEventsForDate = (dateStr: string) => events.filter((e) => e.date === dateStr);
+  const getEventsForDate = (dateStr: string) => {
+    return events.filter((e) => e.startTime.startsWith(dateStr));
+  };
+
   const selectedEvents = selectedDate ? getEventsForDate(selectedDate) : [];
+
+  const handleAddEvent = async () => {
+    if (!newEvent.title.trim() || !selectedDate) return;
+
+    try {
+      const startTime = newEvent.allDay 
+        ? `${selectedDate}T00:00:00` 
+        : `${selectedDate}T${newEvent.startTime}:00`;
+      const endTime = newEvent.allDay 
+        ? `${selectedDate}T23:59:59` 
+        : `${selectedDate}T${newEvent.endTime}:00`;
+
+      const res = await fetch('/api/calendar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newEvent.title,
+          description: newEvent.description,
+          startTime,
+          endTime,
+          allDay: newEvent.allDay,
+          color: newEvent.color,
+        }),
+      });
+
+      if (res.ok) {
+        const created = await res.json();
+        setEvents(prev => [...prev, created]);
+        setShowAddModal(false);
+        setNewEvent({
+          title: '',
+          description: '',
+          startTime: '09:00',
+          endTime: '10:00',
+          allDay: false,
+          color: eventColors[0],
+        });
+      }
+    } catch (error) {
+      console.error('Failed to create event:', error);
+    }
+  };
+
+  const handleDeleteEvent = async (id: string) => {
+    try {
+      const res = await fetch(`/api/calendar/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setEvents(prev => prev.filter(e => e.id !== id));
+      }
+    } catch (error) {
+      console.error('Failed to delete event:', error);
+    }
+  };
 
   const calendarDays = [];
   for (let i = 0; i < firstDay; i++) calendarDays.push(null);
@@ -160,9 +254,9 @@ export default function CalendarPage() {
                     </span>
                     {dayEvents.length > 0 && (
                       <div className="flex gap-0.5 mt-1">
-                        {dayEvents.slice(0, 3).map((event) => (
+                        {dayEvents.slice(0, 3).map((event, i) => (
                           <div
-                            key={event.id}
+                            key={event.id || i}
                             className={cn(
                               'w-1.5 h-1.5 rounded-full',
                               isSelected ? 'bg-white' : 'bg-gradient-to-r ' + event.color
@@ -184,25 +278,48 @@ export default function CalendarPage() {
             <GlassCardTitle>
               {selectedDate ? `${t.calendar.eventsOn} ${selectedDate}` : t.calendar.selectDate}
             </GlassCardTitle>
-            <Button size="sm" className="rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500">
+            <Button 
+              size="sm" 
+              className="rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500"
+              onClick={() => setShowAddModal(true)}
+              disabled={!selectedDate}
+            >
               <Plus className="w-4 h-4 mr-1" />
               {t.calendar.add}
             </Button>
           </GlassCardHeader>
           <GlassCardContent>
-            {selectedDate ? (
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+              </div>
+            ) : selectedDate ? (
               selectedEvents.length > 0 ? (
                 <div className="space-y-3">
                   {selectedEvents.map((event) => (
                     <div
                       key={event.id}
-                      className="flex items-center gap-4 p-4 rounded-xl bg-white/50 hover:bg-white/80 transition-colors"
+                      className="flex items-center gap-4 p-4 rounded-xl bg-white/50 hover:bg-white/80 transition-colors group"
                     >
                       <div className={cn('w-1.5 h-12 rounded-full bg-gradient-to-b', event.color)} />
                       <div className="flex-1">
                         <p className="font-medium text-gray-900">{event.title}</p>
-                        {event.time && <p className="text-sm text-gray-500">{event.time}</p>}
+                        {!event.allDay && (
+                          <p className="text-sm text-gray-500 flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {event.startTime.slice(11, 16)} - {event.endTime.slice(11, 16)}
+                          </p>
+                        )}
+                        {event.allDay && (
+                          <p className="text-sm text-gray-500">All day</p>
+                        )}
                       </div>
+                      <button
+                        onClick={() => handleDeleteEvent(event.id)}
+                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -221,24 +338,131 @@ export default function CalendarPage() {
             <GlassCardTitle>{t.calendar.upcoming}</GlassCardTitle>
           </GlassCardHeader>
           <GlassCardContent className="space-y-3">
-            {events.slice(0, 5).map((event) => (
-              <div
-                key={event.id}
-                onClick={() => setSelectedDate(event.date)}
-                className="flex items-center gap-4 p-4 rounded-xl bg-white/50 hover:bg-white/80 cursor-pointer transition-all duration-200 hover:scale-[1.01]"
-              >
-                <div className={cn('w-1.5 h-12 rounded-full bg-gradient-to-b', event.color)} />
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900">{event.title}</p>
-                  <p className="text-sm text-gray-500">
-                    {event.date} {event.time && `· ${event.time}`}
-                  </p>
+            {events.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">No upcoming events</div>
+            ) : (
+              events.slice(0, 5).map((event) => (
+                <div
+                  key={event.id}
+                  onClick={() => setSelectedDate(event.startTime.slice(0, 10))}
+                  className="flex items-center gap-4 p-4 rounded-xl bg-white/50 hover:bg-white/80 cursor-pointer transition-all duration-200 hover:scale-[1.01]"
+                >
+                  <div className={cn('w-1.5 h-12 rounded-full bg-gradient-to-b', event.color)} />
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">{event.title}</p>
+                    <p className="text-sm text-gray-500">
+                      {event.startTime.slice(0, 10)} {!event.allDay && `· ${event.startTime.slice(11, 16)}`}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </GlassCardContent>
         </GlassCard>
       </div>
+
+      {/* Add Event Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <GlassCard className="w-full max-w-md">
+            <GlassCardHeader className="flex flex-row items-center justify-between">
+              <GlassCardTitle>Add Event</GlassCardTitle>
+              <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </GlassCardHeader>
+            <GlassCardContent className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Title</label>
+                <Input
+                  placeholder="Event title"
+                  value={newEvent.title}
+                  onChange={(e) => setNewEvent(prev => ({ ...prev, title: e.target.value }))}
+                  className="h-12 rounded-xl"
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Description</label>
+                <Input
+                  placeholder="Optional description"
+                  value={newEvent.description}
+                  onChange={(e) => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
+                  className="h-12 rounded-xl"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="allDay"
+                  checked={newEvent.allDay}
+                  onChange={(e) => setNewEvent(prev => ({ ...prev, allDay: e.target.checked }))}
+                  className="w-4 h-4 rounded"
+                />
+                <label htmlFor="allDay" className="text-sm text-gray-700">All day event</label>
+              </div>
+
+              {!newEvent.allDay && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">Start Time</label>
+                    <Input
+                      type="time"
+                      value={newEvent.startTime}
+                      onChange={(e) => setNewEvent(prev => ({ ...prev, startTime: e.target.value }))}
+                      className="h-12 rounded-xl"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">End Time</label>
+                    <Input
+                      type="time"
+                      value={newEvent.endTime}
+                      onChange={(e) => setNewEvent(prev => ({ ...prev, endTime: e.target.value }))}
+                      className="h-12 rounded-xl"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Color</label>
+                <div className="flex gap-2">
+                  {eventColors.map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => setNewEvent(prev => ({ ...prev, color }))}
+                      className={cn(
+                        'w-8 h-8 rounded-full bg-gradient-to-br',
+                        color,
+                        newEvent.color === color && 'ring-2 ring-offset-2 ring-blue-500'
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 h-12 rounded-xl"
+                  onClick={() => setShowAddModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1 h-12 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500"
+                  onClick={handleAddEvent}
+                  disabled={!newEvent.title.trim()}
+                >
+                  Add Event
+                </Button>
+              </div>
+            </GlassCardContent>
+          </GlassCard>
+        </div>
+      )}
     </div>
   );
 }
