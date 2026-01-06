@@ -201,7 +201,13 @@ export function VoiceAssistant({ isOpen, onClose }: VoiceAssistantProps) {
               {/* 错误提示 */}
               {error && (
                 <div className="p-4 bg-red-50 rounded-xl text-red-600 text-sm">
-                  {error}
+                  <p>{error}</p>
+                  <button 
+                    onClick={() => setShowTextInput(true)}
+                    className="mt-2 text-blue-500 underline"
+                  >
+                    Use text input instead
+                  </button>
                 </div>
               )}
 

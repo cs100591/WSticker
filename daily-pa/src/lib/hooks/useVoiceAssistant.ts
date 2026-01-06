@@ -156,7 +156,15 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      setError(`Speech recognition error: ${event.error}`);
+      // Handle iOS-specific errors
+      const errorMessages: Record<string, string> = {
+        'service-not-allowed': 'Voice input not available on this device. Please use text input.',
+        'not-allowed': 'Microphone permission denied. Please allow microphone access or use text input.',
+        'no-speech': 'No speech detected. Please try again.',
+        'network': 'Network error. Please check your connection.',
+      };
+      const message = errorMessages[event.error] || `Speech recognition error: ${event.error}`;
+      setError(message);
       setIsListening(false);
     };
 
