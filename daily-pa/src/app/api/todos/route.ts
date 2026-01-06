@@ -103,10 +103,13 @@ export async function POST(request: NextRequest) {
 
     // 开发模式：存入内存存储
     if (isDevMode()) {
+      const dueDateStr = body.dueDate 
+        ? (typeof body.dueDate === 'string' ? body.dueDate : body.dueDate.toISOString().split('T')[0])
+        : undefined;
       const todo = addDevTodo({
         title: body.title,
         description: body.description,
-        dueDate: body.dueDate,
+        dueDate: dueDateStr,
         priority: body.priority,
         tags: body.tags,
       });
