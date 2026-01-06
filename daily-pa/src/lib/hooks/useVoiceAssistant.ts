@@ -85,11 +85,12 @@ function detectLanguage(text: string): 'zh' | 'en' {
 }
 
 // 获取浏览器语言
-function getBrowserLanguage(): VoiceLanguage {
-  if (typeof navigator === 'undefined') return 'en-US';
-  const lang = navigator.language || 'en-US';
-  if (lang.startsWith('zh')) return 'zh-CN';
-  return 'en-US';
+function getBrowserLanguage(): 'zh-CN' | 'en-US' {
+  if (typeof navigator === 'undefined') return 'zh-CN';
+  const lang = navigator.language || 'zh-CN';
+  // 默认优先中文，因为大部分用户是中文
+  if (lang.startsWith('en')) return 'en-US';
+  return 'zh-CN';
 }
 
 export function useVoiceAssistant(): UseVoiceAssistantReturn {

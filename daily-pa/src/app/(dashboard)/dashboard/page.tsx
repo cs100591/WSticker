@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Header } from '@/components/layout/Header';
 import { useI18n } from '@/lib/i18n';
 import { VoiceAssistant } from '@/components/voice/VoiceAssistant';
-import { CameraCapture } from '@/components/camera/CameraCapture';
+import { ReceiptScanner } from '@/components/camera/ReceiptScanner';
 import { CheckSquare, Calendar, DollarSign, Mic, TrendingUp, Clock, Sparkles, ArrowRight, Camera } from 'lucide-react';
 import Link from 'next/link';
 
@@ -14,14 +14,7 @@ export default function DashboardPage() {
   const { t } = useI18n();
   const displayName = 'User';
   const [showVoiceAssistant, setShowVoiceAssistant] = useState(false);
-  const [showCamera, setShowCamera] = useState(false);
-
-  const handleCameraCapture = (imageData: string) => {
-    // TODO: Process image with OCR to extract receipt data
-    console.log('Captured image:', imageData.substring(0, 100) + '...');
-    // For now, just close the camera
-    setShowCamera(false);
-  };
+  const [showReceiptScanner, setShowReceiptScanner] = useState(false);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -118,7 +111,7 @@ export default function DashboardPage() {
                   size="lg"
                   variant="outline"
                   className="flex-1 md:flex-none px-6 py-6 rounded-2xl font-semibold transition-all duration-200 hover:scale-105"
-                  onClick={() => setShowCamera(true)}
+                  onClick={() => setShowReceiptScanner(true)}
                 >
                   <Camera className="w-5 h-5 mr-2" />
                   Scan Receipt
@@ -184,12 +177,10 @@ export default function DashboardPage() {
         onClose={() => setShowVoiceAssistant(false)} 
       />
 
-      {/* Camera Modal */}
-      <CameraCapture
-        isOpen={showCamera}
-        onClose={() => setShowCamera(false)}
-        onCapture={handleCameraCapture}
-        title="Scan Receipt"
+      {/* Receipt Scanner Modal */}
+      <ReceiptScanner
+        isOpen={showReceiptScanner}
+        onClose={() => setShowReceiptScanner(false)}
       />
     </div>
   );
