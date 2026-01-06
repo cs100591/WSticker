@@ -142,14 +142,35 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
           dueDate: data.dueDate as string | undefined,
         });
       } else if (type === 'expense') {
+        const amount = typeof data.amount === 'string' ? parseFloat(data.amount) : data.amount as number;
+        const today = new Date().toISOString().split('T')[0] as string;
+        // Use AI-parsed date if available, otherwise default to today
+        const expenseDate = (data.date as string) || today;
         await createExpense({
-          amount: data.amount as number,
+          amount: amount,
           category: (data.category as ExpenseCategory) || 'other',
           description: data.description as string || '',
-          expenseDate: new Date().toISOString().split('T')[0] as string,
+          expenseDate: expenseDate,
+        });
+      } else if (type === 'calendar') {
+        // Create calendar event via API
+        const eventDate = data.date as string || new Date().toISOString().split('T')[0];
+        const startTime = data.startTime as string || '09:00';
+        const endTime = data.endTime as string || '10:00';
+        
+        await fetch('/api/calendar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: data.title as string,
+            description: data.description as string || '',
+            startTime: `${eventDate}T${startTime}:00`,
+            endTime: `${eventDate}T${endTime}:00`,
+            allDay: data.allDay || false,
+            color: 'from-blue-500 to-blue-600',
+          }),
         });
       }
-      // Calendar would be similar
 
       setMessages(prev => prev.map(m => 
         m.id === messageId 
@@ -158,6 +179,12 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
       ));
     } catch (error) {
       console.error('Action error:', error);
+      // Show error to user
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: locale === 'zh' ? '抱歉，保存失败了。请再试一次。' : 'Sorry, failed to save. Please try again.',
+      }]);
     }
   };
 
@@ -265,6 +292,17 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
                           <p>📁 {String(message.action.data.category)}</p>
                           {message.action.data.description && (
                             <p>📝 {String(message.action.data.description)}</p>
+                          )}
+                        </>
+                      )}
+                      {message.action.type === 'calendar' && (
+                        <>
+                          <p>📅 {String(message.action.data.title)}</p>
+                          {message.action.data.date && (
+                            <p>🗓️ {String(message.action.data.date)}</p>
+                          )}
+                          {message.action.data.startTime && (
+                            <p>⏰ {String(message.action.data.startTime)} - {String(message.action.data.endTime || '')}</p>
                           )}
                         </>
                       )}

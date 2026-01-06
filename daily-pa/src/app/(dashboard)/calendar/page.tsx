@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Header } from '@/components/layout/Header';
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
 import { Button } from '@/components/ui/button';
@@ -76,50 +76,60 @@ export default function CalendarPage() {
 
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
+  const currentDay = currentDate.getDate();
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const firstDay = getFirstDayOfMonth(currentYear, currentMonth);
   const todayStr = formatDate(today.getFullYear(), today.getMonth(), today.getDate());
   const weekDates = getWeekDates(currentDate);
 
-  // Fetch events from API
-  const fetchEvents = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      let startDate: string, endDate: string;
-      
-      if (viewMode === 'month') {
-        startDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
-        endDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${daysInMonth}`;
-      } else if (viewMode === 'week') {
-        const weekStart = weekDates[0];
-        const weekEnd = weekDates[6];
-        if (weekStart && weekEnd) {
+  // Use ref to track if we've already fetched for current params
+  const lastFetchKey = useRef<string>('');
+
+  // Fetch events from API - using primitive values only
+  useEffect(() => {
+    const fetchKey = `${currentYear}-${currentMonth}-${currentDay}-${viewMode}`;
+    
+    // Skip if we already fetched for these params
+    if (lastFetchKey.current === fetchKey) return;
+    lastFetchKey.current = fetchKey;
+
+    const fetchEvents = async () => {
+      setIsLoading(true);
+      try {
+        let startDate: string, endDate: string;
+        
+        if (viewMode === 'month') {
+          startDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
+          endDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${daysInMonth}`;
+        } else if (viewMode === 'week') {
+          const tempDate = new Date(currentYear, currentMonth, currentDay);
+          const day = tempDate.getDay();
+          const diff = tempDate.getDate() - day;
+          const weekStart = new Date(tempDate);
+          weekStart.setDate(diff);
+          const weekEnd = new Date(tempDate);
+          weekEnd.setDate(diff + 6);
           startDate = formatDate(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate());
           endDate = formatDate(weekEnd.getFullYear(), weekEnd.getMonth(), weekEnd.getDate());
         } else {
-          startDate = formatDate(currentYear, currentMonth, 1);
-          endDate = formatDate(currentYear, currentMonth, daysInMonth);
+          startDate = formatDate(currentYear, currentMonth, currentDay);
+          endDate = startDate;
         }
-      } else {
-        startDate = formatDate(currentYear, currentMonth, currentDate.getDate());
-        endDate = startDate;
+        
+        const res = await fetch(`/api/calendar?start=${startDate}&end=${endDate}`);
+        if (res.ok) {
+          const data = await res.json();
+          setEvents(data.events || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch events:', error);
+      } finally {
+        setIsLoading(false);
       }
-      
-      const res = await fetch(`/api/calendar?start=${startDate}&end=${endDate}`);
-      if (res.ok) {
-        const data = await res.json();
-        setEvents(data.events || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch events:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentYear, currentMonth, daysInMonth, viewMode, currentDate, weekDates]);
+    };
 
-  useEffect(() => {
     fetchEvents();
-  }, [fetchEvents]);
+  }, [currentYear, currentMonth, currentDay, daysInMonth, viewMode]);
 
   const navigate = (direction: 'prev' | 'next') => {
     const newDate = new Date(currentDate);
