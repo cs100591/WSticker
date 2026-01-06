@@ -3,6 +3,11 @@ import { createClient } from '@/lib/supabase/server';
 import { todoRowToTodo, createTodoInputToInsert, type CreateTodoInput, type TodoFilters } from '@/types/todo';
 
 async function getUserId() {
+  // 开发模式下跳过认证，返回固定的 dev user ID
+  if (process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === 'true') {
+    return 'dev-user-id';
+  }
+  
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   return user?.id;

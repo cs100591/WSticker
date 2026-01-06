@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
 async function getUserId() {
+  // 开发模式下跳过认证，返回固定的 dev user ID
+  if (process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === 'true') {
+    return 'dev-user-id';
+  }
+  
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   return user?.id;
