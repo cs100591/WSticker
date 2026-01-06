@@ -36,6 +36,7 @@ export function VoiceAssistant({ isOpen, onClose }: VoiceAssistantProps) {
   const { createExpense } = useExpenses();
   const [isCreating, setIsCreating] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [showTextInput, setShowTextInput] = useState(false);
   const [textInput, setTextInput] = useState('');
 
@@ -51,6 +52,7 @@ export function VoiceAssistant({ isOpen, onClose }: VoiceAssistantProps) {
     if (!parsedIntent || parsedIntent.type === 'unknown') return;
 
     setIsCreating(true);
+    setCreateError(null);
     try {
       if (parsedIntent.type === 'create_todo') {
         const todoInput: Parameters<typeof createTodo>[0] = {
@@ -77,8 +79,9 @@ export function VoiceAssistant({ isOpen, onClose }: VoiceAssistantProps) {
         setShowTextInput(false);
         setTextInput('');
       }, 1500);
-    } catch {
-      // Error handled
+    } catch (err) {
+      console.error('Create error:', err);
+      setCreateError(err instanceof Error ? err.message : 'Failed to save. Please run database migration in Supabase.');
     } finally {
       setIsCreating(false);
     }
@@ -240,26 +243,33 @@ export function VoiceAssistant({ isOpen, onClose }: VoiceAssistantProps) {
 
               {/* 操作按钮 */}
               {parsedIntent && parsedIntent.type !== 'unknown' && (
-                <div className="flex gap-3">
-                  <Button
-                    variant="outline"
-                    className="flex-1 h-12 rounded-xl"
-                    onClick={handleCancel}
-                    disabled={isCreating}
-                  >
-                    {t.voice?.cancel || 'Cancel'}
-                  </Button>
-                  <Button
-                    className="flex-1 h-12 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500"
-                    onClick={handleConfirm}
-                    disabled={isCreating}
-                  >
-                    {isCreating ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      t.voice?.confirm || 'Confirm'
-                    )}
-                  </Button>
+                <div className="space-y-3">
+                  {createError && (
+                    <div className="p-3 bg-red-50 rounded-xl text-red-600 text-sm">
+                      {createError}
+                    </div>
+                  )}
+                  <div className="flex gap-3">
+                    <Button
+                      variant="outline"
+                      className="flex-1 h-12 rounded-xl"
+                      onClick={handleCancel}
+                      disabled={isCreating}
+                    >
+                      {t.voice?.cancel || 'Cancel'}
+                    </Button>
+                    <Button
+                      className="flex-1 h-12 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500"
+                      onClick={handleConfirm}
+                      disabled={isCreating}
+                    >
+                      {isCreating ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        t.voice?.confirm || 'Confirm'
+                      )}
+                    </Button>
+                  </div>
                 </div>
               )}
             </>

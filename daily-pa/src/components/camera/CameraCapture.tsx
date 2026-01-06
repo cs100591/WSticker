@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Camera, X, RotateCcw, Check, Loader2 } from 'lucide-react';
+import { Camera, X, RotateCcw, Check, Loader2, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
 
@@ -15,50 +15,83 @@ interface CameraCaptureProps {
 export function CameraCapture({ isOpen, onClose, onCapture, title = 'Take Photo' }: CameraCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
-
-  const startCamera = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false,
-      });
-      setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
-    } catch (err) {
-      setError('Unable to access camera. Please check permissions.');
-      console.error('Camera error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [facingMode]);
+  const [cameraReady, setCameraReady] = useState(false);
 
   const stopCamera = useCallback(() => {
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
       setStream(null);
     }
+    setCameraReady(false);
   }, [stream]);
 
-  const switchCamera = useCallback(() => {
+  const startCamera = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    setCameraReady(false);
+    
+    // Stop existing stream first
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
+
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { 
+          facingMode, 
+          width: { ideal: 1280 }, 
+          height: { ideal: 720 } 
+        },
+        audio: false,
+      });
+      
+      setStream(mediaStream);
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+        // Wait for video to be ready
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play().then(() => {
+            setCameraReady(true);
+            setIsLoading(false);
+          }).catch(err => {
+            console.error('Video play error:', err);
+            setError('Failed to start video preview');
+            setIsLoading(false);
+          });
+        };
+      }
+    } catch (err) {
+      console.error('Camera error:', err);
+      setError('Unable to access camera. Please check permissions or use file upload.');
+      setIsLoading(false);
+    }
+  }, [facingMode, stream]);
+
+  const switchCamera = useCallback(async () => {
     stopCamera();
     setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
   }, [stopCamera]);
 
+  // Restart camera when facing mode changes
+  useEffect(() => {
+    if (isOpen && !capturedImage && !error) {
+      startCamera();
+    }
+  }, [facingMode, isOpen]);
+
   const takePhoto = useCallback(() => {
-    if (videoRef.current && canvasRef.current) {
+    if (videoRef.current && canvasRef.current && cameraReady) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.drawImage(video, 0, 0);
@@ -67,10 +100,24 @@ export function CameraCapture({ isOpen, onClose, onCapture, title = 'Take Photo'
         stopCamera();
       }
     }
+  }, [stopCamera, cameraReady]);
+
+  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const imageData = event.target?.result as string;
+        setCapturedImage(imageData);
+        stopCamera();
+      };
+      reader.readAsDataURL(file);
+    }
   }, [stopCamera]);
 
   const retake = useCallback(() => {
     setCapturedImage(null);
+    setError(null);
     startCamera();
   }, [startCamera]);
 
@@ -90,7 +137,7 @@ export function CameraCapture({ isOpen, onClose, onCapture, title = 'Take Photo'
 
   // Start camera when modal opens
   useEffect(() => {
-    if (isOpen && !stream && !capturedImage) {
+    if (isOpen && !capturedImage) {
       startCamera();
     }
     return () => {
@@ -99,6 +146,15 @@ export function CameraCapture({ isOpen, onClose, onCapture, title = 'Take Photo'
       }
     };
   }, [isOpen]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -112,17 +168,7 @@ export function CameraCapture({ isOpen, onClose, onCapture, title = 'Take Photo'
           </button>
         </GlassCardHeader>
         <GlassCardContent className="space-y-4">
-          {error ? (
-            <div className="text-center py-8">
-              <Camera className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-              <p className="text-red-500 mb-4">{error}</p>
-              <Button onClick={startCamera}>Try Again</Button>
-            </div>
-          ) : isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-            </div>
-          ) : capturedImage ? (
+          {capturedImage ? (
             <>
               <div className="relative rounded-xl overflow-hidden bg-black">
                 <img src={capturedImage} alt="Captured" className="w-full" />
@@ -138,32 +184,79 @@ export function CameraCapture({ isOpen, onClose, onCapture, title = 'Take Photo'
                 </Button>
               </div>
             </>
+          ) : error ? (
+            <div className="text-center py-8">
+              <Camera className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+              <p className="text-red-500 mb-4">{error}</p>
+              <div className="flex gap-3 justify-center">
+                <Button onClick={startCamera} variant="outline">
+                  Try Again
+                </Button>
+                <Button onClick={() => fileInputRef.current?.click()}>
+                  <ImageIcon className="w-4 h-4 mr-2" />
+                  Upload Photo
+                </Button>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </div>
           ) : (
             <>
               <div className="relative rounded-xl overflow-hidden bg-black aspect-video">
+                {isLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black">
+                    <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                  </div>
+                )}
                 <video
                   ref={videoRef}
                   autoPlay
                   playsInline
                   muted
                   className="w-full h-full object-cover"
-                  onLoadedMetadata={() => videoRef.current?.play()}
                 />
+                {!cameraReady && !isLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black text-white">
+                    <p>Starting camera...</p>
+                  </div>
+                )}
               </div>
               <canvas ref={canvasRef} className="hidden" />
-              <div className="flex gap-3 justify-center">
+              <div className="flex gap-3 justify-center items-center">
                 <Button variant="outline" size="icon" onClick={switchCamera} className="rounded-full">
                   <RotateCcw className="w-5 h-5" />
                 </Button>
                 <Button
                   size="lg"
                   onClick={takePhoto}
-                  className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500"
+                  disabled={!cameraReady}
+                  className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 disabled:opacity-50"
                 >
                   <Camera className="w-6 h-6" />
                 </Button>
-                <div className="w-10" /> {/* Spacer for alignment */}
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={() => fileInputRef.current?.click()} 
+                  className="rounded-full"
+                >
+                  <ImageIcon className="w-5 h-5" />
+                </Button>
               </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
             </>
           )}
         </GlassCardContent>
