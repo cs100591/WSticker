@@ -11,15 +11,18 @@ import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import type { ExpenseCategory } from '@/types/expense';
 
+interface ActionItem {
+  id: string;
+  type: 'todo' | 'expense' | 'calendar';
+  data: Record<string, unknown>;
+  status: 'pending' | 'confirmed' | 'cancelled';
+}
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  action?: {
-    type: 'todo' | 'expense' | 'calendar';
-    data: Record<string, unknown>;
-    status: 'pending' | 'confirmed' | 'cancelled';
-  };
+  actions?: ActionItem[];
 }
 
 interface AIChatbotProps {
@@ -42,35 +45,27 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
     title: locale === 'zh' ? '✨ AI 助手' : '✨ AI Assistant',
     placeholder: locale === 'zh' ? '告诉我你想做什么...' : 'Tell me what you want to do...',
     greeting: locale === 'zh' 
-      ? '你好！我是你的 AI 助手 👋\n\n我可以帮你：\n• 创建待办事项\n• 记录消费\n• 添加日历事件\n\n试试说："明天下午3点开会" 或 "午饭花了50块"'
-      : 'Hi! I\'m your AI assistant 👋\n\nI can help you:\n• Create todos\n• Record expenses\n• Add calendar events\n\nTry: "Meeting tomorrow at 3pm" or "Lunch $15"',
+      ? '你好！我是你的 AI 助手 👋\n\n我可以帮你：\n• 创建待办事项\n• 记录消费\n• 添加日历事件\n\n试试说："明天上午9点开会，下午3点见客户"'
+      : 'Hi! I\'m your AI assistant 👋\n\nI can help you:\n• Create todos\n• Record expenses\n• Add calendar events\n\nTry: "Meeting at 9am and lunch with client at noon tomorrow"',
     confirm: locale === 'zh' ? '确认' : 'Confirm',
     cancel: locale === 'zh' ? '取消' : 'Cancel',
+    confirmAll: locale === 'zh' ? '全部确认' : 'Confirm All',
     created: locale === 'zh' ? '已创建！' : 'Created!',
     cancelled: locale === 'zh' ? '已取消' : 'Cancelled',
   };
 
-  // Initialize with greeting
   useEffect(() => {
     if (isOpen && messages.length === 0) {
-      setMessages([{
-        id: '1',
-        role: 'assistant',
-        content: t.greeting,
-      }]);
+      setMessages([{ id: '1', role: 'assistant', content: t.greeting }]);
     }
   }, [isOpen]);
 
-  // Scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Focus input when opened
   useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
+    if (isOpen) setTimeout(() => inputRef.current?.focus(), 100);
   }, [isOpen]);
 
   const sendMessage = async () => {
@@ -98,42 +93,48 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
       });
 
       const data = await response.json();
+      
+      // Handle both single action and multiple actions
+      let actions: ActionItem[] | undefined;
+      if (data.actions && Array.isArray(data.actions)) {
+        actions = data.actions.map((a: { type: string; data: Record<string, unknown> }, i: number) => ({
+          id: `${Date.now()}-${i}`,
+          type: a.type,
+          data: a.data,
+          status: 'pending' as const,
+        }));
+      } else if (data.action && data.action.type) {
+        actions = [{
+          id: `${Date.now()}-0`,
+          type: data.action.type,
+          data: data.action.data,
+          status: 'pending' as const,
+        }];
+      }
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: data.message,
-        action: data.action ? { ...data.action, status: 'pending' } : undefined,
+        content: data.message || (locale === 'zh' ? '好的！' : 'Got it!'),
+        actions,
       };
 
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
-      const errorMessage: Message = {
+      console.error('Chat error:', error);
+      setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: locale === 'zh' ? '抱歉，出了点问题。请再试一次。' : 'Sorry, something went wrong. Please try again.',
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      }]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleAction = async (messageId: string, confirm: boolean) => {
-    const message = messages.find(m => m.id === messageId);
-    if (!message?.action) return;
-
-    if (!confirm) {
-      setMessages(prev => prev.map(m => 
-        m.id === messageId 
-          ? { ...m, action: { ...m.action!, status: 'cancelled' } }
-          : m
-      ));
-      return;
-    }
-
+  const executeAction = async (action: ActionItem): Promise<boolean> => {
     try {
-      const { type, data } = message.action;
+      const { type, data } = action;
 
       if (type === 'todo') {
         await createTodo({
@@ -144,7 +145,6 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
       } else if (type === 'expense') {
         const amount = typeof data.amount === 'string' ? parseFloat(data.amount) : data.amount as number;
         const today = new Date().toISOString().split('T')[0] as string;
-        // Use AI-parsed date if available, otherwise default to today
         const expenseDate = (data.date as string) || today;
         await createExpense({
           amount: amount,
@@ -153,12 +153,11 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
           expenseDate: expenseDate,
         });
       } else if (type === 'calendar') {
-        // Create calendar event via API
         const eventDate = data.date as string || new Date().toISOString().split('T')[0];
         const startTime = data.startTime as string || '09:00';
         const endTime = data.endTime as string || '10:00';
         
-        await fetch('/api/calendar', {
+        const res = await fetch('/api/calendar', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -170,21 +169,70 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
             color: 'from-blue-500 to-blue-600',
           }),
         });
+        if (!res.ok) throw new Error('Failed to create calendar event');
       }
-
-      setMessages(prev => prev.map(m => 
-        m.id === messageId 
-          ? { ...m, action: { ...m.action!, status: 'confirmed' } }
-          : m
-      ));
+      return true;
     } catch (error) {
       console.error('Action error:', error);
-      // Show error to user
+      return false;
+    }
+  };
+
+  const handleAction = async (messageId: string, actionId: string, confirm: boolean) => {
+    setMessages(prev => prev.map(m => {
+      if (m.id !== messageId || !m.actions) return m;
+      return {
+        ...m,
+        actions: m.actions.map(a => 
+          a.id === actionId ? { ...a, status: confirm ? 'pending' : 'cancelled' as const } : a
+        ),
+      };
+    }));
+
+    if (!confirm) return;
+
+    const message = messages.find(m => m.id === messageId);
+    const action = message?.actions?.find(a => a.id === actionId);
+    if (!action) return;
+
+    const success = await executeAction(action);
+    
+    setMessages(prev => prev.map(m => {
+      if (m.id !== messageId || !m.actions) return m;
+      return {
+        ...m,
+        actions: m.actions.map(a => 
+          a.id === actionId ? { ...a, status: success ? 'confirmed' : 'pending' as const } : a
+        ),
+      };
+    }));
+
+    if (!success) {
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
         role: 'assistant',
         content: locale === 'zh' ? '抱歉，保存失败了。请再试一次。' : 'Sorry, failed to save. Please try again.',
       }]);
+    }
+  };
+
+  const handleConfirmAll = async (messageId: string) => {
+    const message = messages.find(m => m.id === messageId);
+    if (!message?.actions) return;
+
+    const pendingActions = message.actions.filter(a => a.status === 'pending');
+    
+    for (const action of pendingActions) {
+      const success = await executeAction(action);
+      setMessages(prev => prev.map(m => {
+        if (m.id !== messageId || !m.actions) return m;
+        return {
+          ...m,
+          actions: m.actions.map(a => 
+            a.id === action.id ? { ...a, status: success ? 'confirmed' : 'pending' as const } : a
+          ),
+        };
+      }));
     }
   };
 
@@ -200,19 +248,66 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
   const getActionLabel = (type: string) => {
     if (locale === 'zh') {
       switch (type) {
-        case 'todo': return '待办事项';
-        case 'expense': return '消费记录';
-        case 'calendar': return '日历事件';
+        case 'todo': return '待办';
+        case 'expense': return '消费';
+        case 'calendar': return '日历';
         default: return '操作';
       }
     }
-    switch (type) {
-      case 'todo': return 'Todo';
-      case 'expense': return 'Expense';
-      case 'calendar': return 'Calendar Event';
-      default: return 'Action';
-    }
+    return type.charAt(0).toUpperCase() + type.slice(1);
   };
+
+  const renderActionCard = (action: ActionItem, messageId: string) => (
+    <div
+      key={action.id}
+      className={cn(
+        'rounded-xl p-3 border',
+        action.status === 'confirmed' ? 'bg-green-50 border-green-200' :
+        action.status === 'cancelled' ? 'bg-gray-50 border-gray-200 opacity-50' :
+        'bg-blue-50 border-blue-200'
+      )}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        {getActionIcon(action.type)}
+        <span className="text-sm font-medium">{getActionLabel(action.type)}</span>
+        {action.status === 'confirmed' && <Check className="w-4 h-4 text-green-500 ml-auto" />}
+      </div>
+
+      <div className="text-sm text-gray-600 space-y-1">
+        {action.type === 'todo' && (
+          <>
+            <p>📝 {String(action.data.title)}</p>
+            {action.data.dueDate && <p>📅 {String(action.data.dueDate)}</p>}
+          </>
+        )}
+        {action.type === 'expense' && (
+          <>
+            <p>💰 ¥{String(action.data.amount)}</p>
+            <p>📁 {String(action.data.category)}</p>
+            {action.data.description && <p>📝 {String(action.data.description)}</p>}
+          </>
+        )}
+        {action.type === 'calendar' && (
+          <>
+            <p>📅 {String(action.data.title)}</p>
+            {action.data.date && <p>🗓️ {String(action.data.date)}</p>}
+            {action.data.startTime && <p>⏰ {String(action.data.startTime)} - {String(action.data.endTime || '')}</p>}
+          </>
+        )}
+      </div>
+
+      {action.status === 'pending' && (
+        <div className="flex gap-2 mt-3">
+          <Button size="sm" variant="outline" className="flex-1 h-8 rounded-lg"
+            onClick={() => handleAction(messageId, action.id, false)}>{t.cancel}</Button>
+          <Button size="sm" className="flex-1 h-8 rounded-lg bg-blue-500"
+            onClick={() => handleAction(messageId, action.id, true)}>{t.confirm}</Button>
+        </div>
+      )}
+      {action.status === 'confirmed' && <p className="text-green-600 text-sm mt-2">{t.created}</p>}
+      {action.status === 'cancelled' && <p className="text-gray-500 text-sm mt-2">{t.cancelled}</p>}
+    </div>
+  );
 
   if (!isOpen) return null;
 
@@ -231,108 +326,34 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
 
         <GlassCardContent className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.map((message) => (
-            <div
-              key={message.id}
-              className={cn(
-                'flex gap-3',
-                message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-              )}
-            >
+            <div key={message.id} className={cn('flex gap-3', message.role === 'user' ? 'flex-row-reverse' : 'flex-row')}>
               <div className={cn(
                 'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0',
-                message.role === 'user' 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gradient-to-br from-purple-500 to-pink-500 text-white'
+                message.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gradient-to-br from-purple-500 to-pink-500 text-white'
               )}>
                 {message.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
               </div>
 
-              <div className={cn(
-                'max-w-[80%] space-y-2',
-                message.role === 'user' ? 'items-end' : 'items-start'
-              )}>
+              <div className={cn('max-w-[80%] space-y-2', message.role === 'user' ? 'items-end' : 'items-start')}>
                 <div className={cn(
                   'rounded-2xl px-4 py-2 whitespace-pre-wrap',
-                  message.role === 'user'
-                    ? 'bg-blue-500 text-white rounded-br-md'
-                    : 'bg-white/80 text-gray-800 rounded-bl-md shadow-sm'
+                  message.role === 'user' ? 'bg-blue-500 text-white rounded-br-md' : 'bg-white/80 text-gray-800 rounded-bl-md shadow-sm'
                 )}>
                   {message.content}
                 </div>
 
-                {message.action && (
-                  <div className={cn(
-                    'rounded-xl p-3 border',
-                    message.action.status === 'confirmed' 
-                      ? 'bg-green-50 border-green-200'
-                      : message.action.status === 'cancelled'
-                      ? 'bg-gray-50 border-gray-200 opacity-50'
-                      : 'bg-blue-50 border-blue-200'
-                  )}>
-                    <div className="flex items-center gap-2 mb-2">
-                      {getActionIcon(message.action.type)}
-                      <span className="text-sm font-medium">{getActionLabel(message.action.type)}</span>
-                      {message.action.status === 'confirmed' && (
-                        <Check className="w-4 h-4 text-green-500 ml-auto" />
-                      )}
-                    </div>
-
-                    <div className="text-sm text-gray-600 space-y-1">
-                      {message.action.type === 'todo' && (
-                        <>
-                          <p>📝 {String(message.action.data.title)}</p>
-                          {message.action.data.dueDate && (
-                            <p>📅 {String(message.action.data.dueDate)}</p>
-                          )}
-                        </>
-                      )}
-                      {message.action.type === 'expense' && (
-                        <>
-                          <p>💰 ${String(message.action.data.amount)}</p>
-                          <p>📁 {String(message.action.data.category)}</p>
-                          {message.action.data.description && (
-                            <p>📝 {String(message.action.data.description)}</p>
-                          )}
-                        </>
-                      )}
-                      {message.action.type === 'calendar' && (
-                        <>
-                          <p>📅 {String(message.action.data.title)}</p>
-                          {message.action.data.date && (
-                            <p>🗓️ {String(message.action.data.date)}</p>
-                          )}
-                          {message.action.data.startTime && (
-                            <p>⏰ {String(message.action.data.startTime)} - {String(message.action.data.endTime || '')}</p>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    {message.action.status === 'pending' && (
-                      <div className="flex gap-2 mt-3">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 h-8 rounded-lg"
-                          onClick={() => handleAction(message.id, false)}
-                        >
-                          {t.cancel}
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="flex-1 h-8 rounded-lg bg-blue-500"
-                          onClick={() => handleAction(message.id, true)}
-                        >
-                          {t.confirm}
-                        </Button>
-                      </div>
-                    )}
-
-                    {message.action.status === 'confirmed' && (
-                      <p className="text-green-600 text-sm mt-2">{t.created}</p>
-                    )}
-                    {message.action.status === 'cancelled' && (
-                      <p className="text-gray-500 text-sm mt-2">{t.cancelled}</p>
+                {message.actions && message.actions.length > 0 && (
+                  <div className="space-y-2">
+                    {message.actions.map(action => renderActionCard(action, message.id))}
+                    
+                    {message.actions.filter(a => a.status === 'pending').length > 1 && (
+                      <Button
+                        size="sm"
+                        className="w-full h-10 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500"
+                        onClick={() => handleConfirmAll(message.id)}
+                      >
+                        {t.confirmAll} ({message.actions.filter(a => a.status === 'pending').length})
+                      </Button>
                     )}
                   </div>
                 )}
@@ -350,7 +371,6 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
               </div>
             </div>
           )}
-
           <div ref={messagesEndRef} />
         </GlassCardContent>
 
