@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Camera, X, RotateCcw, Check, Loader2, ImageIcon, DollarSign } from 'lucide-react';
+import { Camera, X, RotateCcw, Check, Loader2, ImageIcon, DollarSign, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
@@ -38,6 +38,8 @@ export function ReceiptScanner({ isOpen, onClose }: ReceiptScannerProps) {
   const [showForm, setShowForm] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
+  const [quickDescription, setQuickDescription] = useState('');
 
   // Form state
   const [amount, setAmount] = useState('');
@@ -102,6 +104,33 @@ export function ReceiptScanner({ isOpen, onClose }: ReceiptScannerProps) {
     }
   }, [facingMode, isOpen]);
 
+  // AI parse description
+  const parseDescription = async (desc: string) => {
+    if (!desc.trim()) return;
+    
+    setIsParsing(true);
+    try {
+      const response = await fetch('/api/voice/parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: desc }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.type === 'create_expense' && result.data) {
+          if (result.data.amount) setAmount(result.data.amount.toString());
+          if (result.data.category) setCategory(result.data.category as ExpenseCategory);
+          if (result.data.description) setDescription(result.data.description);
+        }
+      }
+    } catch (err) {
+      console.error('Parse error:', err);
+    } finally {
+      setIsParsing(false);
+    }
+  };
+
   const takePhoto = useCallback(() => {
     if (videoRef.current && canvasRef.current && cameraReady) {
       const video = videoRef.current;
@@ -139,6 +168,7 @@ export function ReceiptScanner({ isOpen, onClose }: ReceiptScannerProps) {
     setError(null);
     setAmount('');
     setDescription('');
+    setQuickDescription('');
     startCamera();
   }, [startCamera]);
 
@@ -176,6 +206,7 @@ export function ReceiptScanner({ isOpen, onClose }: ReceiptScannerProps) {
     setSuccess(false);
     setAmount('');
     setDescription('');
+    setQuickDescription('');
     setCategory('food');
     onClose();
   }, [stopCamera, onClose]);
@@ -223,9 +254,37 @@ export function ReceiptScanner({ isOpen, onClose }: ReceiptScannerProps) {
               {/* Show captured image */}
               {capturedImage && (
                 <div className="relative rounded-xl overflow-hidden bg-black">
-                  <img src={capturedImage} alt="Receipt" className="w-full max-h-48 object-contain" />
+                  <img src={capturedImage} alt="Receipt" className="w-full max-h-40 object-contain" />
                 </div>
               )}
+
+              {/* AI Quick Parse */}
+              <div className="p-3 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="w-4 h-4 text-blue-500" />
+                  <span className="text-sm font-medium text-blue-700">AI Auto-fill</span>
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Describe: 'lunch $15' or '午饭50块'"
+                    value={quickDescription}
+                    onChange={(e) => setQuickDescription(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && parseDescription(quickDescription)}
+                    className="flex-1 h-10 rounded-lg text-sm"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => parseDescription(quickDescription)}
+                    disabled={isParsing || !quickDescription.trim()}
+                    className="h-10 px-3 rounded-lg bg-blue-500"
+                  >
+                    {isParsing ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Parse'}
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Type what you see on the receipt, AI will fill the form
+                </p>
+              </div>
 
               {/* Expense form */}
               <div className="space-y-4">
@@ -239,7 +298,6 @@ export function ReceiptScanner({ isOpen, onClose }: ReceiptScannerProps) {
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
                       className="h-12 pl-10 rounded-xl text-lg"
-                      autoFocus
                     />
                   </div>
                 </div>
@@ -337,7 +395,7 @@ export function ReceiptScanner({ isOpen, onClose }: ReceiptScannerProps) {
               </div>
               <canvas ref={canvasRef} className="hidden" />
               <p className="text-center text-sm text-gray-500">
-                Take a photo of your receipt, then enter the amount
+                Take a photo of your receipt
               </p>
               <div className="flex gap-3 justify-center items-center">
                 <Button variant="outline" size="icon" onClick={switchCamera} className="rounded-full">
