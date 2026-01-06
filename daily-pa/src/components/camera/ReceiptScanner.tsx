@@ -115,6 +115,7 @@ export function ReceiptScanner({ isOpen, onClose }: ReceiptScannerProps) {
       // 动态导入 Tesseract.js
       const Tesseract = await import('tesseract.js');
       
+      // 使用更好的 OCR 设置
       const result = await Tesseract.recognize(
         imageData,
         'chi_sim+eng', // 中文简体 + 英文
@@ -133,10 +134,14 @@ export function ReceiptScanner({ isOpen, onClose }: ReceiptScannerProps) {
       // 用 AI 解析 OCR 结果
       if (text.trim()) {
         await parseOcrResult(text);
+      } else {
+        // OCR 没有识别到文字，提示用户手动输入
+        setError('未能识别收据内容，请手动输入金额');
       }
     } catch (err) {
       console.error('OCR error:', err);
-      // OCR 失败不显示错误，用户可以手动输入
+      // OCR 失败提示用户手动输入
+      setError('识别失败，请手动输入金额');
     } finally {
       setIsScanning(false);
       setScanProgress(0);
@@ -316,6 +321,15 @@ export function ReceiptScanner({ isOpen, onClose }: ReceiptScannerProps) {
                     <span className="text-sm font-medium text-gray-700">AI 识别结果</span>
                   </div>
                   <p className="text-xs text-gray-500 line-clamp-3">{ocrText}</p>
+                </div>
+              )}
+
+              {/* 快捷输入提示 */}
+              {!isScanning && !amount && (
+                <div className="p-3 bg-blue-50 rounded-xl">
+                  <p className="text-sm text-blue-600">
+                    💡 如果识别不准确，可以直接在下方输入金额
+                  </p>
                 </div>
               )}
 

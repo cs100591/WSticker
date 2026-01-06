@@ -75,22 +75,6 @@ function detectLanguage(text: string): 'zh' | 'en' {
   return 'en';
 }
 
-// 获取浏览器首选语言
-function getBrowserLanguage(): string {
-  if (typeof navigator === 'undefined') return 'zh-CN';
-  const lang = navigator.language || 'zh-CN';
-  return lang;
-}
-
-// 多语言识别列表（按优先级）
-const RECOGNITION_LANGUAGES = [
-  'zh-CN',  // 中文简体
-  'en-US',  // 英语
-  'zh-TW',  // 中文繁体
-  'ja-JP',  // 日语
-  'ko-KR',  // 韩语
-];
-
 export function useVoiceAssistant(): UseVoiceAssistantReturn {
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -139,14 +123,10 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
     }
   }, []);
 
-  // 智能获取识别语言 - 优先使用浏览器语言，然后尝试其他语言
+  // 智能获取识别语言 - 默认使用中文，因为 AI 可以处理拼音
   const getRecognitionLanguage = useCallback((): string => {
-    const browserLang = getBrowserLanguage();
-    // 如果浏览器语言在支持列表中，优先使用
-    if (RECOGNITION_LANGUAGES.some(lang => browserLang.startsWith(lang.split('-')[0] || ''))) {
-      return browserLang;
-    }
-    // 否则使用中文作为默认
+    // 强制使用中文识别，即使识别成拼音，AI 也能理解
+    // 这样可以避免中英文切换的问题
     return 'zh-CN';
   }, []);
 
