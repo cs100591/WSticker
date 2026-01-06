@@ -16,6 +16,8 @@ interface ParsedIntent {
   originalText: string;
 }
 
+type VoiceLanguage = 'auto' | 'zh-CN' | 'en-US';
+
 interface UseVoiceAssistantReturn {
   isListening: boolean;
   isProcessing: boolean;
@@ -23,6 +25,8 @@ interface UseVoiceAssistantReturn {
   error: string | null;
   parsedIntent: ParsedIntent | null;
   isSupported: boolean;
+  language: VoiceLanguage;
+  setLanguage: (lang: VoiceLanguage) => void;
   startListening: () => void;
   stopListening: () => void;
   reset: () => void;
@@ -66,6 +70,28 @@ interface SpeechRecognitionInstance {
   stop: () => void;
 }
 
+// 检测文本语言
+function detectLanguage(text: string): 'zh' | 'en' {
+  // 检测是否包含中文字符
+  const chineseRegex = /[\u4e00-\u9fa5]/;
+  const hasChineseChars = chineseRegex.test(text);
+  
+  // 如果包含中文字符，认为是中文
+  if (hasChineseChars) {
+    return 'zh';
+  }
+  
+  return 'en';
+}
+
+// 获取浏览器语言
+function getBrowserLanguage(): VoiceLanguage {
+  if (typeof navigator === 'undefined') return 'en-US';
+  const lang = navigator.language || 'en-US';
+  if (lang.startsWith('zh')) return 'zh-CN';
+  return 'en-US';
+}
+
 export function useVoiceAssistant(): UseVoiceAssistantReturn {
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -73,6 +99,7 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
   const [error, setError] = useState<string | null>(null);
   const [parsedIntent, setParsedIntent] = useState<ParsedIntent | null>(null);
   const [isSupported, setIsSupported] = useState(false);
+  const [language, setLanguage] = useState<VoiceLanguage>('auto');
   
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const finalTranscriptRef = useRef('');
@@ -92,10 +119,13 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
     setError(null);
     
     try {
+      // 检测语言用于 API 解析
+      const detectedLang = detectLanguage(text);
+      
       const response = await fetch('/api/voice/parse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, language: detectedLang }),
       });
 
       if (!response.ok) {
@@ -111,6 +141,14 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
     }
   }, []);
 
+  // 获取实际使用的语言
+  const getRecognitionLanguage = useCallback((): string => {
+    if (language === 'auto') {
+      return getBrowserLanguage();
+    }
+    return language;
+  }, [language]);
+
   // 开始监听
   const startListening = useCallback(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -124,7 +162,7 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
     const recognition = new SpeechRecognition() as SpeechRecognitionInstance;
     recognition.continuous = false;
     recognition.interimResults = true;
-    recognition.lang = 'zh-CN'; // 支持中文
+    recognition.lang = getRecognitionLanguage();
 
     recognition.onstart = () => {
       setIsListening(true);
@@ -178,7 +216,7 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
 
     recognitionRef.current = recognition;
     recognition.start();
-  }, [parseIntent]);
+  }, [parseIntent, getRecognitionLanguage]);
 
   // 停止监听
   const stopListening = useCallback(() => {
@@ -209,6 +247,8 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
     error,
     parsedIntent,
     isSupported,
+    language,
+    setLanguage,
     startListening,
     stopListening,
     reset,

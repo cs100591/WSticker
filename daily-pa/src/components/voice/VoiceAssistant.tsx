@@ -26,6 +26,8 @@ export function VoiceAssistant({ isOpen, onClose }: VoiceAssistantProps) {
     error,
     parsedIntent,
     isSupported,
+    language,
+    setLanguage,
     startListening,
     stopListening,
     reset,
@@ -39,6 +41,12 @@ export function VoiceAssistant({ isOpen, onClose }: VoiceAssistantProps) {
   const [createError, setCreateError] = useState<string | null>(null);
   const [showTextInput, setShowTextInput] = useState(false);
   const [textInput, setTextInput] = useState('');
+
+  const languageOptions = [
+    { value: 'auto', label: 'Auto' },
+    { value: 'zh-CN', label: '中文' },
+    { value: 'en-US', label: 'English' },
+  ] as const;
 
   if (!isOpen) return null;
 
@@ -183,6 +191,24 @@ export function VoiceAssistant({ isOpen, onClose }: VoiceAssistantProps) {
                   ? t.voice?.processing || 'Processing...'
                   : t.voice?.tapToSpeak || 'Tap to speak'}
               </p>
+
+              {/* 语言选择 */}
+              <div className="flex justify-center gap-2">
+                {languageOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setLanguage(opt.value)}
+                    className={cn(
+                      'px-3 py-1 rounded-full text-xs font-medium transition-all',
+                      language === opt.value
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
 
               {/* 切换到文字输入 */}
               <button

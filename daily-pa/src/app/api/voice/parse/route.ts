@@ -22,45 +22,53 @@ interface ParsedIntent {
   originalText: string;
 }
 
-const SYSTEM_PROMPT = `你是一个智能助手，负责解析用户的语音输入并提取意图。
+const SYSTEM_PROMPT = `You are a smart assistant that parses voice input and extracts user intent.
+You understand both Chinese (中文) and English.
 
-用户可能想要：
-1. 创建待办事项 (create_todo) - 例如："提醒我明天开会"、"添加任务买牛奶"
-2. 记录消费 (create_expense) - 例如："花了50块吃午饭"、"打车花了30元"
+The user may want to:
+1. Create a todo (create_todo) - Examples: "提醒我明天开会", "remind me to buy milk", "添加任务买牛奶", "add task meeting tomorrow"
+2. Record an expense (create_expense) - Examples: "花了50块吃午饭", "spent $30 on lunch", "打车花了30元", "taxi cost 15 dollars"
 
-请分析用户输入，返回 JSON 格式：
+Analyze the user input and return JSON format:
 {
   "type": "create_todo" | "create_expense" | "unknown",
   "confidence": 0.0-1.0,
   "data": {
-    // 如果是 create_todo:
-    "title": "任务标题",
+    // For create_todo:
+    "title": "task title (in the same language as input)",
     "priority": "low" | "medium" | "high",
-    "dueDate": "YYYY-MM-DD 或 null",
+    "dueDate": "YYYY-MM-DD or null",
     
-    // 如果是 create_expense:
-    "amount": 数字,
+    // For create_expense:
+    "amount": number,
     "category": "food" | "transport" | "shopping" | "entertainment" | "bills" | "health" | "education" | "other",
-    "description": "消费描述"
+    "description": "expense description (in the same language as input)"
   }
 }
 
-分类规则：
-- food: 餐饮、吃饭、外卖、咖啡、饮料
-- transport: 打车、地铁、公交、加油、停车
-- shopping: 购物、买东西、超市
-- entertainment: 电影、游戏、娱乐
-- bills: 水电费、话费、房租
-- health: 医疗、药品、看病
-- education: 书籍、课程、培训
-- other: 其他
+Category rules:
+- food: 餐饮、吃饭、外卖、咖啡、lunch, dinner, coffee, food
+- transport: 打车、地铁、公交、加油、taxi, uber, bus, gas
+- shopping: 购物、买东西、超市、shopping, store, amazon
+- entertainment: 电影、游戏、娱乐、movie, game, netflix
+- bills: 水电费、话费、房租、rent, utilities, phone bill
+- health: 医疗、药品、看病、doctor, medicine, pharmacy
+- education: 书籍、课程、培训、books, course, training
+- other: 其他、other
 
-优先级规则：
-- high: 包含"紧急"、"重要"、"马上"等词
-- low: 包含"有空"、"不急"等词
-- medium: 默认
+Priority rules:
+- high: 紧急、重要、马上、urgent, important, asap
+- low: 有空、不急、when free, not urgent
+- medium: default
 
-只返回 JSON，不要其他文字。`;
+Date parsing:
+- 明天/tomorrow → tomorrow's date
+- 后天/day after tomorrow → date + 2 days
+- 下周一/next Monday → next Monday's date
+- 今天/today → today's date
+
+IMPORTANT: Keep the title/description in the SAME LANGUAGE as the user's input.
+Only return JSON, no other text.`;
 
 export async function POST(request: NextRequest) {
   try {
@@ -74,6 +82,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Text is required' }, { status: 400 });
     }
 
+    // 添加当前日期信息帮助解析相对日期
+    const today = new Date();
+    const dateContext = `Today is ${today.toISOString().split('T')[0]} (${today.toLocaleDateString('en-US', { weekday: 'long' })}).`;
+
     const response = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -84,7 +96,7 @@ export async function POST(request: NextRequest) {
         model: 'deepseek-chat',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: text },
+          { role: 'user', content: `${dateContext}\n\nUser input: ${text}` },
         ],
         temperature: 0.1,
         max_tokens: 500,
