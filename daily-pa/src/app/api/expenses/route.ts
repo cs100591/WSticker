@@ -88,11 +88,6 @@ export async function GET(request: NextRequest) {
 // POST /api/expenses - 创建消费记录
 export async function POST(request: NextRequest) {
   try {
-    const userId = await getUserId();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const body: CreateExpenseInput = await request.json();
     
     if (!body.amount || body.amount <= 0) {
@@ -100,6 +95,30 @@ export async function POST(request: NextRequest) {
     }
     if (!body.category) {
       return NextResponse.json({ error: 'Category is required' }, { status: 400 });
+    }
+
+    // 开发模式下返回模拟数据（因为数据库有外键约束需要真实用户）
+    if (process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === 'true') {
+      const mockId = `dev-${Date.now()}`;
+      const today = new Date().toISOString().split('T')[0];
+      console.log('[DEV MODE] Mock expense created:', body.amount, body.category);
+      return NextResponse.json({
+        id: mockId,
+        amount: body.amount,
+        currency: body.currency || 'CNY',
+        category: body.category,
+        description: body.description || null,
+        expenseDate: body.expenseDate || today,
+        receiptUrl: body.receiptUrl || null,
+        tags: body.tags || [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }, { status: 201 });
+    }
+
+    const userId = await getUserId();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const supabase = await createClient();

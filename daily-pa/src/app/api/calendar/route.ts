@@ -66,18 +66,39 @@ export async function GET(request: NextRequest) {
 // POST /api/calendar - 创建日历事件
 export async function POST(request: NextRequest) {
   try {
-    const userId = await getUserId();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const body = await request.json();
     
     if (!body.title?.trim()) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
     }
 
+    // 开发模式下返回模拟数据（因为数据库有外键约束需要真实用户）
+    if (process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === 'true') {
+      const mockId = `dev-${Date.now()}`;
+      console.log('[DEV MODE] Mock calendar event created:', body.title);
+      return NextResponse.json({
+        id: mockId,
+        title: body.title,
+        description: body.description || null,
+        startTime: body.startTime,
+        endTime: body.endTime,
+        allDay: body.allDay || false,
+        color: '#3B82F6',
+      }, { status: 201 });
+    }
+
+    const userId = await getUserId();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const supabase = await createClient();
+
+    // color 字段在数据库中是 VARCHAR(7)，只能存 hex 颜色如 #3B82F6
+    let colorValue = body.color || null;
+    if (colorValue && colorValue.length > 7) {
+      colorValue = '#3B82F6';
+    }
 
     const { data, error } = await supabase
       .from('calendar_events')
@@ -88,7 +109,7 @@ export async function POST(request: NextRequest) {
         start_time: body.startTime,
         end_time: body.endTime,
         all_day: body.allDay || false,
-        color: body.color || 'from-blue-500 to-blue-600',
+        color: colorValue,
         source: 'manual',
       })
       .select()

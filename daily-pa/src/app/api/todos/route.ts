@@ -84,15 +84,32 @@ export async function GET(request: NextRequest) {
 // POST /api/todos - 创建待办事项
 export async function POST(request: NextRequest) {
   try {
-    const userId = await getUserId();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const body: CreateTodoInput = await request.json();
     
     if (!body.title?.trim()) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
+    }
+
+    // 开发模式下返回模拟数据（因为数据库有外键约束需要真实用户）
+    if (process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === 'true') {
+      const mockId = `dev-${Date.now()}`;
+      console.log('[DEV MODE] Mock todo created:', body.title);
+      return NextResponse.json({
+        id: mockId,
+        title: body.title,
+        description: body.description || null,
+        dueDate: body.dueDate || null,
+        priority: body.priority || 'medium',
+        status: 'active',
+        tags: body.tags || [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }, { status: 201 });
+    }
+
+    const userId = await getUserId();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const supabase = await createClient();
