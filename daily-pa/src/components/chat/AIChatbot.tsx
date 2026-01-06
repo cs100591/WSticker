@@ -5,8 +5,6 @@ import { X, Send, Loader2, Bot, User, Check, Calendar, ListTodo, Receipt, Sparkl
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
-import { useTodos } from '@/lib/hooks/useTodos';
-import { useExpenses } from '@/lib/hooks/useExpenses';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import type { ExpenseCategory } from '@/types/expense';
@@ -37,9 +35,6 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const { createTodo } = useTodos();
-  const { createExpense } = useExpenses();
 
   const t = {
     title: locale === 'zh' ? '✨ AI 助手' : '✨ AI Assistant',
@@ -132,26 +127,43 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
     }
   };
 
-  const executeAction = async (action: ActionItem): Promise<boolean> => {
+  const executeAction = async (action: ActionItem): Promise<{ success: boolean; error?: string }> => {
     try {
       const { type, data } = action;
 
       if (type === 'todo') {
-        await createTodo({
-          title: data.title as string,
-          priority: (data.priority as 'low' | 'medium' | 'high') || 'medium',
-          dueDate: data.dueDate as string | undefined,
+        const res = await fetch('/api/todos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: data.title as string,
+            priority: (data.priority as 'low' | 'medium' | 'high') || 'medium',
+            dueDate: data.dueDate as string | undefined,
+          }),
         });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Failed to create todo');
+        }
       } else if (type === 'expense') {
         const amount = typeof data.amount === 'string' ? parseFloat(data.amount) : data.amount as number;
         const today = new Date().toISOString().split('T')[0] as string;
         const expenseDate = (data.date as string) || today;
-        await createExpense({
-          amount: amount,
-          category: (data.category as ExpenseCategory) || 'other',
-          description: data.description as string || '',
-          expenseDate: expenseDate,
+        
+        const res = await fetch('/api/expenses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: amount,
+            category: (data.category as ExpenseCategory) || 'other',
+            description: data.description as string || '',
+            expenseDate: expenseDate,
+          }),
         });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Failed to create expense');
+        }
       } else if (type === 'calendar') {
         const eventDate = data.date as string || new Date().toISOString().split('T')[0];
         const startTime = data.startTime as string || '09:00';
@@ -169,49 +181,55 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
             color: 'from-blue-500 to-blue-600',
           }),
         });
-        if (!res.ok) throw new Error('Failed to create calendar event');
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Failed to create calendar event');
+        }
       }
-      return true;
+      return { success: true };
     } catch (error) {
       console.error('Action error:', error);
-      return false;
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   };
 
   const handleAction = async (messageId: string, actionId: string, confirm: boolean) => {
-    setMessages(prev => prev.map(m => {
-      if (m.id !== messageId || !m.actions) return m;
-      return {
-        ...m,
-        actions: m.actions.map(a => 
-          a.id === actionId ? { ...a, status: confirm ? 'pending' : 'cancelled' as const } : a
-        ),
-      };
-    }));
-
-    if (!confirm) return;
+    if (!confirm) {
+      setMessages(prev => prev.map(m => {
+        if (m.id !== messageId || !m.actions) return m;
+        return {
+          ...m,
+          actions: m.actions.map(a => 
+            a.id === actionId ? { ...a, status: 'cancelled' as const } : a
+          ),
+        };
+      }));
+      return;
+    }
 
     const message = messages.find(m => m.id === messageId);
     const action = message?.actions?.find(a => a.id === actionId);
     if (!action) return;
 
-    const success = await executeAction(action);
+    const result = await executeAction(action);
     
     setMessages(prev => prev.map(m => {
       if (m.id !== messageId || !m.actions) return m;
       return {
         ...m,
         actions: m.actions.map(a => 
-          a.id === actionId ? { ...a, status: success ? 'confirmed' : 'pending' as const } : a
+          a.id === actionId ? { ...a, status: result.success ? 'confirmed' : 'pending' as const } : a
         ),
       };
     }));
 
-    if (!success) {
+    if (!result.success) {
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
         role: 'assistant',
-        content: locale === 'zh' ? '抱歉，保存失败了。请再试一次。' : 'Sorry, failed to save. Please try again.',
+        content: locale === 'zh' 
+          ? `抱歉，保存失败：${result.error || '未知错误'}` 
+          : `Sorry, failed to save: ${result.error || 'Unknown error'}`,
       }]);
     }
   };
@@ -221,18 +239,32 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
     if (!message?.actions) return;
 
     const pendingActions = message.actions.filter(a => a.status === 'pending');
+    const errors: string[] = [];
     
     for (const action of pendingActions) {
-      const success = await executeAction(action);
+      const result = await executeAction(action);
       setMessages(prev => prev.map(m => {
         if (m.id !== messageId || !m.actions) return m;
         return {
           ...m,
           actions: m.actions.map(a => 
-            a.id === action.id ? { ...a, status: success ? 'confirmed' : 'pending' as const } : a
+            a.id === action.id ? { ...a, status: result.success ? 'confirmed' : 'pending' as const } : a
           ),
         };
       }));
+      if (!result.success && result.error) {
+        errors.push(result.error);
+      }
+    }
+
+    if (errors.length > 0) {
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: locale === 'zh' 
+          ? `部分保存失败：${errors[0]}` 
+          : `Some items failed to save: ${errors[0]}`,
+      }]);
     }
   };
 
