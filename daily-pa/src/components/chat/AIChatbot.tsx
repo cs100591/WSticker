@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { X, Send, Loader2, Bot, User, Check, Calendar, ListTodo, Receipt, Sparkles } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { X, Send, Loader2, Bot, User, Check, Calendar, ListTodo, Receipt, Sparkles, Camera, ImageIcon, RotateCcw, Scan } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
@@ -36,18 +36,198 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Camera states
+  const [showCamera, setShowCamera] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanResult, setScanResult] = useState<{ amount?: number; category?: string; description?: string } | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const categories: { value: ExpenseCategory; label: string; emoji: string }[] = locale === 'zh' 
+    ? [
+        { value: 'food', label: '餐饮', emoji: '🍔' },
+        { value: 'transport', label: '交通', emoji: '🚗' },
+        { value: 'shopping', label: '购物', emoji: '🛍️' },
+        { value: 'entertainment', label: '娱乐', emoji: '🎬' },
+        { value: 'bills', label: '账单', emoji: '📄' },
+        { value: 'health', label: '医疗', emoji: '💊' },
+        { value: 'education', label: '教育', emoji: '📚' },
+        { value: 'other', label: '其他', emoji: '📦' },
+      ]
+    : [
+        { value: 'food', label: 'Food', emoji: '🍔' },
+        { value: 'transport', label: 'Transport', emoji: '🚗' },
+        { value: 'shopping', label: 'Shopping', emoji: '🛍️' },
+        { value: 'entertainment', label: 'Fun', emoji: '🎬' },
+        { value: 'bills', label: 'Bills', emoji: '📄' },
+        { value: 'health', label: 'Health', emoji: '💊' },
+        { value: 'education', label: 'Education', emoji: '📚' },
+        { value: 'other', label: 'Other', emoji: '📦' },
+      ];
+
   const t = {
     title: locale === 'zh' ? '✨ AI 助手' : '✨ AI Assistant',
     placeholder: locale === 'zh' ? '告诉我你想做什么...' : 'Tell me what you want to do...',
     greeting: locale === 'zh' 
-      ? '你好！我是你的 AI 助手 👋\n\n我可以帮你：\n• 创建待办事项\n• 记录消费\n• 添加日历事件\n\n试试说："明天上午9点开会，下午3点见客户"'
-      : 'Hi! I\'m your AI assistant 👋\n\nI can help you:\n• Create todos\n• Record expenses\n• Add calendar events\n\nTry: "Meeting at 9am and lunch with client at noon tomorrow"',
+      ? '你好！我是你的 AI 助手 👋\n\n我可以帮你：\n• 创建待办事项\n• 记录消费\n• 添加日历事件\n• 📸 扫描收据\n\n试试说："明天上午9点开会，下午3点见客户"'
+      : 'Hi! I\'m your AI assistant 👋\n\nI can help you:\n• Create todos\n• Record expenses\n• Add calendar events\n• 📸 Scan receipts\n\nTry: "Meeting at 9am and lunch with client at noon tomorrow"',
     confirm: locale === 'zh' ? '确认' : 'Confirm',
     cancel: locale === 'zh' ? '取消' : 'Cancel',
     confirmAll: locale === 'zh' ? '全部确认' : 'Confirm All',
     created: locale === 'zh' ? '已创建！' : 'Created!',
     cancelled: locale === 'zh' ? '已取消' : 'Cancelled',
+    scanReceipt: locale === 'zh' ? '扫描收据' : 'Scan Receipt',
+    scanning: locale === 'zh' ? 'AI 正在识别...' : 'AI scanning...',
+    retake: locale === 'zh' ? '重拍' : 'Retake',
+    amount: locale === 'zh' ? '金额' : 'Amount',
+    category: locale === 'zh' ? '分类' : 'Category',
+    description: locale === 'zh' ? '描述' : 'Description',
+    save: locale === 'zh' ? '保存' : 'Save',
   };
+
+  // Camera functions
+  const stopCamera = useCallback(() => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setCameraReady(false);
+  }, [stream]);
+
+  const startCamera = useCallback(async () => {
+    setCameraReady(false);
+    if (stream) stream.getTracks().forEach(track => track.stop());
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+      setStream(mediaStream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play().then(() => setCameraReady(true)).catch(() => {});
+        };
+      }
+    } catch {
+      // Camera not available
+    }
+  }, [stream]);
+
+  const openCamera = () => {
+    setShowCamera(true);
+    setCapturedImage(null);
+    setScanResult(null);
+    setTimeout(() => startCamera(), 100);
+  };
+
+  const closeCamera = () => {
+    stopCamera();
+    setShowCamera(false);
+    setCapturedImage(null);
+    setScanResult(null);
+  };
+
+  const scanImage = async (imageData: string) => {
+    setIsScanning(true);
+    try {
+      const response = await fetch('/api/ocr/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: imageData, language: locale }),
+      });
+      const result = await response.json();
+      if (result.success && result.data) {
+        setScanResult({
+          amount: result.data.amount,
+          category: result.data.category,
+          description: result.data.description,
+        });
+      }
+    } catch {
+      // Scan failed
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const takePhoto = useCallback(() => {
+    if (videoRef.current && canvasRef.current && cameraReady) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth || 1280;
+      canvas.height = video.videoHeight || 720;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0);
+        const imageData = canvas.toDataURL('image/jpeg', 0.9);
+        setCapturedImage(imageData);
+        stopCamera();
+        scanImage(imageData);
+      }
+    }
+  }, [stopCamera, cameraReady]);
+
+  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const imageData = event.target?.result as string;
+        setCapturedImage(imageData);
+        stopCamera();
+        setShowCamera(true);
+        scanImage(imageData);
+      };
+      reader.readAsDataURL(file);
+    }
+  }, [stopCamera]);
+
+  const saveScannedExpense = async () => {
+    if (!scanResult?.amount) return;
+    
+    const action: ActionItem = {
+      id: `scan-${Date.now()}`,
+      type: 'expense',
+      data: {
+        amount: scanResult.amount,
+        category: scanResult.category || 'other',
+        description: scanResult.description || 'Receipt',
+        date: new Date().toISOString().split('T')[0],
+      },
+      status: 'pending',
+    };
+
+    const result = await executeAction(action);
+    
+    if (result.success) {
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: locale === 'zh' 
+          ? `✅ 已保存收据消费：¥${scanResult.amount} (${scanResult.category || 'other'})`
+          : `✅ Receipt saved: ¥${scanResult.amount} (${scanResult.category || 'other'})`,
+      }]);
+      closeCamera();
+    } else {
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: locale === 'zh' ? `❌ 保存失败：${result.error}` : `❌ Save failed: ${result.error}`,
+      }]);
+    }
+  };
+
+  // Cleanup camera on unmount
+  useEffect(() => {
+    return () => {
+      if (stream) stream.getTracks().forEach(track => track.stop());
+    };
+  }, []);
 
   useEffect(() => {
     if (isOpen && messages.length === 0) {
@@ -407,24 +587,107 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
         </GlassCardContent>
 
         <div className="p-4 border-t border-white/10">
-          <div className="flex gap-2">
-            <Input
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-              placeholder={t.placeholder}
-              className="flex-1 h-12 rounded-xl bg-white/50"
-              disabled={isLoading}
-            />
-            <Button
-              onClick={sendMessage}
-              disabled={isLoading || !input.trim()}
-              className="h-12 w-12 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500"
-            >
-              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-            </Button>
-          </div>
+          {showCamera ? (
+            <div className="space-y-3">
+              {capturedImage ? (
+                <>
+                  <div className="relative rounded-xl overflow-hidden bg-black">
+                    <img src={capturedImage} alt="Receipt" className="w-full max-h-48 object-contain" />
+                    {isScanning && (
+                      <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center">
+                        <Scan className="w-8 h-8 text-blue-400 animate-pulse mb-2" />
+                        <p className="text-white text-sm">{t.scanning}</p>
+                      </div>
+                    )}
+                  </div>
+                  {scanResult && !isScanning && (
+                    <div className="p-3 bg-green-50 rounded-xl space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-green-500" />
+                        <span className="text-sm font-medium">AI 识别结果</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-sm">
+                        <div className="bg-white rounded-lg p-2 text-center">
+                          <p className="text-gray-500 text-xs">{t.amount}</p>
+                          <p className="font-bold text-green-600">¥{scanResult.amount}</p>
+                        </div>
+                        <div className="bg-white rounded-lg p-2 text-center">
+                          <p className="text-gray-500 text-xs">{t.category}</p>
+                          <p className="font-medium">{categories.find(c => c.value === scanResult.category)?.emoji} {scanResult.category}</p>
+                        </div>
+                        <div className="bg-white rounded-lg p-2 text-center">
+                          <p className="text-gray-500 text-xs">{t.description}</p>
+                          <p className="font-medium truncate">{scanResult.description || '-'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="flex-1 h-10 rounded-xl" onClick={() => { setCapturedImage(null); setScanResult(null); startCamera(); }}>
+                      <RotateCcw className="w-4 h-4 mr-2" />{t.retake}
+                    </Button>
+                    <Button className="flex-1 h-10 rounded-xl bg-green-500" onClick={saveScannedExpense} disabled={isScanning || !scanResult?.amount}>
+                      <Check className="w-4 h-4 mr-2" />{t.save}
+                    </Button>
+                  </div>
+                  <Button variant="ghost" className="w-full h-8 text-gray-500" onClick={closeCamera}>
+                    <X className="w-4 h-4 mr-1" />{t.cancel}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <div className="relative rounded-xl overflow-hidden bg-black aspect-video">
+                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                    {!cameraReady && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                      </div>
+                    )}
+                  </div>
+                  <canvas ref={canvasRef} className="hidden" />
+                  <div className="flex gap-2 justify-center">
+                    <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} className="rounded-full h-12 w-12">
+                      <ImageIcon className="w-5 h-5" />
+                    </Button>
+                    <Button size="lg" onClick={takePhoto} disabled={!cameraReady} className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500">
+                      <Camera className="w-6 h-6" />
+                    </Button>
+                    <Button variant="outline" size="icon" onClick={closeCamera} className="rounded-full h-12 w-12">
+                      <X className="w-5 h-5" />
+                    </Button>
+                  </div>
+                  <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileUpload} className="hidden" />
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={openCamera}
+                className="h-12 w-12 rounded-xl"
+                title={t.scanReceipt}
+              >
+                <Camera className="w-5 h-5" />
+              </Button>
+              <Input
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+                placeholder={t.placeholder}
+                className="flex-1 h-12 rounded-xl bg-white/50"
+                disabled={isLoading}
+              />
+              <Button
+                onClick={sendMessage}
+                disabled={isLoading || !input.trim()}
+                className="h-12 w-12 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500"
+              >
+                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+              </Button>
+            </div>
+          )}
         </div>
       </GlassCard>
     </div>
