@@ -71,14 +71,14 @@ export default function ProfilePage() {
     {
       title: t.profile.preferences,
       items: [
-        { icon: Bell, label: t.profile.notifications, description: t.profile.notificationsDesc, color: 'purple', href: null },
-        { icon: Moon, label: t.profile.appearance, description: t.profile.lightMode, color: 'indigo', href: null },
+        { icon: Bell, label: t.profile.notifications, description: t.profile.notificationsDesc, color: 'purple', href: '/profile/notifications' },
+        { icon: Moon, label: t.profile.appearance, description: t.profile.lightMode, color: 'indigo', href: '/profile/appearance' },
       ],
     },
     {
       title: t.profile.other,
       items: [
-        { icon: Smartphone, label: t.profile.devices, description: t.profile.devicesDesc, color: 'gray', href: null },
+        { icon: Smartphone, label: t.profile.devices, description: t.profile.devicesDesc, color: 'gray', href: '/profile/devices' },
       ],
     },
   ];
@@ -197,7 +197,7 @@ export default function ProfilePage() {
                 ) : (
                   <button
                     key={item.label}
-                    className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-white/50 transition-all duration-200 opacity-50 cursor-not-allowed"
+                    className="w-full flex items-center gap-4 p-4 rounded-xl transition-all duration-200 opacity-50 cursor-not-allowed"
                     disabled
                   >
                     {content}
