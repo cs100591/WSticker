@@ -32,11 +32,11 @@ export function Sidebar() {
 
   return (
     <aside className="hidden md:flex md:w-72 md:flex-col md:fixed md:inset-y-0 glass-sidebar">
-      {/* Logo */}
+      {/* Logo - outline style */}
       <div className="flex items-center h-20 px-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
-            <Sparkles className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-xl border-2 border-blue-500 flex items-center justify-center">
+            <Sparkles className="w-5 h-5 text-blue-500" strokeWidth={1.5} />
           </div>
           <div>
             <span className="text-xl font-bold text-gradient">CLASP</span>
@@ -62,7 +62,7 @@ export function Sidebar() {
                   : 'text-gray-600 hover:bg-white/50 hover:text-gray-900'
               )}
             >
-              <Icon className={cn('w-5 h-5', isActive && 'text-blue-500')} />
+              <Icon className={cn('w-5 h-5', isActive && 'text-blue-500')} strokeWidth={1.5} />
               {item.label}
               {isActive && (
                 <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-500" />
@@ -89,7 +89,7 @@ export function Sidebar() {
                   : 'text-gray-600 hover:bg-white/50 hover:text-gray-900'
               )}
             >
-              <Icon className="w-5 h-5" />
+              <Icon className="w-5 h-5" strokeWidth={1.5} />
               {item.label}
             </Link>
           );

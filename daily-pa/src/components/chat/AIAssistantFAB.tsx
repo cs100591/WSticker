@@ -32,9 +32,9 @@ export function AIAssistantFAB({ onClick, isOpen }: AIAssistantFABProps) {
         isOpen ? 'rotate-90' : 'rotate-0'
       )}>
         {isOpen ? (
-          <X className="w-6 h-6 text-gray-600" />
+          <X className="w-6 h-6 text-gray-600" strokeWidth={1.5} />
         ) : (
-          <Sparkles className="w-6 h-6 text-blue-500" />
+          <Sparkles className="w-6 h-6 text-blue-500" strokeWidth={1.5} />
         )}
       </div>
     </button>

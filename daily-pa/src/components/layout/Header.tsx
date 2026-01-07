@@ -20,25 +20,26 @@ export function Header({ title, showHomeButton = true }: HeaderProps) {
           </h1>
         )}
 
-        {/* Right actions */}
+        {/* Right actions - outline style */}
         <div className="flex items-center gap-3 ml-auto">
-          {/* Home button - mobile only */}
+          {/* Home button - mobile only, outline style */}
           {showHomeButton && (
             <Link href="/dashboard" className="md:hidden">
               <Button
                 size="icon"
-                className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 hover:from-blue-600 hover:to-cyan-500 text-white border-0 shadow-lg shadow-blue-500/30 transition-all duration-200 hover:scale-105"
+                variant="outline"
+                className="w-10 h-10 rounded-full border-2 border-blue-500 text-blue-500 bg-transparent hover:bg-blue-50 transition-all duration-200"
               >
-                <Home className="w-5 h-5" />
+                <Home className="w-5 h-5" strokeWidth={1.5} />
               </Button>
             </Link>
           )}
           <Button 
             variant="ghost" 
             size="icon" 
-            className="w-10 h-10 rounded-full text-gray-500 hover:bg-white/50"
+            className="w-10 h-10 rounded-full text-gray-400 hover:bg-white/50"
           >
-            <Bell className="w-5 h-5" />
+            <Bell className="w-5 h-5" strokeWidth={1.5} />
           </Button>
         </div>
       </div>

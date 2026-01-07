@@ -26,7 +26,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Quick Stats */}
+        {/* Quick Stats - Outline Icons */}
         <div className="grid gap-4 md:grid-cols-3">
           <Link href="/todos" className="group">
             <GlassCard className="h-full group-hover:scale-[1.02] transition-transform duration-200">
@@ -37,8 +37,8 @@ export default function DashboardPage() {
                     <p className="text-4xl font-bold text-gray-900 mt-2">0</p>
                     <p className="text-sm text-gray-400 mt-1">0 {t.dashboard.completed}</p>
                   </div>
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
-                    <CheckSquare className="w-7 h-7 text-white" />
+                  <div className="w-14 h-14 rounded-2xl border-2 border-blue-500 flex items-center justify-center">
+                    <CheckSquare className="w-7 h-7 text-blue-500" strokeWidth={1.5} />
                   </div>
                 </div>
               </GlassCardContent>
@@ -54,8 +54,8 @@ export default function DashboardPage() {
                     <p className="text-4xl font-bold text-gray-900 mt-2">0</p>
                     <p className="text-sm text-gray-400 mt-1">{t.dashboard.noUpcomingEvents}</p>
                   </div>
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/30">
-                    <Calendar className="w-7 h-7 text-white" />
+                  <div className="w-14 h-14 rounded-2xl border-2 border-green-500 flex items-center justify-center">
+                    <Calendar className="w-7 h-7 text-green-500" strokeWidth={1.5} />
                   </div>
                 </div>
               </GlassCardContent>
@@ -71,8 +71,8 @@ export default function DashboardPage() {
                     <p className="text-4xl font-bold text-gray-900 mt-2">$0</p>
                     <p className="text-sm text-gray-400 mt-1">{t.dashboard.vsLastMonth} --</p>
                   </div>
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-lg shadow-orange-500/30">
-                    <DollarSign className="w-7 h-7 text-white" />
+                  <div className="w-14 h-14 rounded-2xl border-2 border-orange-500 flex items-center justify-center">
+                    <DollarSign className="w-7 h-7 text-orange-500" strokeWidth={1.5} />
                   </div>
                 </div>
               </GlassCardContent>
@@ -85,20 +85,20 @@ export default function DashboardPage() {
           <GlassCard>
             <GlassCardHeader>
               <GlassCardTitle className="flex items-center gap-2">
-                <Clock className="w-5 h-5 text-blue-500" />
+                <Clock className="w-5 h-5 text-blue-500" strokeWidth={1.5} />
                 {t.dashboard.recentTasks}
               </GlassCardTitle>
             </GlassCardHeader>
             <GlassCardContent>
               <div className="text-center py-8">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-100 flex items-center justify-center">
-                  <CheckSquare className="w-8 h-8 text-gray-300" />
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl border-2 border-gray-200 flex items-center justify-center">
+                  <CheckSquare className="w-8 h-8 text-gray-300" strokeWidth={1.5} />
                 </div>
                 <p className="text-gray-500 mb-4">{t.dashboard.noTasksYet}</p>
                 <Link href="/todos">
                   <Button variant="outline" className="rounded-xl">
                     {t.dashboard.addTask}
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                    <ArrowRight className="w-4 h-4 ml-2" strokeWidth={1.5} />
                   </Button>
                 </Link>
               </div>
@@ -108,20 +108,20 @@ export default function DashboardPage() {
           <GlassCard>
             <GlassCardHeader>
               <GlassCardTitle className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-green-500" />
+                <TrendingUp className="w-5 h-5 text-green-500" strokeWidth={1.5} />
                 {t.dashboard.recentExpenses}
               </GlassCardTitle>
             </GlassCardHeader>
             <GlassCardContent>
               <div className="text-center py-8">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-100 flex items-center justify-center">
-                  <DollarSign className="w-8 h-8 text-gray-300" />
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl border-2 border-gray-200 flex items-center justify-center">
+                  <DollarSign className="w-8 h-8 text-gray-300" strokeWidth={1.5} />
                 </div>
                 <p className="text-gray-500 mb-4">{t.dashboard.noExpensesYet}</p>
                 <Link href="/expenses">
                   <Button variant="outline" className="rounded-xl">
                     {t.dashboard.addExpense}
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                    <ArrowRight className="w-4 h-4 ml-2" strokeWidth={1.5} />
                   </Button>
                 </Link>
               </div>
