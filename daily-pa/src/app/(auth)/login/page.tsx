@@ -12,13 +12,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { loginSchema, type LoginInput } from '@/lib/validations/auth';
-import { signIn, signInWithGoogle, signInWithApple } from '@/lib/auth/actions';
+import { signIn, signInWithGoogle } from '@/lib/auth/actions';
 
 export default function LoginPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [isAppleLoading, setIsAppleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -62,6 +61,11 @@ export default function LoginPage() {
     }
   };
 
+  // Apple Sign In - Temporarily disabled, code kept for future use
+  // Uncomment the state and handler below when ready to enable Apple login
+  /*
+  const [isAppleLoading, setIsAppleLoading] = useState(false);
+  
   const handleAppleSignIn = async () => {
     setIsAppleLoading(true);
     setError(null);
@@ -78,6 +82,7 @@ export default function LoginPage() {
       window.location.href = result.url;
     }
   };
+  */
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">

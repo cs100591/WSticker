@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { todoRowToTodo, type UpdateTodoInput } from '@/types/todo';
-import { isDevMode, getDevTodos, updateDevTodo, deleteDevTodo } from '@/lib/dev-store';
+import { isDevMode, updateDevTodo, deleteDevTodo } from '@/lib/dev-store';
 
 async function getUserId() {
   if (isDevMode()) {

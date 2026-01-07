@@ -131,25 +131,28 @@ export default function ExpensesPage() {
               <div className="grid grid-cols-3 gap-3">
                 {categoryStats.map((cat) => {
                   const Icon = categoryIcons[cat.id as keyof typeof categoryIcons];
-                  const gradient = categoryGradients[cat.id as keyof typeof categoryGradients];
+                  const getBorderColor = (id: string) => {
+                    switch (id) {
+                      case 'food': return 'border-orange-500';
+                      case 'shopping': return 'border-pink-500';
+                      case 'transport': return 'border-blue-500';
+                      case 'entertainment': return 'border-purple-500';
+                      default: return 'border-gray-400';
+                    }
+                  };
+                  const getTextColor = (id: string) => {
+                    switch (id) {
+                      case 'food': return 'text-orange-500';
+                      case 'shopping': return 'text-pink-500';
+                      case 'transport': return 'text-blue-500';
+                      case 'entertainment': return 'text-purple-500';
+                      default: return 'text-gray-400';
+                    }
+                  };
                   return (
                     <div key={cat.id} className="flex flex-col items-center p-4 rounded-xl bg-white/50 hover:bg-white/80 transition-colors">
-                      <div className={cn('w-12 h-12 rounded-xl border-2 flex items-center justify-center', 
-                        cat.id === 'food' ? 'border-orange-500' :
-                        cat.id === 'shopping' ? 'border-pink-500' :
-                        cat.id === 'transport' ? 'border-blue-500' :
-                        cat.id === 'housing' ? 'border-green-500' :
-                        cat.id === 'entertainment' ? 'border-purple-500' :
-                        'border-gray-400'
-                      )}>
-                        <Icon className={cn('w-6 h-6',
-                          cat.id === 'food' ? 'text-orange-500' :
-                          cat.id === 'shopping' ? 'text-pink-500' :
-                          cat.id === 'transport' ? 'text-blue-500' :
-                          cat.id === 'housing' ? 'text-green-500' :
-                          cat.id === 'entertainment' ? 'text-purple-500' :
-                          'text-gray-400'
-                        )} strokeWidth={1.5} />
+                      <div className={cn('w-12 h-12 rounded-xl border-2 flex items-center justify-center', getBorderColor(cat.id))}>
+                        <Icon className={cn('w-6 h-6', getTextColor(cat.id))} strokeWidth={1.5} />
                       </div>
                       <p className="text-xs text-gray-500 mt-2">{cat.label}</p>
                       <p className="font-bold text-gray-900">${cat.total}</p>
@@ -195,8 +198,25 @@ export default function ExpensesPage() {
                 <div className="grid grid-cols-3 gap-2">
                   {categories.map((cat) => {
                     const Icon = categoryIcons[cat.id as keyof typeof categoryIcons];
-                    const gradient = categoryGradients[cat.id as keyof typeof categoryGradients];
                     const isSelected = newExpense.category === cat.id;
+                    const getBorderColor = (id: string) => {
+                      switch (id) {
+                        case 'food': return 'border-orange-500';
+                        case 'shopping': return 'border-pink-500';
+                        case 'transport': return 'border-blue-500';
+                        case 'entertainment': return 'border-purple-500';
+                        default: return 'border-gray-400';
+                      }
+                    };
+                    const getTextColor = (id: string) => {
+                      switch (id) {
+                        case 'food': return 'text-orange-500';
+                        case 'shopping': return 'text-pink-500';
+                        case 'transport': return 'text-blue-500';
+                        case 'entertainment': return 'text-purple-500';
+                        default: return 'text-gray-400';
+                      }
+                    };
                     return (
                       <button
                         key={cat.id}
@@ -206,22 +226,8 @@ export default function ExpensesPage() {
                           isSelected ? 'border-blue-500 bg-blue-50 scale-105' : 'border-white/30 bg-white/30 hover:bg-white/50'
                         )}
                       >
-                        <div className={cn('w-10 h-10 rounded-xl border-2 flex items-center justify-center',
-                          cat.id === 'food' ? 'border-orange-500' :
-                          cat.id === 'shopping' ? 'border-pink-500' :
-                          cat.id === 'transport' ? 'border-blue-500' :
-                          cat.id === 'housing' ? 'border-green-500' :
-                          cat.id === 'entertainment' ? 'border-purple-500' :
-                          'border-gray-400'
-                        )}>
-                          <Icon className={cn('w-5 h-5',
-                            cat.id === 'food' ? 'text-orange-500' :
-                            cat.id === 'shopping' ? 'text-pink-500' :
-                            cat.id === 'transport' ? 'text-blue-500' :
-                            cat.id === 'housing' ? 'text-green-500' :
-                            cat.id === 'entertainment' ? 'text-purple-500' :
-                            'text-gray-400'
-                          )} strokeWidth={1.5} />
+                        <div className={cn('w-10 h-10 rounded-xl border-2 flex items-center justify-center', getBorderColor(cat.id))}>
+                          <Icon className={cn('w-5 h-5', getTextColor(cat.id))} strokeWidth={1.5} />
                         </div>
                         <span className="text-xs mt-2 font-medium">{cat.label}</span>
                       </button>
@@ -272,28 +278,32 @@ export default function ExpensesPage() {
                   <p className="text-sm font-medium text-gray-400 mb-2">{date}</p>
                   <div className="space-y-2">
                     {(groupedExpenses[date] ?? []).map((expense) => {
-                      const { label, Icon, gradient } = getCategoryInfo(expense.category);
+                      const { label, Icon } = getCategoryInfo(expense.category);
+                      const getBorderColor = (cat: string) => {
+                        switch (cat) {
+                          case 'food': return 'border-orange-500';
+                          case 'shopping': return 'border-pink-500';
+                          case 'transport': return 'border-blue-500';
+                          case 'entertainment': return 'border-purple-500';
+                          default: return 'border-gray-400';
+                        }
+                      };
+                      const getTextColor = (cat: string) => {
+                        switch (cat) {
+                          case 'food': return 'text-orange-500';
+                          case 'shopping': return 'text-pink-500';
+                          case 'transport': return 'text-blue-500';
+                          case 'entertainment': return 'text-purple-500';
+                          default: return 'text-gray-400';
+                        }
+                      };
                       return (
                         <div
                           key={expense.id}
                           className="flex items-center gap-4 p-4 rounded-xl bg-white/50 hover:bg-white/80 transition-all duration-200"
                         >
-                          <div className={cn('w-12 h-12 rounded-xl border-2 flex items-center justify-center',
-                            expense.category === 'food' ? 'border-orange-500' :
-                            expense.category === 'shopping' ? 'border-pink-500' :
-                            expense.category === 'transport' ? 'border-blue-500' :
-                            expense.category === 'housing' ? 'border-green-500' :
-                            expense.category === 'entertainment' ? 'border-purple-500' :
-                            'border-gray-400'
-                          )}>
-                            <Icon className={cn('w-6 h-6',
-                              expense.category === 'food' ? 'text-orange-500' :
-                              expense.category === 'shopping' ? 'text-pink-500' :
-                              expense.category === 'transport' ? 'text-blue-500' :
-                              expense.category === 'housing' ? 'text-green-500' :
-                              expense.category === 'entertainment' ? 'text-purple-500' :
-                              'text-gray-400'
-                            )} strokeWidth={1.5} />
+                          <div className={cn('w-12 h-12 rounded-xl border-2 flex items-center justify-center', getBorderColor(expense.category))}>
+                            <Icon className={cn('w-6 h-6', getTextColor(expense.category))} strokeWidth={1.5} />
                           </div>
                           <div className="flex-1">
                             <p className="font-medium text-gray-900">{expense.description}</p>

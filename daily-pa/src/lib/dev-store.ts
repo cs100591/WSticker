@@ -98,13 +98,23 @@ export function updateDevTodo(id: string, updates: Partial<Todo>): Todo | null {
   const index = devStore.todos.findIndex(t => t.id === id);
   if (index === -1) return null;
   
-  devStore.todos[index] = {
-    ...devStore.todos[index],
-    ...updates,
+  const existingTodo = devStore.todos[index];
+  if (!existingTodo) return null;
+  
+  const updatedTodo: Todo = {
+    id: existingTodo.id,
+    title: updates.title ?? existingTodo.title,
+    description: updates.description !== undefined ? updates.description : existingTodo.description,
+    dueDate: updates.dueDate !== undefined ? updates.dueDate : existingTodo.dueDate,
+    priority: updates.priority ?? existingTodo.priority,
+    status: updates.status ?? existingTodo.status,
+    tags: updates.tags ?? existingTodo.tags,
+    createdAt: existingTodo.createdAt,
     updatedAt: new Date().toISOString(),
   };
+  devStore.todos[index] = updatedTodo;
   console.log('[DEV STORE] Todo updated:', id);
-  return devStore.todos[index];
+  return updatedTodo;
 }
 
 export function deleteDevTodo(id: string): boolean {

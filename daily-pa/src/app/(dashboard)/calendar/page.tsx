@@ -71,7 +71,7 @@ export default function CalendarPage() {
     startTime: '09:00',
     endTime: '10:00',
     allDay: false,
-    color: eventColors[0].gradient,
+    color: eventColors[0]?.gradient || 'from-blue-500 to-blue-600',
   });
 
   const currentYear = currentDate.getFullYear();
@@ -196,7 +196,7 @@ export default function CalendarPage() {
           startTime: '09:00',
           endTime: '10:00',
           allDay: false,
-          color: eventColors[0].gradient,
+          color: eventColors[0]?.gradient || 'from-blue-500 to-blue-600',
         });
       }
     } catch (error) {
