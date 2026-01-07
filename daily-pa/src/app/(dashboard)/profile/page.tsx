@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Header } from '@/components/layout/Header';
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
 import { Button } from '@/components/ui/button';
@@ -62,22 +63,22 @@ export default function ProfilePage() {
     {
       title: t.profile.account,
       items: [
-        { icon: User, label: t.profile.profileLabel, description: t.profile.profileDesc, color: 'blue' },
-        { icon: Mail, label: t.profile.email, description: 'dev@example.com', color: 'green' },
-        { icon: Shield, label: t.profile.security, description: t.profile.securityDesc, color: 'orange' },
+        { icon: User, label: t.profile.profileLabel, description: t.profile.profileDesc, color: 'blue', href: '/profile/edit' },
+        { icon: Mail, label: t.profile.email, description: user?.email || 'Loading...', color: 'green', href: null },
+        { icon: Shield, label: t.profile.security, description: t.profile.securityDesc, color: 'orange', href: '/profile/security' },
       ],
     },
     {
       title: t.profile.preferences,
       items: [
-        { icon: Bell, label: t.profile.notifications, description: t.profile.notificationsDesc, color: 'purple' },
-        { icon: Moon, label: t.profile.appearance, description: t.profile.lightMode, color: 'indigo' },
+        { icon: Bell, label: t.profile.notifications, description: t.profile.notificationsDesc, color: 'purple', href: null },
+        { icon: Moon, label: t.profile.appearance, description: t.profile.lightMode, color: 'indigo', href: null },
       ],
     },
     {
       title: t.profile.other,
       items: [
-        { icon: Smartphone, label: t.profile.devices, description: t.profile.devicesDesc, color: 'gray' },
+        { icon: Smartphone, label: t.profile.devices, description: t.profile.devicesDesc, color: 'gray', href: null },
       ],
     },
   ];
@@ -174,11 +175,8 @@ export default function ProfilePage() {
             <GlassCardContent className="space-y-2">
               {group.items.map((item) => {
                 const Icon = item.icon;
-                return (
-                  <button
-                    key={item.label}
-                    className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-white/50 transition-all duration-200"
-                  >
+                const content = (
+                  <>
                     <div className={cn('w-12 h-12 rounded-xl border-2 flex items-center justify-center', colorMap[item.color])}>
                       <Icon className="w-6 h-6" strokeWidth={1.5} />
                     </div>
@@ -186,7 +184,23 @@ export default function ProfilePage() {
                       <p className="font-medium text-gray-900">{item.label}</p>
                       <p className="text-sm text-gray-500">{item.description}</p>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-400" strokeWidth={1.5} />
+                    {item.href && <ChevronRight className="w-5 h-5 text-gray-400" strokeWidth={1.5} />}
+                  </>
+                );
+
+                return item.href ? (
+                  <Link key={item.label} href={item.href}>
+                    <button className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-white/50 transition-all duration-200">
+                      {content}
+                    </button>
+                  </Link>
+                ) : (
+                  <button
+                    key={item.label}
+                    className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-white/50 transition-all duration-200 opacity-50 cursor-not-allowed"
+                    disabled
+                  >
+                    {content}
                   </button>
                 );
               })}

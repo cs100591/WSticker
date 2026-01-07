@@ -35,12 +35,29 @@ interface Expense {
 
 export default function DashboardPage() {
   const { t } = useI18n();
-  const displayName = 'User';
+  const [displayName, setDisplayName] = useState('User');
   
   const [todos, setTodos] = useState<Todo[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch user profile and data on mount
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const res = await fetch('/api/user/profile');
+        if (res.ok) {
+          const data = await res.json();
+          setDisplayName(data.fullName || data.email?.split('@')[0] || 'User');
+        }
+      } catch (error) {
+        console.error('Failed to fetch user profile:', error);
+      }
+    };
+    
+    fetchUserProfile();
+  }, []);
 
   // Fetch data on mount
   useEffect(() => {

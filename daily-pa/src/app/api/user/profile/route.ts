@@ -30,3 +30,41 @@ export async function GET() {
     );
   }
 }
+
+export async function PATCH(request: Request) {
+  try {
+    const supabase = await createClient();
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const { fullName } = body;
+
+    // Update user metadata
+    const { error: updateError } = await supabase.auth.updateUser({
+      data: { full_name: fullName }
+    });
+
+    if (updateError) {
+      return NextResponse.json(
+        { error: updateError.message },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
