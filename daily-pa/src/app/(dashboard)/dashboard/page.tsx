@@ -6,27 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Header } from '@/components/layout/Header';
 import { useI18n } from '@/lib/i18n';
 import { AIChatbot } from '@/components/chat/AIChatbot';
-import { ReceiptScanner } from '@/components/camera/ReceiptScanner';
-import { CheckSquare, Calendar, DollarSign, MessageCircle, TrendingUp, Clock, Sparkles, ArrowRight, Camera } from 'lucide-react';
+import { AIAssistantFAB } from '@/components/chat/AIAssistantFAB';
+import { CheckSquare, Calendar, DollarSign, TrendingUp, Clock, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DashboardPage() {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const displayName = 'User';
   const [showChatbot, setShowChatbot] = useState(false);
-  const [showReceiptScanner, setShowReceiptScanner] = useState(false);
-
-  const chatT = {
-    title: locale === 'zh' ? 'AI 助手' : 'AI Assistant',
-    description: locale === 'zh' 
-      ? '用自然语言告诉我你想做什么，我会帮你创建待办、记录消费或安排日程。'
-      : 'Tell me what you want to do in natural language. I\'ll help you create todos, record expenses, or schedule events.',
-    hint: locale === 'zh'
-      ? '试试说："明天下午3点开会" 或 "午饭花了50块"'
-      : 'Try: "Meeting tomorrow at 3pm" or "Lunch $15"',
-    button: locale === 'zh' ? '开始对话' : 'Start Chat',
-    scan: locale === 'zh' ? '扫描收据' : 'Scan Receipt',
-  };
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -97,42 +84,6 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {/* AI Chatbot Card */}
-        <GlassCard className="overflow-hidden relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 via-pink-500/10 to-blue-500/20" />
-          <GlassCardContent className="relative">
-            <div className="flex flex-col md:flex-row md:items-center gap-6">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <Sparkles className="w-5 h-5 text-purple-500" />
-                  <h3 className="text-xl font-semibold text-gray-900">{chatT.title}</h3>
-                </div>
-                <p className="text-gray-600 mb-4">{chatT.description}</p>
-                <p className="text-sm text-gray-400">{chatT.hint}</p>
-              </div>
-              <div className="flex gap-3">
-                <Button 
-                  size="lg"
-                  className="flex-1 md:flex-none px-6 py-6 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold shadow-lg shadow-purple-500/30 transition-all duration-200 hover:scale-105"
-                  onClick={() => setShowChatbot(true)}
-                >
-                  <MessageCircle className="w-5 h-5 mr-2" />
-                  {chatT.button}
-                </Button>
-                <Button 
-                  size="lg"
-                  variant="outline"
-                  className="flex-1 md:flex-none px-6 py-6 rounded-2xl font-semibold transition-all duration-200 hover:scale-105"
-                  onClick={() => setShowReceiptScanner(true)}
-                >
-                  <Camera className="w-5 h-5 mr-2" />
-                  {chatT.scan}
-                </Button>
-              </div>
-            </div>
-          </GlassCardContent>
-        </GlassCard>
-
         {/* Quick Actions */}
         <div className="grid gap-4 md:grid-cols-2">
           <GlassCard>
@@ -183,16 +134,16 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Floating AI Assistant Button */}
+      <AIAssistantFAB 
+        onClick={() => setShowChatbot(!showChatbot)} 
+        isOpen={showChatbot} 
+      />
+
       {/* AI Chatbot Modal */}
       <AIChatbot 
         isOpen={showChatbot} 
         onClose={() => setShowChatbot(false)} 
-      />
-
-      {/* Receipt Scanner Modal */}
-      <ReceiptScanner
-        isOpen={showReceiptScanner}
-        onClose={() => setShowReceiptScanner(false)}
       />
     </div>
   );

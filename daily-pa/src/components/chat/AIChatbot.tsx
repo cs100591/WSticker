@@ -1,10 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { X, Send, Loader2, Bot, User, Check, Calendar, ListTodo, Receipt, Sparkles, Camera, ImageIcon, RotateCcw, Scan, Mic, MicOff } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
+import { X, Send, Bot, Check, Calendar, ListTodo, Receipt, Camera, Mic, MicOff } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import type { ExpenseCategory } from '@/types/expense';
@@ -99,10 +96,18 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
     { code: 'zh-CN' as const, label: '中文', flag: '🇨🇳' },
     { code: 'en-US' as const, label: 'English', flag: '🇺🇸' },
     { code: 'ja-JP' as const, label: '日本語', flag: '🇯🇵' },
-    { code: 'ko-KR' as const, label: '한국어', flag: '🇰🇷' },
+    { code: 'ko-KR' as const, label: '한국어', flag: '�🇷}' },
   ];
 
-  // Check speech recognition support
+  const t = {
+    placeholder: locale === 'zh' ? '输入消息...' : 'Message...',
+    greeting: locale === 'zh' 
+      ? '你好！有什么可以帮你的？'
+      : 'Hi! How can I help you?',
+  };
+
+
+  // Speech recognition setup
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
@@ -119,21 +124,14 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
         setInput(transcript);
       };
       
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-      
-      recognition.onerror = () => {
-        setIsListening(false);
-      };
-      
+      recognition.onend = () => setIsListening(false);
+      recognition.onerror = () => setIsListening(false);
       recognitionRef.current = recognition;
     }
   }, [voiceLang]);
 
   const toggleVoice = () => {
     if (!recognitionRef.current) return;
-    
     if (isListening) {
       recognitionRef.current.stop();
       setIsListening(false);
@@ -147,51 +145,7 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
   const selectVoiceLang = (lang: typeof voiceLang) => {
     setVoiceLang(lang);
     setShowVoiceLangMenu(false);
-    if (recognitionRef.current) {
-      recognitionRef.current.lang = lang;
-    }
-  };
-
-  const categories: { value: ExpenseCategory; label: string; emoji: string }[] = locale === 'zh' 
-    ? [
-        { value: 'food', label: '餐饮', emoji: '🍔' },
-        { value: 'transport', label: '交通', emoji: '🚗' },
-        { value: 'shopping', label: '购物', emoji: '🛍️' },
-        { value: 'entertainment', label: '娱乐', emoji: '🎬' },
-        { value: 'bills', label: '账单', emoji: '📄' },
-        { value: 'health', label: '医疗', emoji: '💊' },
-        { value: 'education', label: '教育', emoji: '📚' },
-        { value: 'other', label: '其他', emoji: '📦' },
-      ]
-    : [
-        { value: 'food', label: 'Food', emoji: '🍔' },
-        { value: 'transport', label: 'Transport', emoji: '🚗' },
-        { value: 'shopping', label: 'Shopping', emoji: '🛍️' },
-        { value: 'entertainment', label: 'Fun', emoji: '🎬' },
-        { value: 'bills', label: 'Bills', emoji: '📄' },
-        { value: 'health', label: 'Health', emoji: '💊' },
-        { value: 'education', label: 'Education', emoji: '📚' },
-        { value: 'other', label: 'Other', emoji: '📦' },
-      ];
-
-  const t = {
-    title: locale === 'zh' ? '✨ AI 助手' : '✨ AI Assistant',
-    placeholder: locale === 'zh' ? '告诉我你想做什么...' : 'Tell me what you want to do...',
-    greeting: locale === 'zh' 
-      ? '你好！我是你的 AI 助手 👋\n\n我可以帮你：\n• 创建待办事项\n• 记录消费\n• 添加日历事件\n• 📸 扫描收据\n• 🎤 语音输入\n\n试试说："明天上午9点开会，下午3点见客户"'
-      : 'Hi! I\'m your AI assistant 👋\n\nI can help you:\n• Create todos\n• Record expenses\n• Add calendar events\n• 📸 Scan receipts\n• 🎤 Voice input\n\nTry: "Meeting at 9am and lunch with client at noon tomorrow"',
-    confirm: locale === 'zh' ? '确认' : 'Confirm',
-    cancel: locale === 'zh' ? '取消' : 'Cancel',
-    confirmAll: locale === 'zh' ? '全部确认' : 'Confirm All',
-    created: locale === 'zh' ? '已创建！' : 'Created!',
-    cancelled: locale === 'zh' ? '已取消' : 'Cancelled',
-    scanReceipt: locale === 'zh' ? '扫描收据' : 'Scan Receipt',
-    scanning: locale === 'zh' ? 'AI 正在识别...' : 'AI scanning...',
-    retake: locale === 'zh' ? '重拍' : 'Retake',
-    amount: locale === 'zh' ? '金额' : 'Amount',
-    category: locale === 'zh' ? '分类' : 'Category',
-    description: locale === 'zh' ? '描述' : 'Description',
-    save: locale === 'zh' ? '保存' : 'Save',
+    if (recognitionRef.current) recognitionRef.current.lang = lang;
   };
 
   // Camera functions
@@ -218,9 +172,7 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
           videoRef.current?.play().then(() => setCameraReady(true)).catch(() => {});
         };
       }
-    } catch {
-      // Camera not available
-    }
+    } catch { /* Camera not available */ }
   }, [stream]);
 
   const openCamera = () => {
@@ -253,11 +205,8 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
           description: result.data.description,
         });
       }
-    } catch {
-      // Scan failed
-    } finally {
-      setIsScanning(false);
-    }
+    } catch { /* Scan failed */ }
+    finally { setIsScanning(false); }
   };
 
   const takePhoto = useCallback(() => {
@@ -292,9 +241,59 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
     }
   }, [stopCamera]);
 
+  const executeAction = async (action: ActionItem): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { type, data } = action;
+      if (type === 'todo') {
+        const res = await fetch('/api/todos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: data.title as string,
+            priority: (data.priority as 'low' | 'medium' | 'high') || 'medium',
+            dueDate: data.dueDate as string | undefined,
+          }),
+        });
+        if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      } else if (type === 'expense') {
+        const amount = typeof data.amount === 'string' ? parseFloat(data.amount) : data.amount as number;
+        const res = await fetch('/api/expenses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount,
+            category: (data.category as ExpenseCategory) || 'other',
+            description: data.description as string || '',
+            expenseDate: (data.date as string) || new Date().toISOString().split('T')[0],
+          }),
+        });
+        if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      } else if (type === 'calendar') {
+        const eventDate = data.date as string || new Date().toISOString().split('T')[0];
+        const startTime = data.startTime as string || '09:00';
+        const endTime = data.endTime as string || '10:00';
+        const res = await fetch('/api/calendar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: data.title as string,
+            description: data.description as string || '',
+            startTime: `${eventDate}T${startTime}:00`,
+            endTime: `${eventDate}T${endTime}:00`,
+            allDay: data.allDay || false,
+            color: '#3B82F6',
+          }),
+        });
+        if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      }
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  };
+
   const saveScannedExpense = async () => {
     if (!scanResult?.amount) return;
-    
     const action: ActionItem = {
       id: `scan-${Date.now()}`,
       type: 'expense',
@@ -306,32 +305,23 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
       },
       status: 'pending',
     };
-
     const result = await executeAction(action);
-    
     if (result.success) {
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
         role: 'assistant',
         content: locale === 'zh' 
-          ? `✅ 已保存收据消费：¥${scanResult.amount} (${scanResult.category || 'other'})`
-          : `✅ Receipt saved: ¥${scanResult.amount} (${scanResult.category || 'other'})`,
+          ? `✓ 已保存 ¥${scanResult.amount}`
+          : `✓ Saved ¥${scanResult.amount}`,
       }]);
       closeCamera();
-    } else {
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: locale === 'zh' ? `❌ 保存失败：${result.error}` : `❌ Save failed: ${result.error}`,
-      }]);
     }
   };
 
+
   // Cleanup camera on unmount
   useEffect(() => {
-    return () => {
-      if (stream) stream.getTracks().forEach(track => track.stop());
-    };
+    return () => { if (stream) stream.getTracks().forEach(track => track.stop()); };
   }, []);
 
   useEffect(() => {
@@ -350,13 +340,7 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: input.trim(),
-    };
-
+    const userMessage: Message = { id: Date.now().toString(), role: 'user', content: input.trim() };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
@@ -371,110 +355,31 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
           history: messages.slice(-6).map(m => ({ role: m.role, content: m.content })),
         }),
       });
-
       const data = await response.json();
       
-      // Handle both single action and multiple actions
       let actions: ActionItem[] | undefined;
       if (data.actions && Array.isArray(data.actions)) {
         actions = data.actions.map((a: { type: string; data: Record<string, unknown> }, i: number) => ({
-          id: `${Date.now()}-${i}`,
-          type: a.type,
-          data: a.data,
-          status: 'pending' as const,
+          id: `${Date.now()}-${i}`, type: a.type, data: a.data, status: 'pending' as const,
         }));
       } else if (data.action && data.action.type) {
-        actions = [{
-          id: `${Date.now()}-0`,
-          type: data.action.type,
-          data: data.action.data,
-          status: 'pending' as const,
-        }];
+        actions = [{ id: `${Date.now()}-0`, type: data.action.type, data: data.action.data, status: 'pending' as const }];
       }
 
-      const assistantMessage: Message = {
+      setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: data.message || (locale === 'zh' ? '好的！' : 'Got it!'),
         actions,
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-    } catch (error) {
-      console.error('Chat error:', error);
+      }]);
+    } catch {
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: locale === 'zh' ? '抱歉，出了点问题。请再试一次。' : 'Sorry, something went wrong. Please try again.',
+        content: locale === 'zh' ? '出错了，请重试' : 'Error, please retry',
       }]);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const executeAction = async (action: ActionItem): Promise<{ success: boolean; error?: string }> => {
-    try {
-      const { type, data } = action;
-
-      if (type === 'todo') {
-        const res = await fetch('/api/todos', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: data.title as string,
-            priority: (data.priority as 'low' | 'medium' | 'high') || 'medium',
-            dueDate: data.dueDate as string | undefined,
-          }),
-        });
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || 'Failed to create todo');
-        }
-      } else if (type === 'expense') {
-        const amount = typeof data.amount === 'string' ? parseFloat(data.amount) : data.amount as number;
-        const today = new Date().toISOString().split('T')[0] as string;
-        const expenseDate = (data.date as string) || today;
-        
-        const res = await fetch('/api/expenses', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            amount: amount,
-            category: (data.category as ExpenseCategory) || 'other',
-            description: data.description as string || '',
-            expenseDate: expenseDate,
-          }),
-        });
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || 'Failed to create expense');
-        }
-      } else if (type === 'calendar') {
-        const eventDate = data.date as string || new Date().toISOString().split('T')[0];
-        const startTime = data.startTime as string || '09:00';
-        const endTime = data.endTime as string || '10:00';
-        
-        const res = await fetch('/api/calendar', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: data.title as string,
-            description: data.description as string || '',
-            startTime: `${eventDate}T${startTime}:00`,
-            endTime: `${eventDate}T${endTime}:00`,
-            allDay: data.allDay || false,
-            color: 'from-blue-500 to-blue-600',
-          }),
-        });
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || 'Failed to create calendar event');
-        }
-      }
-      return { success: true };
-    } catch (error) {
-      console.error('Action error:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   };
 
@@ -482,360 +387,317 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
     if (!confirm) {
       setMessages(prev => prev.map(m => {
         if (m.id !== messageId || !m.actions) return m;
-        return {
-          ...m,
-          actions: m.actions.map(a => 
-            a.id === actionId ? { ...a, status: 'cancelled' as const } : a
-          ),
-        };
+        return { ...m, actions: m.actions.map(a => a.id === actionId ? { ...a, status: 'cancelled' as const } : a) };
       }));
       return;
     }
-
     const message = messages.find(m => m.id === messageId);
     const action = message?.actions?.find(a => a.id === actionId);
     if (!action) return;
 
     const result = await executeAction(action);
-    
     setMessages(prev => prev.map(m => {
       if (m.id !== messageId || !m.actions) return m;
-      return {
-        ...m,
-        actions: m.actions.map(a => 
-          a.id === actionId ? { ...a, status: result.success ? 'confirmed' : 'pending' as const } : a
-        ),
-      };
+      return { ...m, actions: m.actions.map(a => a.id === actionId ? { ...a, status: result.success ? 'confirmed' : 'pending' as const } : a) };
     }));
-
-    if (!result.success) {
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: locale === 'zh' 
-          ? `抱歉，保存失败：${result.error || '未知错误'}` 
-          : `Sorry, failed to save: ${result.error || 'Unknown error'}`,
-      }]);
-    }
   };
 
   const handleConfirmAll = async (messageId: string) => {
     const message = messages.find(m => m.id === messageId);
     if (!message?.actions) return;
-
-    const pendingActions = message.actions.filter(a => a.status === 'pending');
-    const errors: string[] = [];
-    
-    for (const action of pendingActions) {
+    for (const action of message.actions.filter(a => a.status === 'pending')) {
       const result = await executeAction(action);
       setMessages(prev => prev.map(m => {
         if (m.id !== messageId || !m.actions) return m;
-        return {
-          ...m,
-          actions: m.actions.map(a => 
-            a.id === action.id ? { ...a, status: result.success ? 'confirmed' : 'pending' as const } : a
-          ),
-        };
+        return { ...m, actions: m.actions.map(a => a.id === action.id ? { ...a, status: result.success ? 'confirmed' : 'pending' as const } : a) };
       }));
-      if (!result.success && result.error) {
-        errors.push(result.error);
-      }
-    }
-
-    if (errors.length > 0) {
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: locale === 'zh' 
-          ? `部分保存失败：${errors[0]}` 
-          : `Some items failed to save: ${errors[0]}`,
-      }]);
     }
   };
 
   const getActionIcon = (type: string) => {
     switch (type) {
-      case 'todo': return <ListTodo className="w-4 h-4" />;
-      case 'expense': return <Receipt className="w-4 h-4" />;
-      case 'calendar': return <Calendar className="w-4 h-4" />;
-      default: return <Sparkles className="w-4 h-4" />;
+      case 'todo': return <ListTodo className="w-3.5 h-3.5" />;
+      case 'expense': return <Receipt className="w-3.5 h-3.5" />;
+      case 'calendar': return <Calendar className="w-3.5 h-3.5" />;
+      default: return <Bot className="w-3.5 h-3.5" />;
     }
   };
 
-  const getActionLabel = (type: string) => {
-    if (locale === 'zh') {
-      switch (type) {
-        case 'todo': return '待办';
-        case 'expense': return '消费';
-        case 'calendar': return '日历';
-        default: return '操作';
-      }
-    }
-    return type.charAt(0).toUpperCase() + type.slice(1);
+  const getActionSummary = (action: ActionItem) => {
+    const { type, data } = action;
+    if (type === 'todo') return String(data.title);
+    if (type === 'expense') return `¥${data.amount} · ${data.category}`;
+    if (type === 'calendar') return `${data.title} · ${data.startTime}`;
+    return '';
   };
 
+  // Compact action card - single line design
   const renderActionCard = (action: ActionItem, messageId: string) => (
     <div
       key={action.id}
       className={cn(
-        'rounded-xl p-3 border',
-        action.status === 'confirmed' ? 'bg-green-50 border-green-200' :
-        action.status === 'cancelled' ? 'bg-gray-50 border-gray-200 opacity-50' :
-        'bg-blue-50 border-blue-200'
+        'flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all duration-200',
+        action.status === 'confirmed' && 'bg-green-50 text-green-700',
+        action.status === 'cancelled' && 'bg-gray-50 text-gray-400 line-through',
+        action.status === 'pending' && 'bg-gray-50 text-gray-700'
       )}
     >
-      <div className="flex items-center gap-2 mb-2">
+      <span className={cn(
+        'flex-shrink-0',
+        action.status === 'confirmed' && 'text-green-500',
+        action.status === 'cancelled' && 'text-gray-300',
+        action.status === 'pending' && 'text-gray-400'
+      )}>
         {getActionIcon(action.type)}
-        <span className="text-sm font-medium">{getActionLabel(action.type)}</span>
-        {action.status === 'confirmed' && <Check className="w-4 h-4 text-green-500 ml-auto" />}
-      </div>
-
-      <div className="text-sm text-gray-600 space-y-1">
-        {action.type === 'todo' && (
-          <>
-            <p>📝 {String(action.data.title)}</p>
-            {action.data.dueDate && <p>📅 {String(action.data.dueDate)}</p>}
-          </>
-        )}
-        {action.type === 'expense' && (
-          <>
-            <p>💰 ¥{String(action.data.amount)}</p>
-            <p>📁 {String(action.data.category)}</p>
-            {action.data.description && <p>📝 {String(action.data.description)}</p>}
-          </>
-        )}
-        {action.type === 'calendar' && (
-          <>
-            <p>📅 {String(action.data.title)}</p>
-            {action.data.date && <p>🗓️ {String(action.data.date)}</p>}
-            {action.data.startTime && <p>⏰ {String(action.data.startTime)} - {String(action.data.endTime || '')}</p>}
-          </>
-        )}
-      </div>
-
+      </span>
+      <span className="flex-1 truncate">{getActionSummary(action)}</span>
       {action.status === 'pending' && (
-        <div className="flex gap-2 mt-3">
-          <Button size="sm" variant="outline" className="flex-1 h-8 rounded-lg"
-            onClick={() => handleAction(messageId, action.id, false)}>{t.cancel}</Button>
-          <Button size="sm" className="flex-1 h-8 rounded-lg bg-blue-500"
-            onClick={() => handleAction(messageId, action.id, true)}>{t.confirm}</Button>
+        <div className="flex gap-1">
+          <button
+            onClick={() => handleAction(messageId, action.id, false)}
+            className="p-1 rounded-md hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => handleAction(messageId, action.id, true)}
+            className="p-1 rounded-md hover:bg-blue-100 text-blue-500 hover:text-blue-600 transition-colors"
+          >
+            <Check className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
-      {action.status === 'confirmed' && <p className="text-green-600 text-sm mt-2">{t.created}</p>}
-      {action.status === 'cancelled' && <p className="text-gray-500 text-sm mt-2">{t.cancelled}</p>}
+      {action.status === 'confirmed' && <Check className="w-3.5 h-3.5 text-green-500" />}
     </div>
   );
+
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <GlassCard className="w-full max-w-md h-[80vh] sm:h-[600px] flex flex-col animate-in slide-in-from-bottom duration-300">
-        <GlassCardHeader className="flex flex-row items-center justify-between border-b border-white/10 pb-4">
-          <GlassCardTitle className="flex items-center gap-2">
-            <Bot className="w-5 h-5 text-blue-500" />
-            {t.title}
-          </GlassCardTitle>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
-            <X className="w-5 h-5" />
+    <>
+      {/* Backdrop */}
+      <div 
+        className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm animate-in fade-in duration-200"
+        onClick={onClose}
+      />
+      
+      {/* Modal */}
+      <div className={cn(
+        'fixed z-50 bottom-24 right-6',
+        'w-[360px] max-h-[70vh]',
+        'bg-white/95 backdrop-blur-xl',
+        'rounded-2xl shadow-2xl shadow-black/10',
+        'border border-gray-200/50',
+        'flex flex-col overflow-hidden',
+        'animate-in fade-in slide-in-from-bottom-4 duration-200'
+      )}>
+        {/* Minimal Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <Bot className="w-4 h-4 text-blue-500" />
+            <span className="text-sm font-medium text-gray-700">
+              {locale === 'zh' ? 'AI 助手' : 'Assistant'}
+            </span>
+          </div>
+          <button 
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="w-4 h-4" />
           </button>
-        </GlassCardHeader>
+        </div>
 
-        <GlassCardContent className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {messages.map((message) => (
-            <div key={message.id} className={cn('flex gap-3', message.role === 'user' ? 'flex-row-reverse' : 'flex-row')}>
+            <div 
+              key={message.id} 
+              className={cn(
+                'flex flex-col gap-1.5',
+                message.role === 'user' ? 'items-end' : 'items-start'
+              )}
+            >
               <div className={cn(
-                'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0',
-                message.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gradient-to-br from-purple-500 to-pink-500 text-white'
+                'max-w-[85%] px-3.5 py-2 text-[15px] leading-relaxed',
+                message.role === 'user' 
+                  ? 'bg-blue-500 text-white rounded-2xl rounded-br-md' 
+                  : 'bg-gray-100 text-gray-800 rounded-2xl rounded-bl-md'
               )}>
-                {message.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                {message.content}
               </div>
-
-              <div className={cn('max-w-[80%] space-y-2', message.role === 'user' ? 'items-end' : 'items-start')}>
-                <div className={cn(
-                  'rounded-2xl px-4 py-2 whitespace-pre-wrap',
-                  message.role === 'user' ? 'bg-blue-500 text-white rounded-br-md' : 'bg-white/80 text-gray-800 rounded-bl-md shadow-sm'
-                )}>
-                  {message.content}
+              
+              {message.actions && message.actions.length > 0 && (
+                <div className="w-full max-w-[85%] space-y-1.5 mt-1">
+                  {message.actions.map(action => renderActionCard(action, message.id))}
+                  {message.actions.filter(a => a.status === 'pending').length > 1 && (
+                    <button
+                      onClick={() => handleConfirmAll(message.id)}
+                      className="w-full py-1.5 text-xs font-medium text-blue-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    >
+                      {locale === 'zh' ? '全部确认' : 'Confirm All'} ({message.actions.filter(a => a.status === 'pending').length})
+                    </button>
+                  )}
                 </div>
-
-                {message.actions && message.actions.length > 0 && (
-                  <div className="space-y-2">
-                    {message.actions.map(action => renderActionCard(action, message.id))}
-                    
-                    {message.actions.filter(a => a.status === 'pending').length > 1 && (
-                      <Button
-                        size="sm"
-                        className="w-full h-10 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500"
-                        onClick={() => handleConfirmAll(message.id)}
-                      >
-                        {t.confirmAll} ({message.actions.filter(a => a.status === 'pending').length})
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
+              )}
             </div>
           ))}
 
+          {/* Typing indicator */}
           {isLoading && (
-            <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                <Bot className="w-4 h-4 text-white" />
-              </div>
-              <div className="bg-white/80 rounded-2xl rounded-bl-md px-4 py-2 shadow-sm">
-                <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+            <div className="flex items-start">
+              <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-2.5">
+                <div className="flex gap-1">
+                  <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
               </div>
             </div>
           )}
           <div ref={messagesEndRef} />
-        </GlassCardContent>
+        </div>
 
-        <div className="p-4 border-t border-white/10">
+        {/* Input Area */}
+        <div className="p-3 border-t border-gray-100">
           {showCamera ? (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {capturedImage ? (
                 <>
-                  <div className="relative rounded-xl overflow-hidden bg-black">
-                    <img src={capturedImage} alt="Receipt" className="w-full max-h-48 object-contain" />
+                  <div className="relative rounded-xl overflow-hidden bg-gray-900 aspect-video">
+                    <img src={capturedImage} alt="Receipt" className="w-full h-full object-contain" />
                     {isScanning && (
-                      <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center">
-                        <Scan className="w-8 h-8 text-blue-400 animate-pulse mb-2" />
-                        <p className="text-white text-sm">{t.scanning}</p>
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <div className="flex gap-1">
+                          <span className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                          <span className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                          <span className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
                       </div>
                     )}
                   </div>
                   {scanResult && !isScanning && (
-                    <div className="p-3 bg-green-50 rounded-xl space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-green-500" />
-                        <span className="text-sm font-medium">AI 识别结果</span>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 text-sm">
-                        <div className="bg-white rounded-lg p-2 text-center">
-                          <p className="text-gray-500 text-xs">{t.amount}</p>
-                          <p className="font-bold text-green-600">¥{scanResult.amount}</p>
-                        </div>
-                        <div className="bg-white rounded-lg p-2 text-center">
-                          <p className="text-gray-500 text-xs">{t.category}</p>
-                          <p className="font-medium">{categories.find(c => c.value === scanResult.category)?.emoji} {scanResult.category}</p>
-                        </div>
-                        <div className="bg-white rounded-lg p-2 text-center">
-                          <p className="text-gray-500 text-xs">{t.description}</p>
-                          <p className="font-medium truncate">{scanResult.description || '-'}</p>
-                        </div>
+                    <div className="flex items-center justify-between px-3 py-2 bg-green-50 rounded-xl text-sm">
+                      <span className="text-green-700">¥{scanResult.amount} · {scanResult.category}</span>
+                      <div className="flex gap-1">
+                        <button onClick={() => { setCapturedImage(null); setScanResult(null); startCamera(); }} className="p-1.5 rounded-lg hover:bg-green-100 text-green-600">
+                          <X className="w-4 h-4" />
+                        </button>
+                        <button onClick={saveScannedExpense} className="p-1.5 rounded-lg hover:bg-green-100 text-green-600">
+                          <Check className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
                   )}
-                  <div className="flex gap-2">
-                    <Button variant="outline" className="flex-1 h-10 rounded-xl" onClick={() => { setCapturedImage(null); setScanResult(null); startCamera(); }}>
-                      <RotateCcw className="w-4 h-4 mr-2" />{t.retake}
-                    </Button>
-                    <Button className="flex-1 h-10 rounded-xl bg-green-500" onClick={saveScannedExpense} disabled={isScanning || !scanResult?.amount}>
-                      <Check className="w-4 h-4 mr-2" />{t.save}
-                    </Button>
-                  </div>
-                  <Button variant="ghost" className="w-full h-8 text-gray-500" onClick={closeCamera}>
-                    <X className="w-4 h-4 mr-1" />{t.cancel}
-                  </Button>
+                  <button onClick={closeCamera} className="w-full py-1.5 text-xs text-gray-400 hover:text-gray-600">
+                    {locale === 'zh' ? '取消' : 'Cancel'}
+                  </button>
                 </>
               ) : (
                 <>
-                  <div className="relative rounded-xl overflow-hidden bg-black aspect-video">
+                  <div className="relative rounded-xl overflow-hidden bg-gray-900 aspect-video">
                     <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
                     {!cameraReady && (
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                        <div className="flex gap-1">
+                          <span className="w-2 h-2 bg-white rounded-full animate-bounce" />
+                          <span className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                          <span className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
                       </div>
                     )}
                   </div>
                   <canvas ref={canvasRef} className="hidden" />
-                  <div className="flex gap-2 justify-center">
-                    <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} className="rounded-full h-12 w-12">
-                      <ImageIcon className="w-5 h-5" />
-                    </Button>
-                    <Button size="lg" onClick={takePhoto} disabled={!cameraReady} className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500">
-                      <Camera className="w-6 h-6" />
-                    </Button>
-                    <Button variant="outline" size="icon" onClick={closeCamera} className="rounded-full h-12 w-12">
-                      <X className="w-5 h-5" />
-                    </Button>
+                  <div className="flex gap-2">
+                    <button onClick={() => fileInputRef.current?.click()} className="flex-1 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors">
+                      {locale === 'zh' ? '选择图片' : 'Choose'}
+                    </button>
+                    <button onClick={takePhoto} disabled={!cameraReady} className="flex-1 py-2 text-sm text-white bg-blue-500 hover:bg-blue-600 disabled:opacity-50 rounded-xl transition-colors">
+                      {locale === 'zh' ? '拍照' : 'Capture'}
+                    </button>
+                    <button onClick={closeCamera} className="flex-1 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors">
+                      {locale === 'zh' ? '取消' : 'Cancel'}
+                    </button>
                   </div>
                   <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileUpload} className="hidden" />
                 </>
               )}
             </div>
           ) : (
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
+            <div className="flex items-center gap-2">
+              {/* Camera button */}
+              <button
                 onClick={openCamera}
-                className="h-12 w-12 rounded-xl"
-                title={t.scanReceipt}
+                className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
               >
                 <Camera className="w-5 h-5" />
-              </Button>
+              </button>
+
+              {/* Voice button */}
               {speechSupported && (
                 <div className="relative">
-                  <Button
-                    variant={isListening ? "default" : "outline"}
+                  <button
                     onClick={toggleVoice}
                     onContextMenu={(e) => { e.preventDefault(); setShowVoiceLangMenu(!showVoiceLangMenu); }}
                     className={cn(
-                      "h-12 w-12 rounded-xl transition-all",
-                      isListening && "bg-red-500 hover:bg-red-600 animate-pulse"
+                      'p-2 rounded-xl transition-all',
+                      isListening 
+                        ? 'text-red-500 bg-red-50 animate-pulse' 
+                        : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                     )}
-                    title={locale === 'zh' ? '点击录音，长按选语言' : 'Click to record, hold for language'}
                   >
-                    <div className="flex flex-col items-center">
-                      {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                      <span className="text-[10px] mt-0.5">{voiceLanguages.find(l => l.code === voiceLang)?.flag}</span>
-                    </div>
-                  </Button>
+                    {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                  </button>
                   {showVoiceLangMenu && (
-                    <div className="absolute bottom-14 left-0 bg-white rounded-xl shadow-lg border p-2 min-w-[120px] z-10">
-                      <p className="text-xs text-gray-500 px-2 mb-1">{locale === 'zh' ? '语音语言' : 'Voice Language'}</p>
+                    <div className="absolute bottom-12 left-0 bg-white rounded-xl shadow-lg border border-gray-100 py-1 min-w-[100px] z-10">
                       {voiceLanguages.map((lang) => (
                         <button
                           key={lang.code}
                           onClick={() => selectVoiceLang(lang.code)}
                           className={cn(
-                            "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm hover:bg-gray-100",
-                            voiceLang === lang.code && "bg-blue-50 text-blue-600"
+                            'w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-gray-50',
+                            voiceLang === lang.code && 'text-blue-500'
                           )}
                         >
                           <span>{lang.flag}</span>
                           <span>{lang.label}</span>
-                          {voiceLang === lang.code && <Check className="w-3 h-3 ml-auto" />}
                         </button>
                       ))}
                     </div>
                   )}
                 </div>
               )}
-              <Input
+
+              {/* Input */}
+              <input
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
                 placeholder={isListening ? (locale === 'zh' ? '正在听...' : 'Listening...') : t.placeholder}
                 className={cn(
-                  "flex-1 h-12 rounded-xl bg-white/50",
-                  isListening && "border-red-300 bg-red-50/50"
+                  'flex-1 px-3 py-2 text-[15px] bg-gray-100 rounded-xl',
+                  'border-0 outline-none focus:ring-2 focus:ring-blue-500/20',
+                  'placeholder:text-gray-400',
+                  isListening && 'bg-red-50'
                 )}
                 disabled={isLoading}
               />
-              <Button
-                onClick={sendMessage}
-                disabled={isLoading || !input.trim()}
-                className="h-12 w-12 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500"
-              >
-                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-              </Button>
+
+              {/* Send button - only show when has input */}
+              {input.trim() && (
+                <button
+                  onClick={sendMessage}
+                  disabled={isLoading}
+                  className="p-2 rounded-xl text-white bg-blue-500 hover:bg-blue-600 disabled:opacity-50 transition-colors"
+                >
+                  <Send className="w-5 h-5" />
+                </button>
+              )}
             </div>
           )}
         </div>
-      </GlassCard>
-    </div>
+      </div>
+    </>
   );
 }
