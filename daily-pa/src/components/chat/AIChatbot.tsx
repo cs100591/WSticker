@@ -1,13 +1,54 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { X, Send, Loader2, Bot, User, Check, Calendar, ListTodo, Receipt, Sparkles, Camera, ImageIcon, RotateCcw, Scan } from 'lucide-react';
+import { X, Send, Loader2, Bot, User, Check, Calendar, ListTodo, Receipt, Sparkles, Camera, ImageIcon, RotateCcw, Scan, Mic, MicOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import type { ExpenseCategory } from '@/types/expense';
+
+// Web Speech API types
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  isFinal: boolean;
+  length: number;
+  item(index: number): SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onend: (() => void) | null;
+  onerror: ((event: Event) => void) | null;
+  start(): void;
+  stop(): void;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition: new () => SpeechRecognition;
+    webkitSpeechRecognition: new () => SpeechRecognition;
+  }
+}
 
 interface ActionItem {
   id: string;
@@ -47,6 +88,53 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Voice recognition states
+  const [isListening, setIsListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+
+  // Check speech recognition support
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      setSpeechSupported(true);
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = locale === 'zh' ? 'zh-CN' : 'en-US';
+      
+      recognition.onresult = (event) => {
+        const transcript = Array.from(event.results)
+          .map(result => result[0]?.transcript || '')
+          .join('');
+        setInput(transcript);
+      };
+      
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+      
+      recognition.onerror = () => {
+        setIsListening(false);
+      };
+      
+      recognitionRef.current = recognition;
+    }
+  }, [locale]);
+
+  const toggleVoice = () => {
+    if (!recognitionRef.current) return;
+    
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      recognitionRef.current.lang = locale === 'zh' ? 'zh-CN' : 'en-US';
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
+  };
+
   const categories: { value: ExpenseCategory; label: string; emoji: string }[] = locale === 'zh' 
     ? [
         { value: 'food', label: '餐饮', emoji: '🍔' },
@@ -73,8 +161,8 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
     title: locale === 'zh' ? '✨ AI 助手' : '✨ AI Assistant',
     placeholder: locale === 'zh' ? '告诉我你想做什么...' : 'Tell me what you want to do...',
     greeting: locale === 'zh' 
-      ? '你好！我是你的 AI 助手 👋\n\n我可以帮你：\n• 创建待办事项\n• 记录消费\n• 添加日历事件\n• 📸 扫描收据\n\n试试说："明天上午9点开会，下午3点见客户"'
-      : 'Hi! I\'m your AI assistant 👋\n\nI can help you:\n• Create todos\n• Record expenses\n• Add calendar events\n• 📸 Scan receipts\n\nTry: "Meeting at 9am and lunch with client at noon tomorrow"',
+      ? '你好！我是你的 AI 助手 👋\n\n我可以帮你：\n• 创建待办事项\n• 记录消费\n• 添加日历事件\n• 📸 扫描收据\n• 🎤 语音输入\n\n试试说："明天上午9点开会，下午3点见客户"'
+      : 'Hi! I\'m your AI assistant 👋\n\nI can help you:\n• Create todos\n• Record expenses\n• Add calendar events\n• 📸 Scan receipts\n• 🎤 Voice input\n\nTry: "Meeting at 9am and lunch with client at noon tomorrow"',
     confirm: locale === 'zh' ? '确认' : 'Confirm',
     cancel: locale === 'zh' ? '取消' : 'Cancel',
     confirmAll: locale === 'zh' ? '全部确认' : 'Confirm All',
@@ -670,13 +758,29 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
               >
                 <Camera className="w-5 h-5" />
               </Button>
+              {speechSupported && (
+                <Button
+                  variant={isListening ? "default" : "outline"}
+                  onClick={toggleVoice}
+                  className={cn(
+                    "h-12 w-12 rounded-xl transition-all",
+                    isListening && "bg-red-500 hover:bg-red-600 animate-pulse"
+                  )}
+                  title={locale === 'zh' ? '语音输入' : 'Voice input'}
+                >
+                  {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                </Button>
+              )}
               <Input
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-                placeholder={t.placeholder}
-                className="flex-1 h-12 rounded-xl bg-white/50"
+                placeholder={isListening ? (locale === 'zh' ? '正在听...' : 'Listening...') : t.placeholder}
+                className={cn(
+                  "flex-1 h-12 rounded-xl bg-white/50",
+                  isListening && "border-red-300 bg-red-50/50"
+                )}
                 disabled={isLoading}
               />
               <Button
