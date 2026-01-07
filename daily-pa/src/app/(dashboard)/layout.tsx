@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getUser } from '@/lib/auth/actions';
-import { Sidebar } from '@/components/layout/Sidebar';
-import { MobileNav } from '@/components/layout/MobileNav';
+import { DashboardShell } from '@/components/layout/DashboardShell';
 import { I18nProvider } from '@/lib/i18n';
 
 // Check if dev mode skip auth is enabled
@@ -22,18 +21,9 @@ export default async function DashboardLayout({
 
   return (
     <I18nProvider>
-      <div className="min-h-screen gradient-mesh">
-        {/* Desktop Sidebar */}
-        <Sidebar />
-        
-        {/* Main Content */}
-        <main className="md:pl-72 pb-24 md:pb-0 min-h-screen">
-          {children}
-        </main>
-        
-        {/* Mobile Bottom Navigation */}
-        <MobileNav />
-      </div>
+      <DashboardShell>
+        {children}
+      </DashboardShell>
     </I18nProvider>
   );
 }

@@ -1,23 +1,19 @@
 'use client';
 
-import { useState } from 'react';
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/layout/Header';
 import { useI18n } from '@/lib/i18n';
-import { AIChatbot } from '@/components/chat/AIChatbot';
-import { AIAssistantFAB } from '@/components/chat/AIAssistantFAB';
 import { CheckSquare, Calendar, DollarSign, TrendingUp, Clock, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DashboardPage() {
   const { t } = useI18n();
   const displayName = 'User';
-  const [showChatbot, setShowChatbot] = useState(false);
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Header title={t.nav.home} />
+      <Header title={t.nav.home} showHomeButton={false} />
       
       <div className="flex-1 p-4 md:p-6 space-y-6">
         {/* Welcome Section */}
@@ -133,18 +129,6 @@ export default function DashboardPage() {
           </GlassCard>
         </div>
       </div>
-
-      {/* Floating AI Assistant Button */}
-      <AIAssistantFAB 
-        onClick={() => setShowChatbot(!showChatbot)} 
-        isOpen={showChatbot} 
-      />
-
-      {/* AI Chatbot Modal */}
-      <AIChatbot 
-        isOpen={showChatbot} 
-        onClose={() => setShowChatbot(false)} 
-      />
     </div>
   );
 }

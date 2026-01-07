@@ -41,7 +41,7 @@ export default function ProfilePage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Header title={t.profile.title} showVoiceButton={false} />
+      <Header title={t.profile.title} showHomeButton={false} />
       
       <div className="flex-1 p-4 md:p-6 space-y-4">
         {/* User Info Card */}

@@ -6,20 +6,25 @@ import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import {
   CheckSquare,
-  Calendar,
   DollarSign,
-  Home,
   User,
+  Sparkles,
+  Calendar,
 } from 'lucide-react';
 
-export function MobileNav() {
+interface MobileNavProps {
+  onChatbotClick?: () => void;
+  isChatbotOpen?: boolean;
+}
+
+export function MobileNav({ onChatbotClick, isChatbotOpen }: MobileNavProps) {
   const pathname = usePathname();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   const navItems = [
-    { href: '/dashboard', label: t.nav.home, icon: Home },
     { href: '/todos', label: t.nav.todos, icon: CheckSquare },
     { href: '/calendar', label: t.nav.calendar, icon: Calendar },
+    { type: 'chatbot' as const, label: locale === 'zh' ? 'AI' : 'AI', icon: Sparkles },
     { href: '/expenses', label: t.nav.expenses, icon: DollarSign },
     { href: '/profile', label: t.nav.profile, icon: User },
   ];
@@ -28,13 +33,35 @@ export function MobileNav() {
     <nav className="md:hidden fixed bottom-0 left-0 right-0 glass-nav safe-area-inset-bottom z-50">
       <div className="flex items-center justify-around h-20 px-2">
         {navItems.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
           const Icon = item.icon;
+          
+          // AI Chatbot button (center)
+          if (item.type === 'chatbot') {
+            return (
+              <button
+                key="chatbot"
+                onClick={onChatbotClick}
+                className="flex flex-col items-center justify-center flex-1 py-2 transition-all duration-200"
+              >
+                <div className={cn(
+                  'p-3 rounded-2xl transition-all duration-200',
+                  'bg-gradient-to-br from-blue-500 to-cyan-400',
+                  'shadow-lg shadow-blue-500/30',
+                  isChatbotOpen && 'scale-95 from-gray-400 to-gray-500'
+                )}>
+                  <Icon className="w-6 h-6 text-white" />
+                </div>
+              </button>
+            );
+          }
+          
+          // Regular nav items
+          const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
           
           return (
             <Link
               key={item.href}
-              href={item.href}
+              href={item.href!}
               className={cn(
                 'flex flex-col items-center justify-center flex-1 py-2 transition-all duration-200',
                 isActive ? 'text-blue-600' : 'text-gray-400'
