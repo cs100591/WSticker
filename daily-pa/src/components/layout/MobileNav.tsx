@@ -35,7 +35,7 @@ export function MobileNav({ onChatbotClick, isChatbotOpen }: MobileNavProps) {
         {navItems.map((item) => {
           const Icon = item.icon;
           
-          // AI Chatbot button (center)
+          // AI Chatbot button (center) - outline style
           if (item.type === 'chatbot') {
             return (
               <button
@@ -45,11 +45,14 @@ export function MobileNav({ onChatbotClick, isChatbotOpen }: MobileNavProps) {
               >
                 <div className={cn(
                   'p-3 rounded-2xl transition-all duration-200',
-                  'bg-gradient-to-br from-blue-500 to-cyan-400',
-                  'shadow-lg shadow-blue-500/30',
-                  isChatbotOpen && 'scale-95 from-gray-400 to-gray-500'
+                  'border-2 border-blue-500',
+                  'bg-transparent',
+                  isChatbotOpen && 'bg-blue-500 border-blue-500'
                 )}>
-                  <Icon className="w-6 h-6 text-white" />
+                  <Icon className={cn(
+                    'w-6 h-6 transition-colors duration-200',
+                    isChatbotOpen ? 'text-white' : 'text-blue-500'
+                  )} />
                 </div>
               </button>
             );
