@@ -178,6 +178,8 @@ export default function LoginPage() {
             使用 Google 登录
           </Button>
 
+          {/* Apple Sign In - Temporarily disabled, code kept for future use */}
+          {/* 
           <Button
             variant="outline"
             className="w-full"
@@ -193,6 +195,7 @@ export default function LoginPage() {
             )}
             使用 Apple 登录
           </Button>
+          */}
         </CardContent>
         <CardFooter className="flex justify-center">
           <p className="text-sm text-muted-foreground">
