@@ -14,25 +14,34 @@ export default function ProfilePage() {
     {
       title: t.profile.account,
       items: [
-        { icon: User, label: t.profile.profileLabel, description: t.profile.profileDesc, gradient: 'from-blue-500 to-cyan-500' },
-        { icon: Mail, label: t.profile.email, description: 'dev@example.com', gradient: 'from-green-500 to-emerald-500' },
-        { icon: Shield, label: t.profile.security, description: t.profile.securityDesc, gradient: 'from-orange-500 to-red-500' },
+        { icon: User, label: t.profile.profileLabel, description: t.profile.profileDesc, color: 'blue' },
+        { icon: Mail, label: t.profile.email, description: 'dev@example.com', color: 'green' },
+        { icon: Shield, label: t.profile.security, description: t.profile.securityDesc, color: 'orange' },
       ],
     },
     {
       title: t.profile.preferences,
       items: [
-        { icon: Bell, label: t.profile.notifications, description: t.profile.notificationsDesc, gradient: 'from-purple-500 to-violet-500' },
-        { icon: Moon, label: t.profile.appearance, description: t.profile.lightMode, gradient: 'from-indigo-500 to-blue-500' },
+        { icon: Bell, label: t.profile.notifications, description: t.profile.notificationsDesc, color: 'purple' },
+        { icon: Moon, label: t.profile.appearance, description: t.profile.lightMode, color: 'indigo' },
       ],
     },
     {
       title: t.profile.other,
       items: [
-        { icon: Smartphone, label: t.profile.devices, description: t.profile.devicesDesc, gradient: 'from-gray-500 to-slate-500' },
+        { icon: Smartphone, label: t.profile.devices, description: t.profile.devicesDesc, color: 'gray' },
       ],
     },
   ];
+
+  const colorMap: Record<string, string> = {
+    blue: 'border-blue-500 text-blue-500',
+    green: 'border-green-500 text-green-500',
+    orange: 'border-orange-500 text-orange-500',
+    purple: 'border-purple-500 text-purple-500',
+    indigo: 'border-indigo-500 text-indigo-500',
+    gray: 'border-gray-400 text-gray-400',
+  };
 
   const languages: { code: Locale; label: string; flag: string }[] = [
     { code: 'en', label: 'English', flag: '🇺🇸' },
@@ -44,19 +53,19 @@ export default function ProfilePage() {
       <Header title={t.profile.title} showHomeButton={false} />
       
       <div className="flex-1 p-4 md:p-6 space-y-4">
-        {/* User Info Card */}
+        {/* User Info Card - Outline Style */}
         <GlassCard className="overflow-hidden relative">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/5 to-cyan-500/10" />
           <GlassCardContent className="relative">
             <div className="flex items-center gap-4">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white text-3xl font-bold shadow-lg shadow-blue-500/30">
+              <div className="w-20 h-20 rounded-2xl border-2 border-blue-500 flex items-center justify-center text-blue-500 text-3xl font-bold">
                 D
               </div>
               <div className="flex-1">
                 <h2 className="text-2xl font-bold text-gray-900">Developer</h2>
                 <p className="text-gray-500">dev@example.com</p>
                 <span className="inline-flex items-center gap-1 px-2 py-1 mt-2 text-xs font-medium text-orange-600 bg-orange-100 rounded-full">
-                  <Sparkles className="w-3 h-3" />
+                  <Sparkles className="w-3 h-3" strokeWidth={1.5} />
                   Dev Mode
                 </span>
               </div>
@@ -68,7 +77,7 @@ export default function ProfilePage() {
         <GlassCard>
           <GlassCardHeader>
             <GlassCardTitle className="flex items-center gap-2">
-              <Globe className="w-5 h-5 text-blue-500" />
+              <Globe className="w-5 h-5 text-blue-500" strokeWidth={1.5} />
               {t.profile.language}
             </GlassCardTitle>
           </GlassCardHeader>
@@ -90,8 +99,8 @@ export default function ProfilePage() {
                     <span className="font-medium">{lang.label}</span>
                   </div>
                   {locale === lang.code && (
-                    <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center">
-                      <Check className="w-4 h-4 text-white" />
+                    <div className="w-6 h-6 rounded-full border-2 border-blue-500 flex items-center justify-center">
+                      <Check className="w-4 h-4 text-blue-500" strokeWidth={2} />
                     </div>
                   )}
                 </button>
@@ -100,7 +109,7 @@ export default function ProfilePage() {
           </GlassCardContent>
         </GlassCard>
 
-        {/* Settings Groups */}
+        {/* Settings Groups - Outline Icons */}
         {settingsGroups.map((group) => (
           <GlassCard key={group.title}>
             <GlassCardHeader>
@@ -114,14 +123,14 @@ export default function ProfilePage() {
                     key={item.label}
                     className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-white/50 transition-all duration-200"
                   >
-                    <div className={cn('w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-md', item.gradient)}>
-                      <Icon className="w-6 h-6 text-white" />
+                    <div className={cn('w-12 h-12 rounded-xl border-2 flex items-center justify-center', colorMap[item.color])}>
+                      <Icon className="w-6 h-6" strokeWidth={1.5} />
                     </div>
                     <div className="flex-1 text-left">
                       <p className="font-medium text-gray-900">{item.label}</p>
                       <p className="text-sm text-gray-500">{item.description}</p>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                    <ChevronRight className="w-5 h-5 text-gray-400" strokeWidth={1.5} />
                   </button>
                 );
               })}
@@ -134,7 +143,7 @@ export default function ProfilePage() {
           variant="outline" 
           className="w-full h-14 rounded-2xl text-red-500 hover:text-red-600 hover:bg-red-50 border-red-200"
         >
-          <LogOut className="w-5 h-5 mr-2" />
+          <LogOut className="w-5 h-5 mr-2" strokeWidth={1.5} />
           {t.profile.signOut}
         </Button>
 

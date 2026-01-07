@@ -99,9 +99,10 @@ export default function TodosPage() {
               <Button 
                 onClick={handleAddTodo} 
                 size="icon"
-                className="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 shadow-lg shadow-blue-500/30"
+                variant="outline"
+                className="w-12 h-12 rounded-xl border-2 border-blue-500 text-blue-500 bg-transparent hover:bg-blue-50"
               >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-5 h-5" strokeWidth={1.5} />
               </Button>
             </div>
           </GlassCardContent>
@@ -137,8 +138,8 @@ export default function TodosPage() {
               </div>
             ) : todos.length === 0 ? (
               <div className="text-center py-12">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-100 flex items-center justify-center">
-                  <CheckCircle2 className="w-8 h-8 text-gray-300" />
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl border-2 border-gray-200 flex items-center justify-center">
+                  <CheckCircle2 className="w-8 h-8 text-gray-300" strokeWidth={1.5} />
                 </div>
                 <p className="text-gray-500">{t.todos.noTasks}</p>
               </div>
@@ -158,9 +159,9 @@ export default function TodosPage() {
                     className="flex-shrink-0 transition-transform duration-200 hover:scale-110"
                   >
                     {todo.status === 'completed' ? (
-                      <CheckCircle2 className="w-6 h-6 text-green-500" />
+                      <CheckCircle2 className="w-6 h-6 text-green-500" strokeWidth={1.5} />
                     ) : (
-                      <Circle className="w-6 h-6 text-gray-300 hover:text-blue-500" />
+                      <Circle className="w-6 h-6 text-gray-300 hover:text-blue-500" strokeWidth={1.5} />
                     )}
                   </button>
                   

@@ -21,13 +21,13 @@ export default function ReportsPage() {
           </GlassCardContent>
         </GlassCard>
 
-        {/* Summary Stats */}
+        {/* Summary Stats - Outline Icons */}
         <div className="grid grid-cols-2 gap-4">
           <GlassCard>
             <GlassCardContent>
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/30">
-                  <CheckCircle2 className="w-7 h-7 text-white" />
+                <div className="w-14 h-14 rounded-2xl border-2 border-green-500 flex items-center justify-center">
+                  <CheckCircle2 className="w-7 h-7 text-green-500" strokeWidth={1.5} />
                 </div>
                 <div>
                   <p className="text-3xl font-bold text-gray-900">85%</p>
@@ -40,8 +40,8 @@ export default function ReportsPage() {
           <GlassCard>
             <GlassCardContent>
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-lg shadow-orange-500/30">
-                  <DollarSign className="w-7 h-7 text-white" />
+                <div className="w-14 h-14 rounded-2xl border-2 border-orange-500 flex items-center justify-center">
+                  <DollarSign className="w-7 h-7 text-orange-500" strokeWidth={1.5} />
                 </div>
                 <div>
                   <p className="text-3xl font-bold text-gray-900">$1,290</p>
@@ -56,15 +56,15 @@ export default function ReportsPage() {
         <GlassCard>
           <GlassCardHeader>
             <GlassCardTitle className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-blue-500" />
+              <BarChart3 className="w-5 h-5 text-blue-500" strokeWidth={1.5} />
               {t.reports.spendingTrends}
             </GlassCardTitle>
           </GlassCardHeader>
           <GlassCardContent>
             <div className="h-48 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
               <div className="text-center">
-                <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-white/80 flex items-center justify-center shadow-sm">
-                  <BarChart3 className="w-8 h-8 text-gray-300" />
+                <div className="w-16 h-16 mx-auto mb-3 rounded-2xl border-2 border-gray-200 flex items-center justify-center">
+                  <BarChart3 className="w-8 h-8 text-gray-300" strokeWidth={1.5} />
                 </div>
                 <p className="text-gray-400">{t.reports.chartsComing}</p>
               </div>
@@ -76,7 +76,7 @@ export default function ReportsPage() {
         <GlassCard>
           <GlassCardHeader>
             <GlassCardTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-purple-500" />
+              <Sparkles className="w-5 h-5 text-purple-500" strokeWidth={1.5} />
               {t.reports.productivityInsights}
             </GlassCardTitle>
           </GlassCardHeader>

@@ -74,6 +74,23 @@ export async function signInWithGoogle(): Promise<{ url: string } | AuthResult> 
   return { url: data.url };
 }
 
+export async function signInWithApple(): Promise<{ url: string } | AuthResult> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'apple',
+    options: {
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+    },
+  });
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { url: data.url };
+}
+
 export async function resetPassword(email: string): Promise<AuthResult> {
   const supabase = await createClient();
 

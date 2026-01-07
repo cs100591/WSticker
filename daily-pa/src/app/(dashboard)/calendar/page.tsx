@@ -46,12 +46,12 @@ function getWeekDates(date: Date) {
 }
 
 const eventColors = [
-  'from-blue-500 to-blue-600',
-  'from-green-500 to-emerald-600',
-  'from-purple-500 to-violet-600',
-  'from-orange-500 to-amber-600',
-  'from-pink-500 to-rose-600',
-  'from-cyan-500 to-teal-600',
+  { gradient: 'from-blue-500 to-blue-600', border: 'border-blue-500', text: 'text-blue-500' },
+  { gradient: 'from-green-500 to-emerald-600', border: 'border-green-500', text: 'text-green-500' },
+  { gradient: 'from-purple-500 to-violet-600', border: 'border-purple-500', text: 'text-purple-500' },
+  { gradient: 'from-orange-500 to-amber-600', border: 'border-orange-500', text: 'text-orange-500' },
+  { gradient: 'from-pink-500 to-rose-600', border: 'border-pink-500', text: 'text-pink-500' },
+  { gradient: 'from-cyan-500 to-teal-600', border: 'border-cyan-500', text: 'text-cyan-500' },
 ];
 
 const hours = Array.from({ length: 24 }, (_, i) => i);
@@ -71,7 +71,7 @@ export default function CalendarPage() {
     startTime: '09:00',
     endTime: '10:00',
     allDay: false,
-    color: eventColors[0],
+    color: eventColors[0].gradient,
   });
 
   const currentYear = currentDate.getFullYear();
@@ -196,7 +196,7 @@ export default function CalendarPage() {
           startTime: '09:00',
           endTime: '10:00',
           allDay: false,
-          color: eventColors[0],
+          color: eventColors[0].gradient,
         });
       }
     } catch (error) {
@@ -261,7 +261,7 @@ export default function CalendarPage() {
                   : 'text-gray-500 hover:text-gray-700'
               )}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-4 h-4" strokeWidth={1.5} />
               <span className="hidden sm:inline">{label}</span>
             </button>
           ))}
@@ -278,7 +278,7 @@ export default function CalendarPage() {
                 onClick={() => navigate('prev')}
                 className="w-10 h-10 rounded-xl hover:bg-white/50"
               >
-                <ChevronLeft className="w-5 h-5" />
+                <ChevronLeft className="w-5 h-5" strokeWidth={1.5} />
               </Button>
               <div className="text-center flex-1">
                 <h2 className="text-lg font-bold text-gray-900">{getNavigationTitle()}</h2>
@@ -289,7 +289,7 @@ export default function CalendarPage() {
                 onClick={() => navigate('next')}
                 className="w-10 h-10 rounded-xl hover:bg-white/50"
               >
-                <ChevronRight className="w-5 h-5" />
+                <ChevronRight className="w-5 h-5" strokeWidth={1.5} />
               </Button>
             </div>
 
@@ -301,7 +301,7 @@ export default function CalendarPage() {
 
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                <Loader2 className="w-8 h-8 animate-spin text-blue-500" strokeWidth={1.5} />
               </div>
             ) : viewMode === 'month' ? (
               /* Month View */
@@ -340,7 +340,8 @@ export default function CalendarPage() {
                             {dayEvents.slice(0, 3).map((event, i) => (
                               <div
                                 key={event.id || i}
-                                className={cn('w-1.5 h-1.5 rounded-full', isSelected ? 'bg-white' : 'bg-gradient-to-r ' + event.color)}
+                                className={cn('w-1.5 h-1.5 rounded-full border', isSelected ? 'bg-white border-white' : 'border-current')}
+                                style={{ borderColor: isSelected ? undefined : event.color.includes('blue') ? '#3b82f6' : event.color.includes('green') ? '#22c55e' : event.color.includes('purple') ? '#a855f7' : event.color.includes('orange') ? '#f97316' : event.color.includes('pink') ? '#ec4899' : '#06b6d4' }}
                               />
                             ))}
                           </div>
@@ -390,7 +391,7 @@ export default function CalendarPage() {
                               {hourEvents.map((event) => (
                                 <div
                                   key={event.id}
-                                  className={cn('text-xs p-1 rounded bg-gradient-to-r text-white truncate', event.color)}
+                                  className="text-xs p-1 rounded border-2 border-blue-500 text-blue-600 truncate"
                                 >
                                   {event.title}
                                 </div>
@@ -425,10 +426,10 @@ export default function CalendarPage() {
                         {hourEvents.map((event) => (
                           <div
                             key={event.id}
-                            className={cn('p-2 rounded-lg bg-gradient-to-r text-white mb-1', event.color)}
+                            className="p-2 rounded-lg border-2 border-blue-500 text-blue-600 mb-1"
                           >
                             <p className="font-medium">{event.title}</p>
-                            <p className="text-xs opacity-80">
+                            <p className="text-xs text-blue-400">
                               {event.startTime.slice(11, 16)} - {event.endTime.slice(11, 16)}
                             </p>
                           </div>
@@ -449,7 +450,7 @@ export default function CalendarPage() {
                       key={event.id}
                       className="flex items-center gap-4 p-4 rounded-xl bg-white/50 hover:bg-white/80 transition-colors group"
                     >
-                      <div className={cn('w-1.5 h-12 rounded-full bg-gradient-to-b', event.color)} />
+                      <div className="w-1.5 h-12 rounded-full border-2 border-blue-500" />
                       <div className="flex-1">
                         <p className="font-medium text-gray-900">{event.title}</p>
                         <p className="text-sm text-gray-500">
@@ -460,7 +461,7 @@ export default function CalendarPage() {
                         onClick={() => handleDeleteEvent(event.id)}
                         className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" strokeWidth={1.5} />
                       </button>
                     </div>
                   ))
@@ -479,11 +480,12 @@ export default function CalendarPage() {
               </GlassCardTitle>
               <Button 
                 size="sm" 
-                className="rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500"
+                variant="outline"
+                className="rounded-xl border-2 border-blue-500 text-blue-500 bg-transparent hover:bg-blue-50"
                 onClick={() => setShowAddModal(true)}
                 disabled={!selectedDate}
               >
-                <Plus className="w-4 h-4 mr-1" />
+                <Plus className="w-4 h-4 mr-1" strokeWidth={1.5} />
                 {t.calendar.add}
               </Button>
             </GlassCardHeader>
@@ -495,12 +497,12 @@ export default function CalendarPage() {
                       key={event.id}
                       className="flex items-center gap-4 p-4 rounded-xl bg-white/50 hover:bg-white/80 transition-colors group"
                     >
-                      <div className={cn('w-1.5 h-12 rounded-full bg-gradient-to-b', event.color)} />
+                      <div className="w-1.5 h-12 rounded-full border-2 border-blue-500" />
                       <div className="flex-1">
                         <p className="font-medium text-gray-900">{event.title}</p>
                         {!event.allDay && (
                           <p className="text-sm text-gray-500 flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
+                            <Clock className="w-3 h-3" strokeWidth={1.5} />
                             {event.startTime.slice(11, 16)} - {event.endTime.slice(11, 16)}
                           </p>
                         )}
@@ -510,7 +512,7 @@ export default function CalendarPage() {
                         onClick={() => handleDeleteEvent(event.id)}
                         className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" strokeWidth={1.5} />
                       </button>
                     </div>
                   ))}
@@ -532,7 +534,7 @@ export default function CalendarPage() {
             <GlassCardHeader className="flex flex-row items-center justify-between">
               <GlassCardTitle>Add Event</GlassCardTitle>
               <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5" strokeWidth={1.5} />
               </button>
             </GlassCardHeader>
             <GlassCardContent className="space-y-4">
@@ -593,14 +595,14 @@ export default function CalendarPage() {
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-2 block">Color</label>
                 <div className="flex gap-2">
-                  {eventColors.map((color) => (
+                  {eventColors.map((colorObj) => (
                     <button
-                      key={color}
-                      onClick={() => setNewEvent(prev => ({ ...prev, color }))}
+                      key={colorObj.gradient}
+                      onClick={() => setNewEvent(prev => ({ ...prev, color: colorObj.gradient }))}
                       className={cn(
-                        'w-8 h-8 rounded-full bg-gradient-to-br',
-                        color,
-                        newEvent.color === color && 'ring-2 ring-offset-2 ring-blue-500'
+                        'w-8 h-8 rounded-full border-2',
+                        colorObj.border,
+                        newEvent.color === colorObj.gradient && 'ring-2 ring-offset-2 ring-blue-500'
                       )}
                     />
                   ))}

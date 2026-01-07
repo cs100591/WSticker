@@ -94,6 +94,28 @@ export function addDevTodo(todo: Partial<Todo>): Todo {
   return newTodo;
 }
 
+export function updateDevTodo(id: string, updates: Partial<Todo>): Todo | null {
+  const index = devStore.todos.findIndex(t => t.id === id);
+  if (index === -1) return null;
+  
+  devStore.todos[index] = {
+    ...devStore.todos[index],
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
+  console.log('[DEV STORE] Todo updated:', id);
+  return devStore.todos[index];
+}
+
+export function deleteDevTodo(id: string): boolean {
+  const index = devStore.todos.findIndex(t => t.id === id);
+  if (index === -1) return false;
+  
+  devStore.todos.splice(index, 1);
+  console.log('[DEV STORE] Todo deleted:', id);
+  return true;
+}
+
 export function getDevExpenses(): Expense[] {
   return [...devStore.expenses].sort((a, b) => 
     new Date(b.expenseDate).getTime() - new Date(a.expenseDate).getTime()
