@@ -44,44 +44,45 @@ export function MobileNav({ onChatbotClick, isChatbotOpen }: MobileNavProps) {
                 className="flex flex-col items-center justify-center flex-1 py-2 transition-all duration-200"
               >
                 <div className={cn(
-                  'p-3 rounded-2xl transition-all duration-200',
-                  'border-2 border-blue-500',
-                  'bg-transparent',
-                  isChatbotOpen && 'bg-blue-500 border-blue-500'
+                  'p-2.5 rounded-2xl transition-all duration-200',
+                  'border-2',
+                  isChatbotOpen 
+                    ? 'bg-blue-500 border-blue-500' 
+                    : 'bg-transparent border-blue-500'
                 )}>
-                  <Icon className={cn(
-                    'w-6 h-6 transition-colors duration-200',
-                    isChatbotOpen ? 'text-white' : 'text-blue-500'
-                  )} />
+                  <Icon 
+                    className={cn(
+                      'w-6 h-6 transition-colors duration-200',
+                      isChatbotOpen ? 'text-white' : 'text-blue-500'
+                    )} 
+                    strokeWidth={1.5}
+                  />
                 </div>
               </button>
             );
           }
           
-          // Regular nav items
+          // Regular nav items - outline icons
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
           
           return (
             <Link
               key={item.href}
               href={item.href!}
-              className={cn(
-                'flex flex-col items-center justify-center flex-1 py-2 transition-all duration-200',
-                isActive ? 'text-blue-600' : 'text-gray-400'
-              )}
+              className="flex flex-col items-center justify-center flex-1 py-2 transition-all duration-200"
             >
-              <div className={cn(
-                'p-2 rounded-xl transition-all duration-200',
-                isActive && 'bg-blue-500/10'
-              )}>
-                <Icon className={cn(
-                  'w-6 h-6 transition-transform duration-200',
-                  isActive && 'scale-110'
-                )} />
+              <div className="p-2 rounded-xl transition-all duration-200">
+                <Icon 
+                  className={cn(
+                    'w-6 h-6 transition-all duration-200',
+                    isActive ? 'text-blue-500' : 'text-gray-400'
+                  )} 
+                  strokeWidth={1.5}
+                />
               </div>
               <span className={cn(
-                'text-xs mt-1 font-medium',
-                isActive ? 'text-blue-600' : 'text-gray-500'
+                'text-xs mt-0.5 font-medium',
+                isActive ? 'text-blue-500' : 'text-gray-400'
               )}>
                 {item.label}
               </span>
