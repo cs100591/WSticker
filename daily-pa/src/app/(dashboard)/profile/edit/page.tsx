@@ -7,7 +7,6 @@ import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useI18n } from '@/lib/i18n';
 import { ArrowLeft, Loader2, Save } from 'lucide-react';
 import Link from 'next/link';
 
@@ -18,7 +17,6 @@ interface UserProfile {
 
 export default function EditProfilePage() {
   const router = useRouter();
-  const { t } = useI18n();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [fullName, setFullName] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -78,16 +76,17 @@ export default function EditProfilePage() {
       <Header 
         title="Edit Profile" 
         showHomeButton={false}
-        leftButton={
-          <Link href="/profile">
-            <Button variant="ghost" size="icon" className="rounded-xl">
-              <ArrowLeft className="w-5 h-5" strokeWidth={1.5} />
-            </Button>
-          </Link>
-        }
       />
       
       <div className="flex-1 p-4 md:p-6 space-y-4">
+        {/* Back Button */}
+        <Link href="/profile">
+          <Button variant="ghost" size="sm" className="rounded-xl -ml-2">
+            <ArrowLeft className="w-4 h-4 mr-2" strokeWidth={1.5} />
+            Back to Profile
+          </Button>
+        </Link>
+
         <GlassCard>
           <GlassCardHeader>
             <GlassCardTitle>Personal Information</GlassCardTitle>

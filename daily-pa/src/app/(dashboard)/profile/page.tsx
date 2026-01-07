@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Header } from '@/components/layout/Header';
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
@@ -18,7 +17,6 @@ interface UserProfile {
 }
 
 export default function ProfilePage() {
-  const router = useRouter();
   const { t, locale, setLocale } = useI18n();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,7 +54,7 @@ export default function ProfilePage() {
     if (name) {
       return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     }
-    return email[0].toUpperCase();
+    return email?.[0]?.toUpperCase() || 'U';
   };
 
   const settingsGroups = [

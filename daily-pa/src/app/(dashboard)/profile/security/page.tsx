@@ -7,13 +7,11 @@ import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useI18n } from '@/lib/i18n';
 import { ArrowLeft, Loader2, Lock, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 
 export default function SecurityPage() {
   const router = useRouter();
-  const { t } = useI18n();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -78,16 +76,17 @@ export default function SecurityPage() {
       <Header 
         title="Security" 
         showHomeButton={false}
-        leftButton={
-          <Link href="/profile">
-            <Button variant="ghost" size="icon" className="rounded-xl">
-              <ArrowLeft className="w-5 h-5" strokeWidth={1.5} />
-            </Button>
-          </Link>
-        }
       />
       
       <div className="flex-1 p-4 md:p-6 space-y-4">
+        {/* Back Button */}
+        <Link href="/profile">
+          <Button variant="ghost" size="sm" className="rounded-xl -ml-2">
+            <ArrowLeft className="w-4 h-4 mr-2" strokeWidth={1.5} />
+            Back to Profile
+          </Button>
+        </Link>
+
         <GlassCard>
           <GlassCardHeader>
             <GlassCardTitle className="flex items-center gap-2">

@@ -185,7 +185,7 @@ export default function ReportsPage() {
                         fill="#8884d8"
                         dataKey="amount"
                       >
-                        {data.spendingByCategory.map((entry, index) => (
+                        {data.spendingByCategory.map((_entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>

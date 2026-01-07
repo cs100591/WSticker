@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
 import { Button } from '@/components/ui/button';
-import { useI18n } from '@/lib/i18n';
 import { ArrowLeft, Bell, Mail, MessageSquare, Calendar, DollarSign, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -19,7 +18,6 @@ interface NotificationSettings {
 }
 
 export default function NotificationsPage() {
-  const { t } = useI18n();
   const [settings, setSettings] = useState<NotificationSettings>({
     emailNotifications: true,
     pushNotifications: false,
@@ -105,16 +103,17 @@ export default function NotificationsPage() {
       <Header 
         title="Notifications" 
         showHomeButton={false}
-        leftButton={
-          <Link href="/profile">
-            <Button variant="ghost" size="icon" className="rounded-xl">
-              <ArrowLeft className="w-5 h-5" strokeWidth={1.5} />
-            </Button>
-          </Link>
-        }
       />
       
       <div className="flex-1 p-4 md:p-6 space-y-4">
+        {/* Back Button */}
+        <Link href="/profile">
+          <Button variant="ghost" size="sm" className="rounded-xl -ml-2">
+            <ArrowLeft className="w-4 h-4 mr-2" strokeWidth={1.5} />
+            Back to Profile
+          </Button>
+        </Link>
+
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-blue-500" strokeWidth={1.5} />
