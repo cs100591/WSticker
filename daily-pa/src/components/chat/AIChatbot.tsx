@@ -484,8 +484,10 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
       
       {/* Modal */}
       <div className={cn(
-        'fixed z-50 bottom-24 right-6',
-        'w-[360px] max-h-[70vh]',
+        'fixed z-50',
+        'inset-4 sm:inset-auto sm:bottom-24 sm:right-6',
+        'w-auto sm:w-[360px]',
+        'max-h-[calc(100vh-8rem)] sm:max-h-[70vh]',
         'bg-white/95 backdrop-blur-xl',
         'rounded-2xl shadow-2xl shadow-black/10',
         'border border-gray-200/50',
