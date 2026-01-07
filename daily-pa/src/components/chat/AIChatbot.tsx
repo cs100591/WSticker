@@ -91,7 +91,16 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
   // Voice recognition states
   const [isListening, setIsListening] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
+  const [voiceLang, setVoiceLang] = useState<'zh-CN' | 'en-US' | 'ja-JP' | 'ko-KR'>('zh-CN');
+  const [showVoiceLangMenu, setShowVoiceLangMenu] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+
+  const voiceLanguages = [
+    { code: 'zh-CN' as const, label: '中文', flag: '🇨🇳' },
+    { code: 'en-US' as const, label: 'English', flag: '🇺🇸' },
+    { code: 'ja-JP' as const, label: '日本語', flag: '🇯🇵' },
+    { code: 'ko-KR' as const, label: '한국어', flag: '🇰🇷' },
+  ];
 
   // Check speech recognition support
   useEffect(() => {
@@ -101,7 +110,7 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
       const recognition = new SpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = true;
-      recognition.lang = locale === 'zh' ? 'zh-CN' : 'en-US';
+      recognition.lang = voiceLang;
       
       recognition.onresult = (event) => {
         const transcript = Array.from(event.results)
@@ -120,7 +129,7 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
       
       recognitionRef.current = recognition;
     }
-  }, [locale]);
+  }, [voiceLang]);
 
   const toggleVoice = () => {
     if (!recognitionRef.current) return;
@@ -129,9 +138,17 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
       recognitionRef.current.stop();
       setIsListening(false);
     } else {
-      recognitionRef.current.lang = locale === 'zh' ? 'zh-CN' : 'en-US';
+      recognitionRef.current.lang = voiceLang;
       recognitionRef.current.start();
       setIsListening(true);
+    }
+  };
+
+  const selectVoiceLang = (lang: typeof voiceLang) => {
+    setVoiceLang(lang);
+    setShowVoiceLangMenu(false);
+    if (recognitionRef.current) {
+      recognitionRef.current.lang = lang;
     }
   };
 
@@ -759,17 +776,42 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
                 <Camera className="w-5 h-5" />
               </Button>
               {speechSupported && (
-                <Button
-                  variant={isListening ? "default" : "outline"}
-                  onClick={toggleVoice}
-                  className={cn(
-                    "h-12 w-12 rounded-xl transition-all",
-                    isListening && "bg-red-500 hover:bg-red-600 animate-pulse"
+                <div className="relative">
+                  <Button
+                    variant={isListening ? "default" : "outline"}
+                    onClick={toggleVoice}
+                    onContextMenu={(e) => { e.preventDefault(); setShowVoiceLangMenu(!showVoiceLangMenu); }}
+                    className={cn(
+                      "h-12 w-12 rounded-xl transition-all",
+                      isListening && "bg-red-500 hover:bg-red-600 animate-pulse"
+                    )}
+                    title={locale === 'zh' ? '点击录音，长按选语言' : 'Click to record, hold for language'}
+                  >
+                    <div className="flex flex-col items-center">
+                      {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                      <span className="text-[10px] mt-0.5">{voiceLanguages.find(l => l.code === voiceLang)?.flag}</span>
+                    </div>
+                  </Button>
+                  {showVoiceLangMenu && (
+                    <div className="absolute bottom-14 left-0 bg-white rounded-xl shadow-lg border p-2 min-w-[120px] z-10">
+                      <p className="text-xs text-gray-500 px-2 mb-1">{locale === 'zh' ? '语音语言' : 'Voice Language'}</p>
+                      {voiceLanguages.map((lang) => (
+                        <button
+                          key={lang.code}
+                          onClick={() => selectVoiceLang(lang.code)}
+                          className={cn(
+                            "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm hover:bg-gray-100",
+                            voiceLang === lang.code && "bg-blue-50 text-blue-600"
+                          )}
+                        >
+                          <span>{lang.flag}</span>
+                          <span>{lang.label}</span>
+                          {voiceLang === lang.code && <Check className="w-3 h-3 ml-auto" />}
+                        </button>
+                      ))}
+                    </div>
                   )}
-                  title={locale === 'zh' ? '语音输入' : 'Voice input'}
-                >
-                  {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                </Button>
+                </div>
               )}
               <Input
                 ref={inputRef}
