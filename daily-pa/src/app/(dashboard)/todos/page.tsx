@@ -25,6 +25,7 @@ export default function TodosPage() {
     low: true,
     completed: false,
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const desktopInputRef = useRef<HTMLInputElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
   
@@ -32,19 +33,28 @@ export default function TodosPage() {
 
   const handleAddTodo = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTodo.trim()) return;
+    console.log('handleAddTodo called, newTodo:', newTodo);
+    if (!newTodo.trim()) {
+      console.log('Empty todo, returning');
+      return;
+    }
     
+    setIsSubmitting(true);
     try {
+      console.log('Creating todo with:', { title: newTodo.trim(), priority: selectedPriority, color: 'yellow' });
       await createTodo({ 
         title: newTodo.trim(), 
         priority: selectedPriority,
         color: 'yellow'
       });
+      console.log('Todo created successfully');
       setNewTodo('');
       desktopInputRef.current?.focus();
       mobileInputRef.current?.focus();
     } catch (error) {
       console.error('Failed to create todo:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -115,11 +125,13 @@ export default function TodosPage() {
             value={newTodo}
             onChange={(e) => setNewTodo(e.target.value)}
             className="flex-1 h-10 rounded-lg border border-gray-300 text-sm"
+            disabled={isSubmitting}
           />
           <select
             value={selectedPriority}
             onChange={(e) => setSelectedPriority(e.target.value as TodoPriority)}
             className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white"
+            disabled={isSubmitting}
           >
             <option value="high">{priorityConfig.high.label}</option>
             <option value="medium">{priorityConfig.medium.label}</option>
@@ -128,9 +140,10 @@ export default function TodosPage() {
           <Button 
             type="submit"
             size="icon"
-            className="h-10 w-10 rounded-lg bg-blue-500 hover:bg-blue-600"
+            disabled={isSubmitting || !newTodo.trim()}
+            className="h-10 w-10 rounded-lg bg-blue-500 hover:bg-blue-600 disabled:opacity-50"
           >
-            <Plus className="w-4 h-4" />
+            {isSubmitting ? '...' : <Plus className="w-4 h-4" />}
           </Button>
         </div>
       </form>
@@ -217,13 +230,15 @@ export default function TodosPage() {
             value={newTodo}
             onChange={(e) => setNewTodo(e.target.value)}
             className="flex-1 h-10 rounded-lg border border-gray-300 text-sm"
+            disabled={isSubmitting}
           />
           <Button 
             type="submit"
             size="icon"
-            className="h-10 w-10 rounded-lg bg-blue-500 hover:bg-blue-600"
+            disabled={isSubmitting || !newTodo.trim()}
+            className="h-10 w-10 rounded-lg bg-blue-500 hover:bg-blue-600 disabled:opacity-50"
           >
-            <Plus className="w-4 h-4" />
+            {isSubmitting ? '...' : <Plus className="w-4 h-4" />}
           </Button>
         </div>
         <div className="flex gap-2 items-center">
@@ -231,6 +246,7 @@ export default function TodosPage() {
             value={selectedPriority}
             onChange={(e) => setSelectedPriority(e.target.value as TodoPriority)}
             className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white"
+            disabled={isSubmitting}
           >
             <option value="high">{priorityConfig.high.label}</option>
             <option value="medium">{priorityConfig.medium.label}</option>
