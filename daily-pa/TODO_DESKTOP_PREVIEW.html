@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>待办事项 - Desktop Preview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+        }
+
+        .desktop-container {
+            display: flex;
+            min-height: 100vh;
+            background: white;
+        }
+
+        .sidebar {
+            width: 250px;
+            background: #f9f9f9;
+            border-right: 1px solid #e0e0e0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .sidebar-item {
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #666;
+            transition: all 0.2s;
+        }
+
+        .sidebar-item:hover {
+            background: #e8e8e8;
+        }
+
+        .sidebar-item.active {
+            background: #007AFF;
+            color: white;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            padding: 24px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e0e0e0;
+            background: white;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #000;
+        }
+
+        .count-badge {
+            background: #f0f0f0;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .add-form {
+            padding: 24px 32px;
+            border-bottom: 1px solid #e0e0e0;
+            background: white;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 12px;
+            max-width: 600px;
+        }
+
+        .input-field {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .priority-select {
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            min-width: 100px;
+        }
+
+        .add-btn {
+            width: 40px;
+            height: 40px;
+            background: #007AFF;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .add-btn:hover {
+            background: #0056b3;
+        }
+
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px 32px;
+        }
+
+        .content-wrapper {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .priority-group {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .priority-header {
+            padding: 14px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .priority-header.high {
+            background: #FEE5E5;
+            color: #D32F2F;
+        }
+
+        .priority-header.medium {
+            background: #FFF3E0;
+            color: #F57C00;
+        }
+
+        .priority-header.low {
+            background: #E3F2FD;
+            color: #1976D2;
+        }
+
+        .priority-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .priority-header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .badge {
+            font-size: 16px;
+        }
+
+        .chevron {
+            font-size: 14px;
+        }
+
+        .plus-icon {
+            font-size: 12px;
+            opacity: 0.6;
+        }
+
+        .todo-item {
+            padding: 14px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid #f0f0f0;
+            font-size: 14px;
+            color: #333;
+            background: white;
+            transition: background 0.2s;
+        }
+
+        .todo-item:hover {
+            background: #f9f9f9;
+        }
+
+        .todo-title {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .todo-checkbox {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #ccc;
+            border-radius: 50%;
+            margin-left: 16px;
+            flex-shrink: 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .todo-checkbox:hover {
+            border-color: #999;
+        }
+
+        .todo-checkbox.completed {
+            background: #4CAF50;
+            border-color: #4CAF50;
+            color: white;
+        }
+
+        .section-header {
+            padding: 14px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            background: #f9f9f9;
+            cursor: pointer;
+            user-select: none;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .section-header:hover {
+            background: #f0f0f0;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="desktop-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-item active">✓ 待办事项</div>
+            <div class="sidebar-item">📅 今天</div>
+            <div class="sidebar-item">⭐ 专注</div>
+            <div class="sidebar-item">😊 我的</div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <div class="header">
+                <div class="header-left">
+                    <div class="header-title">待办事项</div>
+                    <div class="count-badge">
+                        <span>📋</span>
+                        <span>3/5</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add Form -->
+            <div class="add-form">
+                <div class="form-row">
+                    <input type="text" class="input-field" placeholder="Add a new todo...">
+                    <select class="priority-select">
+                        <option>高</option>
+                        <option selected>中</option>
+                        <option>低</option>
+                    </select>
+                    <button class="add-btn">+</button>
+                </div>
+            </div>
+
+            <!-- Content -->
+            <div class="content">
+                <div class="content-wrapper">
+                    <!-- High Priority Group -->
+                    <div class="priority-group">
+                        <div class="priority-header high">
+                            <div class="priority-header-left">
+                                <span class="badge">🔴</span>
+                                <span>高 (1)</span>
+                            </div>
+                            <div class="priority-header-right">
+                                <span class="plus-icon">+</span>
+                                <span class="chevron">▼</span>
+                            </div>
+                        </div>
+                        <div class="todo-item">
+                            <div class="todo-title">Shopping</div>
+                            <div class="todo-checkbox"></div>
+                        </div>
+                    </div>
+
+                    <!-- Medium Priority Group -->
+                    <div class="priority-group">
+                        <div class="priority-header medium">
+                            <div class="priority-header-left">
+                                <span class="badge">🟠</span>
+                                <span>中 (2)</span>
+                            </div>
+                            <div class="priority-header-right">
+                                <span class="plus-icon">+</span>
+                                <span class="chevron">▼</span>
+                            </div>
+                        </div>
+                        <div class="todo-item">
+                            <div class="todo-title">Lunch with team members</div>
+                            <div class="todo-checkbox"></div>
+                        </div>
+                        <div class="todo-item">
+                            <div class="todo-title">Dinner preparation</div>
+                            <div class="todo-checkbox"></div>
+                        </div>
+                    </div>
+
+                    <!-- Low Priority Group -->
+                    <div class="priority-group">
+                        <div class="priority-header low">
+                            <div class="priority-header-left">
+                                <span class="badge">🔵</span>
+                                <span>低 (0)</span>
+                            </div>
+                            <div class="priority-header-right">
+                                <span class="plus-icon">+</span>
+                                <span class="chevron">▲</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Completed Section -->
+                    <div class="section-header">
+                        <span>已完成 (2)</span>
+                        <span class="chevron">▼</span>
+                    </div>
+                    <div class="priority-group">
+                        <div class="todo-item">
+                            <div class="todo-title" style="text-decoration: line-through; color: #999;">Completed Task 1</div>
+                            <div class="todo-checkbox completed">✓</div>
+                        </div>
+                        <div class="todo-item">
+                            <div class="todo-title" style="text-decoration: line-through; color: #999;">Completed Task 2</div>
+                            <div class="todo-checkbox completed">✓</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

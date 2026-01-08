@@ -1,41 +1,33 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useI18n } from '@/lib/i18n';
 import { useTodos } from '@/lib/hooks/useTodos';
-import { Plus, CheckCircle2, Circle, Trash2, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { TodoColor, TodoPriority } from '@/types/todo';
+import type { TodoPriority } from '@/types/todo';
 
-const priorityColors = {
-  high: { bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-400', label: '高' },
-  medium: { bg: 'bg-yellow-100', text: 'text-yellow-700', dot: 'bg-yellow-400', label: '中' },
-  low: { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-400', label: '低' },
-};
-
-const colorEmojis = {
-  yellow: '🟡',
-  blue: '🔵',
-  pink: '🩷',
+const priorityConfig = {
+  high: { badge: '🔴', label: '高', bgLight: 'bg-red-100', textColor: 'text-red-700' },
+  medium: { badge: '🟠', label: '中', bgLight: 'bg-orange-100', textColor: 'text-orange-700' },
+  low: { badge: '🔵', label: '低', bgLight: 'bg-blue-100', textColor: 'text-blue-700' },
 };
 
 export default function TodosPage() {
   const { t, locale } = useI18n();
   const [newTodo, setNewTodo] = useState('');
-  const [selectedColor, setSelectedColor] = useState<TodoColor>('yellow');
   const [selectedPriority, setSelectedPriority] = useState<TodoPriority>('medium');
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     high: true,
     medium: true,
-    low: false,
+    low: true,
     completed: false,
   });
   const inputRef = useRef<HTMLInputElement>(null);
   
-  const { todos, isLoading, createTodo, toggleTodo, deleteTodo } = useTodos({});
+  const { todos, isLoading, createTodo, toggleTodo } = useTodos({});
 
   const handleAddTodo = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +37,7 @@ export default function TodosPage() {
       await createTodo({ 
         title: newTodo.trim(), 
         priority: selectedPriority,
-        color: selectedColor 
+        color: 'yellow'
       });
       setNewTodo('');
       inputRef.current?.focus();
@@ -59,14 +51,6 @@ export default function TodosPage() {
       await toggleTodo(id);
     } catch (error) {
       console.error('Failed to toggle todo:', error);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      await deleteTodo(id);
-    } catch (error) {
-      console.error('Failed to delete todo:', error);
     }
   };
 
@@ -88,183 +72,122 @@ export default function TodosPage() {
   const totalCompleted = completedTodos.length;
 
   return (
-    <div className="flex flex-col min-h-screen bg-white">
-      <Header title={t.todos.title} />
-      
-      <div className="flex-1 overflow-y-auto pb-24">
-        <div className="max-w-2xl mx-auto p-4 space-y-4">
-          {/* Count Header */}
-          <div className="flex items-center justify-between px-4 py-2">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span>📋</span>
-              <span>{totalActive}/{totalActive + totalCompleted}</span>
-            </div>
-            <Button 
-              onClick={() => setExpandedGroups(prev => ({ ...prev, high: !prev.high, medium: !prev.medium, low: !prev.low }))}
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-            >
-              <Plus className="w-5 h-5" />
-            </Button>
+    <div className="flex flex-col h-screen bg-white">
+      {/* Mobile Header - Only on mobile */}
+      <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white">
+        <div className="flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-full text-sm font-medium text-gray-700">
+          <span>📋</span>
+          <span>{totalActive}/{totalActive + totalCompleted}</span>
+        </div>
+        <button 
+          onClick={() => inputRef.current?.focus()}
+          className="w-8 h-8 bg-blue-500 hover:bg-blue-600 text-white rounded-lg flex items-center justify-center text-lg"
+        >
+          +
+        </button>
+      </div>
+
+      {/* Desktop Header - Only on desktop */}
+      <div className="hidden md:flex items-center justify-between px-8 py-4 border-b border-gray-100 bg-white">
+        <h1 className="text-2xl font-bold text-gray-900">{locale === 'zh' ? '待办事项' : 'Todos'}</h1>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-full text-sm font-medium text-gray-700">
+            <span>📋</span>
+            <span>{totalActive}/{totalActive + totalCompleted}</span>
           </div>
+        </div>
+      </div>
 
-          {/* Title */}
-          <h1 className="text-2xl font-bold text-center text-gray-800 py-2">
-            {t.todos.title}
-          </h1>
+      {/* Title - Mobile only */}
+      <div className="md:hidden text-center py-4 border-b border-gray-100 bg-white">
+        <h1 className="text-xl font-bold text-gray-900">{locale === 'zh' ? '待办事项' : 'Todos'}</h1>
+      </div>
 
-          {/* Add Todo Form */}
-          <form onSubmit={handleAddTodo} className="space-y-3 px-4">
-            <div className="flex gap-2">
-              <Input
-                ref={inputRef}
-                placeholder={t.todos.addPlaceholder}
-                value={newTodo}
-                onChange={(e) => setNewTodo(e.target.value)}
-                className="flex-1 h-10 rounded-lg border border-gray-300 text-sm"
-              />
-              <Button 
-                type="submit"
-                size="icon"
-                className="h-10 w-10 rounded-lg bg-blue-500 hover:bg-blue-600"
-              >
-                <Plus className="w-4 h-4" />
-              </Button>
-            </div>
+      {/* Desktop Add Form - Only on desktop */}
+      <form onSubmit={handleAddTodo} className="hidden md:block px-8 py-4 border-b border-gray-100 bg-white space-y-3">
+        <div className="flex gap-3 max-w-2xl">
+          <Input
+            ref={inputRef}
+            placeholder={t.todos.addPlaceholder}
+            value={newTodo}
+            onChange={(e) => setNewTodo(e.target.value)}
+            className="flex-1 h-10 rounded-lg border border-gray-300 text-sm"
+          />
+          <select
+            value={selectedPriority}
+            onChange={(e) => setSelectedPriority(e.target.value as TodoPriority)}
+            className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white"
+          >
+            <option value="high">{priorityConfig.high.label}</option>
+            <option value="medium">{priorityConfig.medium.label}</option>
+            <option value="low">{priorityConfig.low.label}</option>
+          </select>
+          <Button 
+            type="submit"
+            size="icon"
+            className="h-10 w-10 rounded-lg bg-blue-500 hover:bg-blue-600"
+          >
+            <Plus className="w-4 h-4" />
+          </Button>
+        </div>
+      </form>
 
-            {/* Priority and Color Selection */}
-            <div className="flex gap-2 items-center">
-              <select
-                value={selectedPriority}
-                onChange={(e) => setSelectedPriority(e.target.value as TodoPriority)}
-                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white"
-              >
-                <option value="high">{priorityColors.high.label}</option>
-                <option value="medium">{priorityColors.medium.label}</option>
-                <option value="low">{priorityColors.low.label}</option>
-              </select>
-
-              <div className="flex gap-1.5">
-                {(['yellow', 'blue', 'pink'] as TodoColor[]).map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    onClick={() => setSelectedColor(color)}
-                    className={cn(
-                      'w-8 h-8 rounded-full text-lg transition-all',
-                      selectedColor === color ? 'ring-2 ring-offset-1 ring-gray-800 scale-110' : 'opacity-60'
-                    )}
-                  >
-                    {colorEmojis[color]}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </form>
-
-          {/* Todo Groups */}
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto pb-20 md:pb-0">
+        <div className="md:max-w-4xl md:mx-auto">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+              <div className="animate-spin">⏳</div>
             </div>
           ) : (
-            <div className="space-y-2 px-4">
+            <div className="space-y-0">
               {/* High Priority */}
               {todosByPriority.high.length > 0 && (
-                <div className="space-y-2">
-                  <button
-                    onClick={() => toggleGroup('high')}
-                    className={cn(
-                      'w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                      priorityColors.high.bg,
-                      priorityColors.high.text
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className={cn('w-2 h-2 rounded-full', priorityColors.high.dot)} />
-                      <span>{priorityColors.high.label} ({todosByPriority.high.length})</span>
-                    </div>
-                    {expandedGroups.high ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </button>
-                  {expandedGroups.high && (
-                    <div className="space-y-1 pl-2">
-                      {todosByPriority.high.map(todo => (
-                        <TodoItem key={todo.id} todo={todo} onToggle={handleToggle} onDelete={handleDelete} />
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <PriorityGroup
+                  priority="high"
+                  todos={todosByPriority.high}
+                  isExpanded={expandedGroups.high ?? true}
+                  onToggleExpand={() => toggleGroup('high')}
+                  onToggleTodo={handleToggle}
+                />
               )}
 
               {/* Medium Priority */}
               {todosByPriority.medium.length > 0 && (
-                <div className="space-y-2">
-                  <button
-                    onClick={() => toggleGroup('medium')}
-                    className={cn(
-                      'w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                      priorityColors.medium.bg,
-                      priorityColors.medium.text
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className={cn('w-2 h-2 rounded-full', priorityColors.medium.dot)} />
-                      <span>{priorityColors.medium.label} ({todosByPriority.medium.length})</span>
-                    </div>
-                    {expandedGroups.medium ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </button>
-                  {expandedGroups.medium && (
-                    <div className="space-y-1 pl-2">
-                      {todosByPriority.medium.map(todo => (
-                        <TodoItem key={todo.id} todo={todo} onToggle={handleToggle} onDelete={handleDelete} />
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <PriorityGroup
+                  priority="medium"
+                  todos={todosByPriority.medium}
+                  isExpanded={expandedGroups.medium ?? true}
+                  onToggleExpand={() => toggleGroup('medium')}
+                  onToggleTodo={handleToggle}
+                />
               )}
 
               {/* Low Priority */}
               {todosByPriority.low.length > 0 && (
-                <div className="space-y-2">
-                  <button
-                    onClick={() => toggleGroup('low')}
-                    className={cn(
-                      'w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                      priorityColors.low.bg,
-                      priorityColors.low.text
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className={cn('w-2 h-2 rounded-full', priorityColors.low.dot)} />
-                      <span>{priorityColors.low.label} ({todosByPriority.low.length})</span>
-                    </div>
-                    {expandedGroups.low ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </button>
-                  {expandedGroups.low && (
-                    <div className="space-y-1 pl-2">
-                      {todosByPriority.low.map(todo => (
-                        <TodoItem key={todo.id} todo={todo} onToggle={handleToggle} onDelete={handleDelete} />
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <PriorityGroup
+                  priority="low"
+                  todos={todosByPriority.low}
+                  isExpanded={expandedGroups.low ?? true}
+                  onToggleExpand={() => toggleGroup('low')}
+                  onToggleTodo={handleToggle}
+                />
               )}
 
               {/* Completed Section */}
               {completedTodos.length > 0 && (
-                <div className="space-y-2 mt-4">
+                <div className="border-b border-gray-100">
                   <button
                     onClick={() => toggleGroup('completed')}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 transition-colors"
+                    className="w-full px-4 md:px-8 py-3 flex items-center justify-between text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100"
                   >
                     <span>{locale === 'zh' ? '已完成' : 'Completed'} ({completedTodos.length})</span>
                     {expandedGroups.completed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   </button>
                   {expandedGroups.completed && (
-                    <div className="space-y-1 pl-2">
+                    <div className="space-y-0 border-t border-gray-100">
                       {completedTodos.map(todo => (
-                        <TodoItem key={todo.id} todo={todo} onToggle={handleToggle} onDelete={handleDelete} />
+                        <TodoItemRow key={todo.id} todo={todo} onToggle={handleToggle} />
                       ))}
                     </div>
                   )}
@@ -273,40 +196,104 @@ export default function TodosPage() {
 
               {/* Empty State */}
               {totalActive === 0 && totalCompleted === 0 && (
-                <div className="text-center py-12">
-                  <p className="text-gray-500">{t.todos.noTasks}</p>
+                <div className="text-center py-12 text-gray-400">
+                  <p>{t.todos.noTasks}</p>
                 </div>
               )}
             </div>
           )}
         </div>
       </div>
+
+      {/* Mobile Add Todo Form - Fixed at bottom, mobile only */}
+      <form onSubmit={handleAddTodo} className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-4 space-y-3">
+        <div className="flex gap-2">
+          <Input
+            ref={inputRef}
+            placeholder={t.todos.addPlaceholder}
+            value={newTodo}
+            onChange={(e) => setNewTodo(e.target.value)}
+            className="flex-1 h-10 rounded-lg border border-gray-300 text-sm"
+          />
+          <Button 
+            type="submit"
+            size="icon"
+            className="h-10 w-10 rounded-lg bg-blue-500 hover:bg-blue-600"
+          >
+            <Plus className="w-4 h-4" />
+          </Button>
+        </div>
+        <div className="flex gap-2 items-center">
+          <select
+            value={selectedPriority}
+            onChange={(e) => setSelectedPriority(e.target.value as TodoPriority)}
+            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white"
+          >
+            <option value="high">{priorityConfig.high.label}</option>
+            <option value="medium">{priorityConfig.medium.label}</option>
+            <option value="low">{priorityConfig.low.label}</option>
+          </select>
+        </div>
+      </form>
     </div>
   );
 }
 
-function TodoItem({ 
-  todo, 
-  onToggle, 
-  onDelete 
+function PriorityGroup({ 
+  priority, 
+  todos, 
+  isExpanded, 
+  onToggleExpand, 
+  onToggleTodo 
 }: { 
-  todo: any; 
-  onToggle: (id: string) => void; 
-  onDelete: (id: string) => void;
+  priority: TodoPriority; 
+  todos: any[]; 
+  isExpanded: boolean; 
+  onToggleExpand: () => void; 
+  onToggleTodo: (id: string) => void;
 }) {
+  const config = priorityConfig[priority];
+  
   return (
-    <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg group hover:bg-gray-100 transition-colors">
+    <div className="border-b border-gray-100">
       <button
-        onClick={() => onToggle(todo.id)}
-        className="flex-shrink-0 flex items-center justify-center"
-      >
-        {todo.status === 'completed' ? (
-          <CheckCircle2 className="w-5 h-5 text-green-600" strokeWidth={2} />
-        ) : (
-          <Circle className="w-5 h-5 text-gray-400 group-hover:text-gray-600" strokeWidth={2} />
+        onClick={onToggleExpand}
+        className={cn(
+          'w-full px-4 md:px-8 py-3 flex items-center justify-between text-sm font-semibold',
+          config.bgLight,
+          config.textColor
         )}
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-base">{config.badge}</span>
+          <span>{config.label} ({todos.length})</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs opacity-60">+</span>
+          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </div>
       </button>
       
+      {isExpanded && (
+        <div className="space-y-0 border-t border-gray-100">
+          {todos.map(todo => (
+            <TodoItemRow key={todo.id} todo={todo} onToggle={onToggleTodo} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TodoItemRow({ 
+  todo, 
+  onToggle 
+}: { 
+  todo: any; 
+  onToggle: (id: string) => void;
+}) {
+  return (
+    <div className="px-4 md:px-8 py-3 flex items-center justify-between border-b border-gray-50 hover:bg-gray-50 transition-colors">
       <div className="flex-1 min-w-0">
         <p className={cn(
           'text-sm truncate',
@@ -315,16 +302,19 @@ function TodoItem({
           {todo.title}
         </p>
       </div>
-
-      <span className="text-lg flex-shrink-0">
-        {colorEmojis[todo.color as TodoColor] || '🟡'}
-      </span>
-
+      
       <button
-        onClick={() => onDelete(todo.id)}
-        className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:text-red-600"
+        onClick={() => onToggle(todo.id)}
+        className="flex-shrink-0 ml-3 p-1 rounded-full hover:bg-gray-200 transition-colors"
       >
-        <Trash2 className="w-4 h-4" />
+        <div className={cn(
+          'w-5 h-5 rounded-full border-2 flex items-center justify-center text-xs font-bold',
+          todo.status === 'completed' 
+            ? 'bg-green-500 border-green-500 text-white' 
+            : 'border-gray-300'
+        )}>
+          {todo.status === 'completed' && '✓'}
+        </div>
       </button>
     </div>
   );
