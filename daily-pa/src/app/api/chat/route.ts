@@ -111,13 +111,6 @@ When the user wants to:
 
 Categories for expenses: food, transport, shopping, entertainment, bills, health, education, other
 
-TIME CONFLICT HANDLING:
-If you receive a "conflicts" array with existing events, you MUST:
-1. Inform the user about the conflicting event(s)
-2. Ask if they want to choose a different time
-3. Do NOT create the calendar action - set action to null
-4. Be specific about what conflicts (show the conflicting event title and time)
-
 RESPONSE FORMAT:
 Always respond with a JSON object. Use "actions" (array) for multiple items, or "action" (object) for single item:
 
@@ -135,12 +128,6 @@ For MULTIPLE actions:
     { "type": "calendar", "data": {"title": "Meeting 2", "date": "2024-01-07", "startTime": "14:00", "endTime": "15:00"} },
     { "type": "todo", "data": {"title": "Buy groceries", "priority": "medium"} }
   ]
-}
-
-For TIME CONFLICT:
-{
-  "message": "⚠️ You already have 'Team Meeting' scheduled from 14:00 to 15:00 on that day. Would you like to choose a different time?",
-  "action": null
 }
 
 EXAMPLES:
@@ -178,13 +165,6 @@ const SYSTEM_PROMPT_ZH = `你是一个友好的 AI 助手，帮助用户管理�
 
 消费分类：food（餐饮）, transport（交通）, shopping（购物）, entertainment（娱乐）, bills（账单）, health（医疗）, education（教育）, other（其他）
 
-时间冲突处理：
-如果你收到 "conflicts" 数组包含已存在的事件，你必须：
-1. 告知用户有冲突的事件
-2. 询问用户是否要换个时间
-3. 不要创建日历 action - 将 action 设为 null
-4. 具体说明冲突内容（显示冲突事件的标题和时间）
-
 响应格式：
 始终返回 JSON 对象。多个事项用 "actions"（数组），单个事项用 "action"（对象）：
 
@@ -201,12 +181,6 @@ const SYSTEM_PROMPT_ZH = `你是一个友好的 AI 助手，帮助用户管理�
     { "type": "calendar", "data": {"title": "会议1", "date": "2024-01-07", "startTime": "09:00", "endTime": "10:00"} },
     { "type": "calendar", "data": {"title": "会议2", "date": "2024-01-07", "startTime": "14:00", "endTime": "15:00"} }
   ]
-}
-
-时间冲突：
-{
-  "message": "⚠️ 那个时间段你已经有「团队会议」了（14:00-15:00）。要不要换个时间？",
-  "action": null
 }
 
 示例：
@@ -245,31 +219,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
 
-    // First, try to extract calendar event info to check for conflicts
-    let conflictInfo = '';
-    const calendarPattern = /(\d{4}-\d{2}-\d{2}).*?(\d{1,2}:\d{2}).*?(\d{1,2}:\d{2})/;
-    const match = message.match(calendarPattern);
-    
-    if (match) {
-      const [, date, startTime, endTime] = match;
-      const conflicts = await checkTimeConflicts(date, startTime, endTime);
-      
-      if (conflicts.length > 0) {
-        const conflictList = conflicts.map(c => {
-          const startParts = c.startTime.split('T');
-          const endParts = c.endTime.split('T');
-          const start = startParts[1]?.substring(0, 5) || '00:00';
-          const end = endParts[1]?.substring(0, 5) || '00:00';
-          return `"${c.title}" (${start}-${end})`;
-        }).join(', ');
-        
-        conflictInfo = language === 'zh' 
-          ? `\n\n重要提示：用户在 ${date} 的 ${startTime}-${endTime} 时间段已经有以下事项：${conflictList}。你必须告知用户时间冲突，并询问是否要换个时间。不要创建日历事件。`
-          : `\n\nIMPORTANT: User already has these events on ${date} from ${startTime}-${endTime}: ${conflictList}. You MUST inform the user about the conflict and ask if they want to choose a different time. Do NOT create the calendar event.`;
-      }
-    }
-
-    const systemPrompt = (language === 'zh' ? SYSTEM_PROMPT_ZH : SYSTEM_PROMPT_EN) + conflictInfo;
+    const systemPrompt = language === 'zh' ? SYSTEM_PROMPT_ZH : SYSTEM_PROMPT_EN;
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -312,9 +262,68 @@ export async function POST(request: NextRequest) {
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
+        
+        // Check for conflicts in calendar actions
+        if (parsed.action?.type === 'calendar') {
+          const conflicts = await checkTimeConflicts(
+            parsed.action.data.date,
+            parsed.action.data.startTime,
+            parsed.action.data.endTime
+          );
+          
+          if (conflicts.length > 0) {
+            const conflictList = conflicts.map((c: CalendarEvent) => {
+              const startParts = c.startTime.split('T');
+              const endParts = c.endTime.split('T');
+              const start = startParts[1]?.substring(0, 5) || '00:00';
+              const end = endParts[1]?.substring(0, 5) || '00:00';
+              return `${c.title} (${start}-${end})`;
+            }).join(', ');
+            
+            return NextResponse.json({
+              message: language === 'zh'
+                ? `⚠️ 那个时间段你已经有「${conflictList}」了。要不要换个时间？`
+                : `⚠️ You already have '${conflictList}' scheduled at that time. Would you like to choose a different time?`,
+              action: null
+            });
+          }
+        }
+        
+        // Check for conflicts in multiple calendar actions
+        if (parsed.actions && Array.isArray(parsed.actions)) {
+          for (let i = 0; i < parsed.actions.length; i++) {
+            const action = parsed.actions[i];
+            if (action.type === 'calendar') {
+              const conflicts = await checkTimeConflicts(
+                action.data.date,
+                action.data.startTime,
+                action.data.endTime
+              );
+              
+              if (conflicts.length > 0) {
+                const conflictList = conflicts.map((c: CalendarEvent) => {
+                  const startParts = c.startTime.split('T');
+                  const endParts = c.endTime.split('T');
+                  const start = startParts[1]?.substring(0, 5) || '00:00';
+                  const end = endParts[1]?.substring(0, 5) || '00:00';
+                  return `${c.title} (${start}-${end})`;
+                }).join(', ');
+                
+                return NextResponse.json({
+                  message: language === 'zh'
+                    ? `⚠️ ${action.data.startTime} 到 ${action.data.endTime} 这个时间段你已经有「${conflictList}」了。要不要换个时间？`
+                    : `⚠️ You already have '${conflictList}' scheduled from ${action.data.startTime} to ${action.data.endTime}. Would you like to choose a different time?`,
+                  action: null
+                });
+              }
+            }
+          }
+        }
+        
         return NextResponse.json(parsed);
       }
-    } catch {
+    } catch (error) {
+      console.error('Error parsing AI response:', error);
       // If JSON parsing fails, return as plain message
     }
 
