@@ -366,6 +366,7 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
         actions = [{ id: `${Date.now()}-0`, type: data.action.type, data: data.action.data, status: 'pending' as const }];
       }
 
+      // All actions now require confirmation - no auto-execution
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',

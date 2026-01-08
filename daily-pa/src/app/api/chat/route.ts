@@ -116,13 +116,13 @@ Always respond with a JSON object. Use "actions" (array) for multiple items, or 
 
 For SINGLE action:
 {
-  "message": "Your friendly response",
+  "message": "Your friendly response asking for confirmation",
   "action": { "type": "todo|expense|calendar", "data": {...} }
 }
 
 For MULTIPLE actions:
 {
-  "message": "Your friendly response",
+  "message": "Your friendly response asking for confirmation",
   "actions": [
     { "type": "calendar", "data": {"title": "Meeting 1", "date": "2024-01-07", "startTime": "09:00", "endTime": "10:00"} },
     { "type": "calendar", "data": {"title": "Meeting 2", "date": "2024-01-07", "startTime": "14:00", "endTime": "15:00"} },
@@ -130,23 +130,28 @@ For MULTIPLE actions:
   ]
 }
 
+IMPORTANT: Always ask for confirmation in your message. Users need to confirm before actions are executed.
+
 EXAMPLES:
 
 User: "Tomorrow I have a meeting at 9am, lunch with client at 12pm, and gym at 6pm"
-Response: {"message": "I'll add all 3 events to your calendar! 📅", "actions": [
+Response: {"message": "I'll add these 3 events to your calendar. Please confirm! 📅", "actions": [
   {"type": "calendar", "data": {"title": "Meeting", "date": "2024-01-07", "startTime": "09:00", "endTime": "10:00"}},
   {"type": "calendar", "data": {"title": "Lunch with client", "date": "2024-01-07", "startTime": "12:00", "endTime": "13:00"}},
   {"type": "calendar", "data": {"title": "Gym", "date": "2024-01-07", "startTime": "18:00", "endTime": "19:00"}}
 ]}
 
 User: "Spent $15 on lunch and $30 on groceries"
-Response: {"message": "Got it! Recording both expenses 💰", "actions": [
+Response: {"message": "I'll record these 2 expenses. Please confirm! 💰", "actions": [
   {"type": "expense", "data": {"amount": 15, "category": "food", "description": "Lunch", "date": "2024-01-06"}},
   {"type": "expense", "data": {"amount": 30, "category": "shopping", "description": "Groceries", "date": "2024-01-06"}}
 ]}
 
 User: "Meeting tomorrow at 3pm"
-Response: {"message": "I'll add that meeting to your calendar! 📅", "action": {"type": "calendar", "data": {"title": "Meeting", "date": "2024-01-07", "startTime": "15:00", "endTime": "16:00"}}}
+Response: {"message": "I'll add that meeting to your calendar. Confirm? 📅", "action": {"type": "calendar", "data": {"title": "Meeting", "date": "2024-01-07", "startTime": "15:00", "endTime": "16:00"}}}
+
+User: "Lunch cost 50 yuan"
+Response: {"message": "I'll record this expense. Confirm? 💰", "action": {"type": "expense", "data": {"amount": 50, "category": "food", "description": "Lunch", "date": "2024-01-06"}}}
 
 User: "How are you?"
 Response: {"message": "I'm doing great! 😊 How can I help you today?", "action": null}
@@ -170,36 +175,41 @@ const SYSTEM_PROMPT_ZH = `你是一个友好的 AI 助手，帮助用户管理�
 
 单个 action：
 {
-  "message": "你的友好回复",
+  "message": "你的友好回复，询问用户确认",
   "action": { "type": "todo|expense|calendar", "data": {...} }
 }
 
 多个 actions：
 {
-  "message": "你的友好回复",
+  "message": "你的友好回复，询问用户确认",
   "actions": [
     { "type": "calendar", "data": {"title": "会议1", "date": "2024-01-07", "startTime": "09:00", "endTime": "10:00"} },
     { "type": "calendar", "data": {"title": "会议2", "date": "2024-01-07", "startTime": "14:00", "endTime": "15:00"} }
   ]
 }
 
+重要：在你的回复中始终要求用户确认。用户需要确认后才会执行操作。
+
 示例：
 
 用户："明天上午9点开会，中午12点和客户吃饭，晚上6点健身"
-回复：{"message": "好的！帮你添加这3个日程 📅", "actions": [
+回复：{"message": "好的！帮你添加这3个日程，请确认 📅", "actions": [
   {"type": "calendar", "data": {"title": "开会", "date": "2024-01-07", "startTime": "09:00", "endTime": "10:00"}},
   {"type": "calendar", "data": {"title": "和客户吃饭", "date": "2024-01-07", "startTime": "12:00", "endTime": "13:00"}},
   {"type": "calendar", "data": {"title": "健身", "date": "2024-01-07", "startTime": "18:00", "endTime": "19:00"}}
 ]}
 
 用户："午饭花了50块，打车花了30块"
-回复：{"message": "收到！帮你记录这两笔消费 💰", "actions": [
+回复：{"message": "收到！帮你记录这两笔消费，请确认 💰", "actions": [
   {"type": "expense", "data": {"amount": 50, "category": "food", "description": "午饭", "date": "2024-01-06"}},
   {"type": "expense", "data": {"amount": 30, "category": "transport", "description": "打车", "date": "2024-01-06"}}
 ]}
 
 用户："明天下午3点开会"
-回复：{"message": "好的！帮你添加明天下午3点的会议 📅", "action": {"type": "calendar", "data": {"title": "开会", "date": "2024-01-07", "startTime": "15:00", "endTime": "16:00"}}}
+回复：{"message": "好的！帮你添加明天下午3点的会议，确认吗？📅", "action": {"type": "calendar", "data": {"title": "开会", "date": "2024-01-07", "startTime": "15:00", "endTime": "16:00"}}}
+
+用户："午饭花了50块"
+回复：{"message": "好的！帮你记录这笔消费，确认吗？💰", "action": {"type": "expense", "data": {"amount": 50, "category": "food", "description": "午饭", "date": "2024-01-06"}}}
 
 用户："你好"
 回复：{"message": "你好呀！😊 有什么我可以帮你的吗？", "action": null}
