@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useI18n } from '@/lib/i18n';
 import { useTodos } from '@/lib/hooks/useTodos';
-import { Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, Calendar, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { TodoPriority } from '@/types/todo';
 
@@ -14,6 +14,87 @@ const priorityConfig = {
   medium: { badge: '🟠', label: '中', bgLight: 'bg-orange-100', textColor: 'text-orange-700' },
   low: { badge: '🔵', label: '低', bgLight: 'bg-blue-100', textColor: 'text-blue-700' },
 };
+
+interface CalendarModalProps {
+  todo: { id: string; title: string };
+  onClose: () => void;
+  onConfirm: (todoId: string, date: string, time: string) => void;
+  locale: string;
+}
+
+function AddToCalendarModal({ todo, onClose, onConfirm, locale }: CalendarModalProps) {
+  const today = new Date().toISOString().split('T')[0] || '';
+  const now = new Date().toTimeString().slice(0, 5);
+  const [date, setDate] = useState(today);
+  const [time, setTime] = useState(now);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    await onConfirm(todo.id, date, time);
+    setIsSubmitting(false);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900">
+            {locale === 'zh' ? '添加到日历' : 'Add to Calendar'}
+          </h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+        
+        <div className="p-3 bg-gray-50 rounded-lg">
+          <p className="text-sm text-gray-600">{todo.title}</p>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {locale === 'zh' ? '日期' : 'Date'}
+            </label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {locale === 'zh' ? '时间' : 'Time'}
+            </label>
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            {locale === 'zh' ? '取消' : 'Cancel'}
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 disabled:opacity-50"
+          >
+            {isSubmitting ? '...' : (locale === 'zh' ? '确认' : 'Confirm')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function TodosPage() {
   const { t, locale } = useI18n();
@@ -26,6 +107,7 @@ export default function TodosPage() {
     completed: false,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [calendarModal, setCalendarModal] = useState<{ id: string; title: string } | null>(null);
   const desktopInputRef = useRef<HTMLInputElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
   
@@ -33,21 +115,15 @@ export default function TodosPage() {
 
   const handleAddTodo = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('handleAddTodo called, newTodo:', newTodo);
-    if (!newTodo.trim()) {
-      console.log('Empty todo, returning');
-      return;
-    }
+    if (!newTodo.trim()) return;
     
     setIsSubmitting(true);
     try {
-      console.log('Creating todo with:', { title: newTodo.trim(), priority: selectedPriority, color: 'yellow' });
       await createTodo({ 
         title: newTodo.trim(), 
         priority: selectedPriority,
         color: 'yellow'
       });
-      console.log('Todo created successfully');
       setNewTodo('');
       desktopInputRef.current?.focus();
       mobileInputRef.current?.focus();
@@ -66,11 +142,42 @@ export default function TodosPage() {
     }
   };
 
+  const handleAddToCalendar = (todo: { id: string; title: string }) => {
+    setCalendarModal(todo);
+  };
+
+  const handleCalendarConfirm = async (todoId: string, date: string, time: string) => {
+    try {
+      const startTime = `${date}T${time}:00`;
+      const endDate = new Date(`${date}T${time}:00`);
+      endDate.setHours(endDate.getHours() + 1);
+      const endTime = endDate.toISOString().slice(0, 19);
+      
+      const todo = todos.find(t => t.id === todoId);
+      
+      await fetch('/api/calendar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: todo?.title || 'Todo Reminder',
+          description: `Reminder for: ${todo?.title}`,
+          startTime,
+          endTime,
+          allDay: false,
+          color: '#3B82F6',
+        }),
+      });
+      
+      setCalendarModal(null);
+    } catch (error) {
+      console.error('Failed to add to calendar:', error);
+    }
+  };
+
   const toggleGroup = (group: string) => {
     setExpandedGroups(prev => ({ ...prev, [group]: !prev[group] }));
   };
 
-  // Group todos by priority and status
   const activeTodos = todos.filter(t => t.status === 'active');
   const completedTodos = todos.filter(t => t.status === 'completed');
   
@@ -80,17 +187,11 @@ export default function TodosPage() {
     low: activeTodos.filter(t => t.priority === 'low'),
   };
 
-  const totalActive = activeTodos.length;
-  const totalCompleted = completedTodos.length;
-
   return (
     <div className="flex flex-col h-screen bg-white">
-      {/* Mobile Header - Only on mobile */}
+      {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white">
-        <div className="flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-full text-sm font-medium text-gray-700">
-          <span>📋</span>
-          <span>{totalActive}/{totalActive + totalCompleted}</span>
-        </div>
+        <h1 className="text-lg font-bold text-gray-900">{locale === 'zh' ? '待办事项' : 'Todos'}</h1>
         <button 
           type="button"
           onClick={() => mobileInputRef.current?.focus()}
@@ -100,24 +201,13 @@ export default function TodosPage() {
         </button>
       </div>
 
-      {/* Desktop Header - Only on desktop */}
+      {/* Desktop Header */}
       <div className="hidden md:flex items-center justify-between px-8 py-4 border-b border-gray-100 bg-white">
         <h1 className="text-2xl font-bold text-gray-900">{locale === 'zh' ? '待办事项' : 'Todos'}</h1>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-full text-sm font-medium text-gray-700">
-            <span>📋</span>
-            <span>{totalActive}/{totalActive + totalCompleted}</span>
-          </div>
-        </div>
       </div>
 
-      {/* Title - Mobile only */}
-      <div className="md:hidden text-center py-4 border-b border-gray-100 bg-white">
-        <h1 className="text-xl font-bold text-gray-900">{locale === 'zh' ? '待办事项' : 'Todos'}</h1>
-      </div>
-
-      {/* Desktop Add Form - Only on desktop */}
-      <form onSubmit={handleAddTodo} className="hidden md:block px-8 py-4 border-b border-gray-100 bg-white space-y-3">
+      {/* Desktop Add Form */}
+      <form onSubmit={handleAddTodo} className="hidden md:block px-8 py-4 border-b border-gray-100 bg-white">
         <div className="flex gap-3 max-w-2xl">
           <Input
             ref={desktopInputRef}
@@ -157,7 +247,6 @@ export default function TodosPage() {
             </div>
           ) : (
             <div className="space-y-0">
-              {/* High Priority */}
               {todosByPriority.high.length > 0 && (
                 <PriorityGroup
                   priority="high"
@@ -165,10 +254,10 @@ export default function TodosPage() {
                   isExpanded={expandedGroups.high ?? true}
                   onToggleExpand={() => toggleGroup('high')}
                   onToggleTodo={handleToggle}
+                  onAddToCalendar={handleAddToCalendar}
                 />
               )}
 
-              {/* Medium Priority */}
               {todosByPriority.medium.length > 0 && (
                 <PriorityGroup
                   priority="medium"
@@ -176,10 +265,10 @@ export default function TodosPage() {
                   isExpanded={expandedGroups.medium ?? true}
                   onToggleExpand={() => toggleGroup('medium')}
                   onToggleTodo={handleToggle}
+                  onAddToCalendar={handleAddToCalendar}
                 />
               )}
 
-              {/* Low Priority */}
               {todosByPriority.low.length > 0 && (
                 <PriorityGroup
                   priority="low"
@@ -187,10 +276,10 @@ export default function TodosPage() {
                   isExpanded={expandedGroups.low ?? true}
                   onToggleExpand={() => toggleGroup('low')}
                   onToggleTodo={handleToggle}
+                  onAddToCalendar={handleAddToCalendar}
                 />
               )}
 
-              {/* Completed Section */}
               {completedTodos.length > 0 && (
                 <div className="border-b border-gray-100">
                   <button
@@ -203,15 +292,19 @@ export default function TodosPage() {
                   {expandedGroups.completed && (
                     <div className="space-y-0 border-t border-gray-100">
                       {completedTodos.map(todo => (
-                        <TodoItemRow key={todo.id} todo={todo} onToggle={handleToggle} />
+                        <TodoItemRow 
+                          key={todo.id} 
+                          todo={todo} 
+                          onToggle={handleToggle}
+                          onAddToCalendar={handleAddToCalendar}
+                        />
                       ))}
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Empty State */}
-              {totalActive === 0 && totalCompleted === 0 && (
+              {activeTodos.length === 0 && completedTodos.length === 0 && (
                 <div className="text-center py-12 text-gray-400">
                   <p>{t.todos.noTasks}</p>
                 </div>
@@ -221,7 +314,7 @@ export default function TodosPage() {
         </div>
       </div>
 
-      {/* Mobile Add Todo Form - Fixed at bottom, mobile only */}
+      {/* Mobile Add Form */}
       <form onSubmit={handleAddTodo} className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-4 space-y-3">
         <div className="flex gap-2">
           <Input
@@ -241,35 +334,46 @@ export default function TodosPage() {
             {isSubmitting ? '...' : <Plus className="w-4 h-4" />}
           </Button>
         </div>
-        <div className="flex gap-2 items-center">
-          <select
-            value={selectedPriority}
-            onChange={(e) => setSelectedPriority(e.target.value as TodoPriority)}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white"
-            disabled={isSubmitting}
-          >
-            <option value="high">{priorityConfig.high.label}</option>
-            <option value="medium">{priorityConfig.medium.label}</option>
-            <option value="low">{priorityConfig.low.label}</option>
-          </select>
-        </div>
+        <select
+          value={selectedPriority}
+          onChange={(e) => setSelectedPriority(e.target.value as TodoPriority)}
+          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white"
+          disabled={isSubmitting}
+        >
+          <option value="high">{priorityConfig.high.label}</option>
+          <option value="medium">{priorityConfig.medium.label}</option>
+          <option value="low">{priorityConfig.low.label}</option>
+        </select>
       </form>
+
+      {/* Calendar Modal */}
+      {calendarModal && (
+        <AddToCalendarModal
+          todo={calendarModal}
+          onClose={() => setCalendarModal(null)}
+          onConfirm={handleCalendarConfirm}
+          locale={locale}
+        />
+      )}
     </div>
   );
 }
+
 
 function PriorityGroup({ 
   priority, 
   todos, 
   isExpanded, 
   onToggleExpand, 
-  onToggleTodo 
+  onToggleTodo,
+  onAddToCalendar,
 }: { 
   priority: TodoPriority; 
   todos: any[]; 
   isExpanded: boolean; 
   onToggleExpand: () => void; 
   onToggleTodo: (id: string) => void;
+  onAddToCalendar: (todo: { id: string; title: string }) => void;
 }) {
   const config = priorityConfig[priority];
   
@@ -288,7 +392,6 @@ function PriorityGroup({
           <span>{config.label} ({todos.length})</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs opacity-60">+</span>
           {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </div>
       </button>
@@ -296,7 +399,12 @@ function PriorityGroup({
       {isExpanded && (
         <div className="space-y-0 border-t border-gray-100">
           {todos.map(todo => (
-            <TodoItemRow key={todo.id} todo={todo} onToggle={onToggleTodo} />
+            <TodoItemRow 
+              key={todo.id} 
+              todo={todo} 
+              onToggle={onToggleTodo}
+              onAddToCalendar={onAddToCalendar}
+            />
           ))}
         </div>
       )}
@@ -306,10 +414,12 @@ function PriorityGroup({
 
 function TodoItemRow({ 
   todo, 
-  onToggle 
+  onToggle,
+  onAddToCalendar,
 }: { 
   todo: any; 
   onToggle: (id: string) => void;
+  onAddToCalendar: (todo: { id: string; title: string }) => void;
 }) {
   return (
     <div className="px-4 md:px-8 py-3 flex items-center justify-between border-b border-gray-50 hover:bg-gray-50 transition-colors">
@@ -322,19 +432,33 @@ function TodoItemRow({
         </p>
       </div>
       
-      <button
-        onClick={() => onToggle(todo.id)}
-        className="flex-shrink-0 ml-3 p-1 rounded-full hover:bg-gray-200 transition-colors"
-      >
-        <div className={cn(
-          'w-5 h-5 rounded-full border-2 flex items-center justify-center text-xs font-bold',
-          todo.status === 'completed' 
-            ? 'bg-green-500 border-green-500 text-white' 
-            : 'border-gray-300'
-        )}>
-          {todo.status === 'completed' && '✓'}
-        </div>
-      </button>
+      <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+        {/* Add to Calendar Button */}
+        {todo.status !== 'completed' && (
+          <button
+            onClick={() => onAddToCalendar({ id: todo.id, title: todo.title })}
+            className="p-1.5 hover:bg-blue-100 rounded-full transition-colors"
+            title="Add to calendar"
+          >
+            <Calendar className="w-4 h-4 text-blue-500" />
+          </button>
+        )}
+        
+        {/* Toggle Checkbox */}
+        <button
+          onClick={() => onToggle(todo.id)}
+          className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+        >
+          <div className={cn(
+            'w-5 h-5 rounded-full border-2 flex items-center justify-center text-xs font-bold',
+            todo.status === 'completed' 
+              ? 'bg-green-500 border-green-500 text-white' 
+              : 'border-gray-300'
+          )}>
+            {todo.status === 'completed' && '✓'}
+          </div>
+        </button>
+      </div>
     </div>
   );
 }
