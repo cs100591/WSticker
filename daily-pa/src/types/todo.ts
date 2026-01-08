@@ -12,6 +12,7 @@ export type TodoUpdate = UpdateTables<'todos'>;
 // 优先级和状态类型
 export type TodoPriority = 'low' | 'medium' | 'high';
 export type TodoStatus = 'active' | 'completed';
+export type TodoColor = 'yellow' | 'blue' | 'green' | 'pink' | 'purple' | 'orange';
 
 // 业务层类型
 export interface Todo {
@@ -23,6 +24,7 @@ export interface Todo {
   priority: TodoPriority;
   status: TodoStatus;
   tags: string[];
+  color: TodoColor;
   calendarEventId: string | null;
   googleEventId: string | null;
   createdAt: Date;
@@ -36,6 +38,7 @@ export interface CreateTodoInput {
   dueDate?: Date | string;
   priority?: TodoPriority;
   tags?: string[];
+  color?: TodoColor;
 }
 
 export interface UpdateTodoInput {
@@ -84,6 +87,7 @@ export function todoRowToTodo(row: TodoRow): Todo {
     priority: row.priority,
     status: row.status,
     tags: row.tags,
+    color: (row.color as TodoColor) || 'yellow',
     calendarEventId: row.calendar_event_id,
     googleEventId: row.google_event_id,
     createdAt: new Date(row.created_at),
@@ -106,6 +110,7 @@ export function createTodoInputToInsert(
       : undefined,
     priority: input.priority ?? 'medium',
     tags: input.tags ?? [],
+    color: input.color ?? 'yellow',
   };
 }
 

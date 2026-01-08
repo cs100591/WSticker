@@ -64,6 +64,7 @@ export type Database = {
           priority: 'low' | 'medium' | 'high';
           status: 'active' | 'completed';
           tags: string[];
+          color: 'yellow' | 'blue' | 'green' | 'pink' | 'purple' | 'orange';
           calendar_event_id: string | null;
           google_event_id: string | null;
           created_at: string;
@@ -78,6 +79,7 @@ export type Database = {
           priority?: 'low' | 'medium' | 'high';
           status?: 'active' | 'completed';
           tags?: string[];
+          color?: 'yellow' | 'blue' | 'green' | 'pink' | 'purple' | 'orange';
           calendar_event_id?: string | null;
           google_event_id?: string | null;
           created_at?: string;
@@ -92,6 +94,7 @@ export type Database = {
           priority?: 'low' | 'medium' | 'high';
           status?: 'active' | 'completed';
           tags?: string[];
+          color?: 'yellow' | 'blue' | 'green' | 'pink' | 'purple' | 'orange';
           calendar_event_id?: string | null;
           google_event_id?: string | null;
           created_at?: string;

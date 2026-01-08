@@ -51,7 +51,8 @@ interface ActionItem {
   id: string;
   type: 'todo' | 'expense' | 'calendar';
   data: Record<string, unknown>;
-  status: 'pending' | 'confirmed' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'cancelled' | 'follow-up';
+  todoId?: string; // Store created todo ID for follow-up
 }
 
 interface Message {
@@ -59,6 +60,11 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   actions?: ActionItem[];
+  followUp?: {
+    type: 'todo-calendar-color';
+    todoId: string;
+    todoTitle: string;
+  };
 }
 
 interface AIChatbotProps {
@@ -241,7 +247,7 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
     }
   }, [stopCamera]);
 
-  const executeAction = async (action: ActionItem): Promise<{ success: boolean; error?: string }> => {
+  const executeAction = async (action: ActionItem): Promise<{ success: boolean; error?: string; todoId?: string }> => {
     try {
       const { type, data } = action;
       if (type === 'todo') {
@@ -252,9 +258,12 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
             title: data.title as string,
             priority: (data.priority as 'low' | 'medium' | 'high') || 'medium',
             dueDate: data.dueDate as string | undefined,
+            color: data.color || 'yellow',
           }),
         });
         if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+        const createdTodo = await res.json();
+        return { success: true, todoId: createdTodo.id };
       } else if (type === 'expense') {
         const amount = typeof data.amount === 'string' ? parseFloat(data.amount) : data.amount as number;
         const res = await fetch('/api/expenses', {
@@ -397,10 +406,39 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
     if (!action) return;
 
     const result = await executeAction(action);
+    
+    // Update action status
     setMessages(prev => prev.map(m => {
       if (m.id !== messageId || !m.actions) return m;
-      return { ...m, actions: m.actions.map(a => a.id === actionId ? { ...a, status: result.success ? 'confirmed' : 'pending' as const } : a) };
+      return { 
+        ...m, 
+        actions: m.actions.map(a => 
+          a.id === actionId 
+            ? { ...a, status: result.success ? 'confirmed' : 'pending' as const, todoId: result.todoId } 
+            : a
+        ) 
+      };
     }));
+
+    // If it's a todo and successfully created, ask follow-up questions
+    if (result.success && action.type === 'todo' && result.todoId) {
+      const todoId = result.todoId;
+      const todoTitle = action.data.title as string;
+      setTimeout(() => {
+        setMessages(prev => [...prev, {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: locale === 'zh' 
+            ? `✓ 待办已创建！要添加到日历吗？选择一个颜色吧 🎨`
+            : `✓ Todo created! Add to calendar? Choose a color 🎨`,
+          followUp: {
+            type: 'todo-calendar-color',
+            todoId,
+            todoTitle,
+          },
+        }]);
+      }, 500);
+    }
   };
 
   const handleConfirmAll = async (messageId: string) => {
@@ -541,6 +579,85 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
                       {locale === 'zh' ? '全部确认' : 'Confirm All'} ({message.actions.filter(a => a.status === 'pending').length})
                     </button>
                   )}
+                </div>
+              )}
+
+              {/* Follow-up UI for todo */}
+              {message.followUp && message.followUp.type === 'todo-calendar-color' && (
+                <div className="w-full max-w-[85%] space-y-2 mt-1">
+                  {/* Color Selection */}
+                  <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
+                    <p className="text-xs text-gray-500 mb-2">{locale === 'zh' ? '选择颜色' : 'Choose Color'}</p>
+                    <div className="flex gap-1.5">
+                      {[
+                        { value: 'yellow', emoji: '🟡' },
+                        { value: 'blue', emoji: '🔵' },
+                        { value: 'green', emoji: '🟢' },
+                        { value: 'pink', emoji: '🩷' },
+                        { value: 'purple', emoji: '🟣' },
+                        { value: 'orange', emoji: '🟠' },
+                      ].map((color) => (
+                        <button
+                          key={color.value}
+                          onClick={async () => {
+                            await fetch(`/api/todos/${message.followUp!.todoId}`, {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ color: color.value }),
+                            });
+                            setMessages(prev => prev.map(m => 
+                              m.id === message.id ? { ...m, followUp: undefined } : m
+                            ));
+                          }}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-lg hover:scale-110 transition-transform"
+                        >
+                          {color.emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Add to Calendar */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => {
+                        // Add to calendar logic here
+                        const today = new Date().toISOString().split('T')[0];
+                        await fetch('/api/calendar', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            title: message.followUp!.todoTitle,
+                            startTime: `${today}T09:00:00`,
+                            endTime: `${today}T10:00:00`,
+                            allDay: false,
+                            color: '#3B82F6',
+                          }),
+                        });
+                        setMessages(prev => [...prev, {
+                          id: Date.now().toString(),
+                          role: 'assistant',
+                          content: locale === 'zh' ? '✓ 已添加到日历！' : '✓ Added to calendar!',
+                        }]);
+                        setMessages(prev => prev.map(m => 
+                          m.id === message.id ? { ...m, followUp: undefined } : m
+                        ));
+                      }}
+                      className="flex-1 py-2 text-sm font-medium text-blue-500 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                    >
+                      {locale === 'zh' ? '📅 添加到日历' : '📅 Add to Calendar'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMessages(prev => prev.map(m => 
+                          m.id === message.id ? { ...m, followUp: undefined } : m
+                        ));
+                      }}
+                      className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      {locale === 'zh' ? '跳过' : 'Skip'}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
