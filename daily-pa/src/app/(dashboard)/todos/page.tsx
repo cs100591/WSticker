@@ -25,7 +25,8 @@ export default function TodosPage() {
     low: true,
     completed: false,
   });
-  const inputRef = useRef<HTMLInputElement>(null);
+  const desktopInputRef = useRef<HTMLInputElement>(null);
+  const mobileInputRef = useRef<HTMLInputElement>(null);
   
   const { todos, isLoading, createTodo, toggleTodo } = useTodos({});
 
@@ -40,7 +41,8 @@ export default function TodosPage() {
         color: 'yellow'
       });
       setNewTodo('');
-      inputRef.current?.focus();
+      desktopInputRef.current?.focus();
+      mobileInputRef.current?.focus();
     } catch (error) {
       console.error('Failed to create todo:', error);
     }
@@ -80,7 +82,8 @@ export default function TodosPage() {
           <span>{totalActive}/{totalActive + totalCompleted}</span>
         </div>
         <button 
-          onClick={() => inputRef.current?.focus()}
+          type="button"
+          onClick={() => mobileInputRef.current?.focus()}
           className="w-8 h-8 bg-blue-500 hover:bg-blue-600 text-white rounded-lg flex items-center justify-center text-lg"
         >
           +
@@ -107,7 +110,7 @@ export default function TodosPage() {
       <form onSubmit={handleAddTodo} className="hidden md:block px-8 py-4 border-b border-gray-100 bg-white space-y-3">
         <div className="flex gap-3 max-w-2xl">
           <Input
-            ref={inputRef}
+            ref={desktopInputRef}
             placeholder={t.todos.addPlaceholder}
             value={newTodo}
             onChange={(e) => setNewTodo(e.target.value)}
@@ -209,7 +212,7 @@ export default function TodosPage() {
       <form onSubmit={handleAddTodo} className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-4 space-y-3">
         <div className="flex gap-2">
           <Input
-            ref={inputRef}
+            ref={mobileInputRef}
             placeholder={t.todos.addPlaceholder}
             value={newTodo}
             onChange={(e) => setNewTodo(e.target.value)}
