@@ -17,12 +17,16 @@ interface CalendarEvent {
 
 interface Todo {
   id: string;
+  userId?: string;
   title: string;
   description: string | null;
   dueDate: string | null;
   priority: 'low' | 'medium' | 'high';
   status: 'active' | 'completed';
   tags: string[];
+  color: 'yellow' | 'blue' | 'pink';
+  calendarEventId?: string | null;
+  googleEventId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -80,12 +84,16 @@ export function getDevTodos(): Todo[] {
 export function addDevTodo(todo: Partial<Todo>): Todo {
   const newTodo: Todo = {
     id: `dev-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+    userId: 'dev-user-id',
     title: todo.title || '',
     description: todo.description || null,
     dueDate: todo.dueDate || null,
     priority: todo.priority || 'medium',
     status: 'active',
     tags: todo.tags || [],
+    color: todo.color || 'yellow',
+    calendarEventId: null,
+    googleEventId: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -103,12 +111,16 @@ export function updateDevTodo(id: string, updates: Partial<Todo>): Todo | null {
   
   const updatedTodo: Todo = {
     id: existingTodo.id,
+    userId: existingTodo.userId,
     title: updates.title ?? existingTodo.title,
     description: updates.description !== undefined ? updates.description : existingTodo.description,
     dueDate: updates.dueDate !== undefined ? updates.dueDate : existingTodo.dueDate,
     priority: updates.priority ?? existingTodo.priority,
     status: updates.status ?? existingTodo.status,
     tags: updates.tags ?? existingTodo.tags,
+    color: updates.color ?? existingTodo.color,
+    calendarEventId: existingTodo.calendarEventId,
+    googleEventId: existingTodo.googleEventId,
     createdAt: existingTodo.createdAt,
     updatedAt: new Date().toISOString(),
   };

@@ -12,7 +12,7 @@ export type TodoUpdate = UpdateTables<'todos'>;
 // 优先级和状态类型
 export type TodoPriority = 'low' | 'medium' | 'high';
 export type TodoStatus = 'active' | 'completed';
-export type TodoColor = 'yellow' | 'blue' | 'green' | 'pink' | 'purple' | 'orange';
+export type TodoColor = 'yellow' | 'blue' | 'pink';
 
 // 业务层类型
 export interface Todo {

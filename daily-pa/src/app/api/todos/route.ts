@@ -18,7 +18,15 @@ export async function GET(request: NextRequest) {
   try {
     // 开发模式：从内存存储获取
     if (isDevMode()) {
-      const todos = getDevTodos();
+      const devTodos = getDevTodos();
+      // Convert dev-store format to API format
+      const todos = devTodos.map(t => ({
+        ...t,
+        userId: t.userId || 'dev-user-id',
+        dueDate: t.dueDate ? new Date(t.dueDate) : null,
+        createdAt: new Date(t.createdAt),
+        updatedAt: new Date(t.updatedAt),
+      }));
       return NextResponse.json({
         todos,
         total: todos.length,
@@ -106,13 +114,22 @@ export async function POST(request: NextRequest) {
       const dueDateStr = body.dueDate 
         ? (typeof body.dueDate === 'string' ? body.dueDate : body.dueDate.toISOString().split('T')[0])
         : undefined;
-      const todo = addDevTodo({
+      const devTodo = addDevTodo({
         title: body.title,
         description: body.description,
         dueDate: dueDateStr,
         priority: body.priority,
         tags: body.tags,
+        color: body.color || 'yellow',
       });
+      // Convert to API format
+      const todo = {
+        ...devTodo,
+        userId: devTodo.userId || 'dev-user-id',
+        dueDate: devTodo.dueDate ? new Date(devTodo.dueDate) : null,
+        createdAt: new Date(devTodo.createdAt),
+        updatedAt: new Date(devTodo.updatedAt),
+      };
       return NextResponse.json(todo, { status: 201 });
     }
 

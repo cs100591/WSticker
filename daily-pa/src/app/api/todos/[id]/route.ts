@@ -138,7 +138,7 @@ export async function DELETE(
   }
 }
 
-// PATCH /api/todos/[id] - 部分更新（用于状态切换）
+// PATCH /api/todos/[id] - 部分更新（用于状态切换和颜色更新）
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -149,10 +149,18 @@ export async function PATCH(
 
     // 开发模式：更新内存存储
     if (isDevMode()) {
-      const todo = updateDevTodo(id, body);
-      if (!todo) {
+      const devTodo = updateDevTodo(id, body);
+      if (!devTodo) {
         return NextResponse.json({ error: 'Todo not found' }, { status: 404 });
       }
+      // Convert to API format
+      const todo = {
+        ...devTodo,
+        userId: devTodo.userId || 'dev-user-id',
+        dueDate: devTodo.dueDate ? new Date(devTodo.dueDate) : null,
+        createdAt: new Date(devTodo.createdAt),
+        updatedAt: new Date(devTodo.updatedAt),
+      };
       return NextResponse.json(todo);
     }
 
@@ -165,6 +173,7 @@ export async function PATCH(
 
     const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (body.status !== undefined) updateData.status = body.status;
+    if (body.color !== undefined) updateData.color = body.color;
 
     const { data, error } = await supabase
       .from('todos')

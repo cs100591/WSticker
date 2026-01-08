@@ -470,45 +470,93 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
     return '';
   };
 
-  // Compact action card - single line design
-  const renderActionCard = (action: ActionItem, messageId: string) => (
-    <div
-      key={action.id}
-      className={cn(
-        'flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all duration-200',
-        action.status === 'confirmed' && 'bg-green-50 text-green-700',
-        action.status === 'cancelled' && 'bg-gray-50 text-gray-400 line-through',
-        action.status === 'pending' && 'bg-gray-50 text-gray-700'
-      )}
-    >
-      <span className={cn(
-        'flex-shrink-0',
-        action.status === 'confirmed' && 'text-green-500',
-        action.status === 'cancelled' && 'text-gray-300',
-        action.status === 'pending' && 'text-gray-400'
-      )}>
-        {getActionIcon(action.type)}
-      </span>
-      <span className="flex-1 truncate">{getActionSummary(action)}</span>
-      {action.status === 'pending' && (
-        <div className="flex gap-1">
-          <button
-            onClick={() => handleAction(messageId, action.id, false)}
-            className="p-1 rounded-md hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => handleAction(messageId, action.id, true)}
-            className="p-1 rounded-md hover:bg-blue-100 text-blue-500 hover:text-blue-600 transition-colors"
-          >
-            <Check className="w-3.5 h-3.5" />
-          </button>
+  // Action card with inline color selection for todos
+  const renderActionCard = (action: ActionItem, messageId: string) => {
+    const isTodo = action.type === 'todo';
+    const colors = ['yellow', 'blue', 'pink'] as const;
+    const colorEmojis = {
+      yellow: '🟡',
+      blue: '🔵',
+      pink: '🩷',
+    };
+
+    return (
+      <div
+        key={action.id}
+        className={cn(
+          'rounded-xl transition-all duration-200 overflow-hidden',
+          action.status === 'confirmed' && 'bg-green-50',
+          action.status === 'cancelled' && 'bg-gray-50',
+          action.status === 'pending' && 'bg-gray-50 border border-gray-200'
+        )}
+      >
+        {/* Main action row */}
+        <div className={cn(
+          'flex items-center gap-2 px-3 py-2 text-sm',
+          action.status === 'confirmed' && 'text-green-700',
+          action.status === 'cancelled' && 'text-gray-400 line-through',
+          action.status === 'pending' && 'text-gray-700'
+        )}>
+          <span className={cn(
+            'flex-shrink-0',
+            action.status === 'confirmed' && 'text-green-500',
+            action.status === 'cancelled' && 'text-gray-300',
+            action.status === 'pending' && 'text-gray-400'
+          )}>
+            {getActionIcon(action.type)}
+          </span>
+          <span className="flex-1 truncate">{getActionSummary(action)}</span>
+          {action.status === 'pending' && (
+            <div className="flex gap-1">
+              <button
+                onClick={() => handleAction(messageId, action.id, false)}
+                className="p-1 rounded-md hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => handleAction(messageId, action.id, true)}
+                className="p-1 rounded-md hover:bg-blue-100 text-blue-500 hover:text-blue-600 transition-colors"
+              >
+                <Check className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+          {action.status === 'confirmed' && <Check className="w-3.5 h-3.5 text-green-500" />}
         </div>
-      )}
-      {action.status === 'confirmed' && <Check className="w-3.5 h-3.5 text-green-500" />}
-    </div>
-  );
+
+        {/* Color picker for todos */}
+        {isTodo && action.status === 'pending' && (
+          <div className="px-3 py-2 border-t border-gray-200 bg-white/50 flex gap-1.5 items-center">
+            <span className="text-xs text-gray-500 font-medium">Color:</span>
+            <div className="flex gap-1">
+              {colors.map((color) => (
+                <button
+                  key={color}
+                  onClick={async () => {
+                    // Update action data with selected color
+                    const updatedAction = { ...action, data: { ...action.data, color } };
+                    // Update the action in the message
+                    setMessages(prev => prev.map(m => {
+                      if (m.id !== messageId || !m.actions) return m;
+                      return {
+                        ...m,
+                        actions: m.actions.map(a => a.id === action.id ? updatedAction : a)
+                      };
+                    }));
+                  }}
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-sm hover:scale-110 transition-transform"
+                  title={color}
+                >
+                  {colorEmojis[color]}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
 
   if (!isOpen) return null;
@@ -592,10 +640,7 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
                       {[
                         { value: 'yellow', emoji: '🟡' },
                         { value: 'blue', emoji: '🔵' },
-                        { value: 'green', emoji: '🟢' },
                         { value: 'pink', emoji: '🩷' },
-                        { value: 'purple', emoji: '🟣' },
-                        { value: 'orange', emoji: '🟠' },
                       ].map((color) => (
                         <button
                           key={color.value}
