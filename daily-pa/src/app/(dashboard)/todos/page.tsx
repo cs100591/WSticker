@@ -10,9 +10,19 @@ import { cn } from '@/lib/utils';
 import type { TodoPriority } from '@/types/todo';
 
 const priorityConfig = {
-  high: { badge: '🔴', label: '高', bgLight: 'bg-red-100', textColor: 'text-red-700' },
-  medium: { badge: '🟠', label: '中', bgLight: 'bg-orange-100', textColor: 'text-orange-700' },
-  low: { badge: '🔵', label: '低', bgLight: 'bg-blue-100', textColor: 'text-blue-700' },
+  high: { badge: '🔴', bgLight: 'bg-red-100', textColor: 'text-red-700' },
+  medium: { badge: '🟠', bgLight: 'bg-orange-100', textColor: 'text-orange-700' },
+  low: { badge: '🔵', bgLight: 'bg-blue-100', textColor: 'text-blue-700' },
+};
+
+// Helper function to get priority label based on locale
+const getPriorityLabel = (priority: TodoPriority, locale: string) => {
+  const labels = {
+    high: locale === 'zh' ? '高' : 'High',
+    medium: locale === 'zh' ? '中' : 'Medium',
+    low: locale === 'zh' ? '低' : 'Low',
+  };
+  return labels[priority];
 };
 
 interface CalendarModalProps {
@@ -319,9 +329,9 @@ export default function TodosPage() {
             className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white"
             disabled={isSubmitting}
           >
-            <option value="high">{priorityConfig.high.label}</option>
-            <option value="medium">{priorityConfig.medium.label}</option>
-            <option value="low">{priorityConfig.low.label}</option>
+            <option value="high">{getPriorityLabel('high', locale)}</option>
+            <option value="medium">{getPriorityLabel('medium', locale)}</option>
+            <option value="low">{getPriorityLabel('low', locale)}</option>
           </select>
           <Button 
             type="submit"
@@ -354,6 +364,7 @@ export default function TodosPage() {
                   onAddNotes={handleAddNotes}
                   expandedTodos={expandedTodos}
                   onToggleTodoExpand={toggleTodoExpand}
+                  locale={locale}
                 />
               )}
 
@@ -368,6 +379,7 @@ export default function TodosPage() {
                   onAddNotes={handleAddNotes}
                   expandedTodos={expandedTodos}
                   onToggleTodoExpand={toggleTodoExpand}
+                  locale={locale}
                 />
               )}
 
@@ -382,6 +394,7 @@ export default function TodosPage() {
                   onAddNotes={handleAddNotes}
                   expandedTodos={expandedTodos}
                   onToggleTodoExpand={toggleTodoExpand}
+                  locale={locale}
                 />
               )}
 
@@ -448,9 +461,9 @@ export default function TodosPage() {
           className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white"
           disabled={isSubmitting}
         >
-          <option value="high">{priorityConfig.high.label}</option>
-          <option value="medium">{priorityConfig.medium.label}</option>
-          <option value="low">{priorityConfig.low.label}</option>
+          <option value="high">{getPriorityLabel('high', locale)}</option>
+          <option value="medium">{getPriorityLabel('medium', locale)}</option>
+          <option value="low">{getPriorityLabel('low', locale)}</option>
         </select>
       </form>
 
@@ -488,6 +501,7 @@ function PriorityGroup({
   onAddNotes,
   expandedTodos,
   onToggleTodoExpand,
+  locale,
 }: { 
   priority: TodoPriority; 
   todos: any[]; 
@@ -498,8 +512,10 @@ function PriorityGroup({
   onAddNotes: (todo: { id: string; title: string; description: string | null }) => void;
   expandedTodos: Set<string>;
   onToggleTodoExpand: (id: string) => void;
+  locale: string;
 }) {
   const config = priorityConfig[priority];
+  const label = getPriorityLabel(priority, locale);
   
   return (
     <div className="border-b border-gray-100">
@@ -513,7 +529,7 @@ function PriorityGroup({
       >
         <div className="flex items-center gap-2">
           <span className="text-base">{config.badge}</span>
-          <span>{config.label} ({todos.length})</span>
+          <span>{label} ({todos.length})</span>
         </div>
         <div className="flex items-center gap-2">
           {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
