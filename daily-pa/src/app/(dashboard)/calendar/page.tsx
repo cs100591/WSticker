@@ -6,7 +6,7 @@ import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useI18n } from '@/lib/i18n';
-import { ChevronLeft, ChevronRight, Plus, X, Clock, Loader2, Trash2, Calendar, LayoutGrid, List, CalendarDays } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Clock, Loader2, Trash2, Calendar, LayoutGrid, List, CalendarDays, RefreshCw, Cloud, CloudOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type ViewMode = 'month' | 'week' | 'day' | 'schedule';
@@ -65,6 +65,12 @@ export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<{
+    hasIntegration: boolean;
+    provider?: string;
+    lastSyncAt?: string;
+  } | null>(null);
   const [newEvent, setNewEvent] = useState({
     title: '',
     description: '',
@@ -84,6 +90,60 @@ export default function CalendarPage() {
 
   // Use ref to track if we've already fetched for current params
   const lastFetchKey = useRef<string>('');
+
+  // Fetch sync status on mount
+  useEffect(() => {
+    const fetchSyncStatus = async () => {
+      try {
+        const res = await fetch('/api/calendar/sync/status');
+        if (res.ok) {
+          const data = await res.json();
+          setSyncStatus(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch sync status:', error);
+      }
+    };
+    fetchSyncStatus();
+  }, []);
+
+  // Handle calendar sync
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      const res = await fetch('/api/calendar/sync', { method: 'POST' });
+      if (res.ok) {
+        await res.json(); // Consume response
+        // Refresh events after sync
+        lastFetchKey.current = '';
+        const fetchKey = `${currentYear}-${currentMonth}-${currentDay}-${viewMode}`;
+        lastFetchKey.current = fetchKey;
+        
+        // Refetch events
+        let startDate: string, endDate: string;
+        if (viewMode === 'month') {
+          startDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
+          endDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${daysInMonth}`;
+        } else {
+          startDate = formatDate(currentYear, currentMonth, currentDay);
+          endDate = startDate;
+        }
+        
+        const eventsRes = await fetch(`/api/calendar?start=${startDate}&end=${endDate}`);
+        if (eventsRes.ok) {
+          const eventsData = await eventsRes.json();
+          setEvents(eventsData.events || []);
+        }
+        
+        // Update sync status
+        setSyncStatus(prev => prev ? { ...prev, lastSyncAt: new Date().toISOString() } : null);
+      }
+    } catch (error) {
+      console.error('Failed to sync calendar:', error);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Fetch events from API - using primitive values only
   useEffect(() => {
@@ -243,6 +303,52 @@ export default function CalendarPage() {
       <Header title={t.calendar.title} />
       
       <div className="flex-1 p-4 md:p-6 space-y-4">
+        {/* Calendar Sync Status */}
+        {syncStatus?.hasIntegration && (
+          <GlassCard>
+            <GlassCardContent className="py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {syncStatus.provider === 'google' ? (
+                    <Cloud className="w-5 h-5 text-blue-500" strokeWidth={1.5} />
+                  ) : (
+                    <CloudOff className="w-5 h-5 text-gray-400" strokeWidth={1.5} />
+                  )}
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">
+                      {syncStatus.provider === 'google' ? 'Google Calendar' : 'Apple Calendar'} Sync
+                    </p>
+                    {syncStatus.lastSyncAt && (
+                      <p className="text-xs text-gray-500">
+                        Last synced: {new Date(syncStatus.lastSyncAt).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleSync}
+                  disabled={isSyncing}
+                  className="rounded-xl"
+                >
+                  {isSyncing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" strokeWidth={1.5} />
+                      Syncing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-1" strokeWidth={1.5} />
+                      Sync Now
+                    </>
+                  )}
+                </Button>
+              </div>
+            </GlassCardContent>
+          </GlassCard>
+        )}
+
         {/* View Mode Selector */}
         <div className="flex gap-2 p-1 bg-white/50 backdrop-blur-sm rounded-xl">
           {[

@@ -23,11 +23,13 @@
 4. 输入项目名称（例如：CLASP）
 5. 点击 **"创建"**
 
-### 步骤 2: 启用 Google+ API
+### 步骤 2: 启用必要的 API
 
 1. 在左侧菜单中，选择 **"API 和服务"** > **"库"**
-2. 搜索 **"Google+ API"**
-3. 点击进入，然后点击 **"启用"**
+2. 搜索并启用以下 API：
+   - **"Google+ API"** - 用于用户登录
+   - **"Google Calendar API"** - 用于日历同步
+3. 点击每个 API，然后点击 **"启用"**
 
 ### 步骤 3: 配置 OAuth 同意屏幕
 
@@ -79,6 +81,12 @@
 6. 填写信息：
    - **Client ID**: 粘贴从 Google Cloud 复制的客户端 ID
    - **Client Secret**: 粘贴从 Google Cloud 复制的客户端密钥
+   - **Scopes** (可选，用于日历同步): 
+     ```
+     https://www.googleapis.com/auth/calendar.readonly
+     https://www.googleapis.com/auth/calendar.events
+     ```
+     > 💡 添加这些 scopes 后，用户登录时会被要求授权访问他们的 Google Calendar
 7. 点击 **"Save"**
 
 ### 步骤 6: 测试 Google 登录
