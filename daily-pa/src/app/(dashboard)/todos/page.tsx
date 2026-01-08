@@ -240,7 +240,7 @@ export default function TodosPage() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto pb-20 md:pb-0">
-        <div className="md:max-w-4xl md:mx-auto">
+        <div>
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin">⏳</div>
