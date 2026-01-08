@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { todoRowToTodo, createTodoInputToInsert, type CreateTodoInput, type TodoFilters } from '@/types/todo';
+import { todoRowToTodo, type CreateTodoInput, type TodoFilters } from '@/types/todo';
 import { isDevMode, getDevTodos, addDevTodo } from '@/lib/dev-store';
 
 async function getUserId() {
@@ -139,7 +139,25 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    const insertData = createTodoInputToInsert(body, userId);
+    
+    // Build insert data without color if it might cause issues
+    const insertData: Record<string, unknown> = {
+      user_id: userId,
+      title: body.title,
+      description: body.description,
+      due_date: body.dueDate
+        ? typeof body.dueDate === 'string'
+          ? body.dueDate
+          : body.dueDate.toISOString()
+        : undefined,
+      priority: body.priority ?? 'medium',
+      tags: body.tags ?? [],
+    };
+    
+    // Only add color if provided (column might not exist in production)
+    if (body.color) {
+      insertData.color = body.color;
+    }
 
     const { data, error } = await supabase
       .from('todos')
@@ -149,6 +167,20 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Error creating todo:', error);
+      // If color column doesn't exist, try without it
+      if (error.message?.includes('color')) {
+        delete insertData.color;
+        const { data: retryData, error: retryError } = await supabase
+          .from('todos')
+          .insert(insertData)
+          .select()
+          .single();
+        
+        if (retryError) {
+          return NextResponse.json({ error: retryError.message }, { status: 500 });
+        }
+        return NextResponse.json(todoRowToTodo(retryData), { status: 201 });
+      }
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
