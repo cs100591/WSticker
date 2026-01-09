@@ -14,7 +14,9 @@ const protectedRoutes = ['/dashboard', '/todos', '/calendar', '/expenses', '/rep
 const authRoutes = ['/login', '/register', '/forgot-password'];
 
 // 检查是否为开发模式跳过认证
-const isDevSkipAuth = process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === 'true';
+// TEMPORARY: Always skip auth
+const isDevSkipAuth = true;
+// const isDevSkipAuth = process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === 'true';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
