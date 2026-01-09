@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       startTime: row.start_time,
       endTime: row.end_time,
       allDay: row.all_day,
-      color: row.color || '#3B82F6',
+      color: row.color || 'from-blue-500 to-blue-600',
     }));
 
     return NextResponse.json({ events });
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
         startTime: body.startTime,
         endTime: body.endTime,
         allDay: body.allDay || false,
-        color: '#3B82F6',
+        color: body.color || 'from-blue-500 to-blue-600',
       });
       return NextResponse.json(event, { status: 201 });
     }
@@ -98,10 +98,8 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient();
 
-    let colorValue = body.color || null;
-    if (colorValue && colorValue.length > 7) {
-      colorValue = '#3B82F6';
-    }
+    let colorValue = body.color || 'from-blue-500 to-blue-600';
+    // Keep gradient format or hex color
 
     const { data, error } = await supabase
       .from('calendar_events')

@@ -26,7 +26,9 @@ const eventBarColors: Record<string, { bg: string; text: string; border: string 
   blue: { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200' },
   green: { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200' },
   amber: { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200' },
+  orange: { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' },
   red: { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200' },
+  pink: { bg: 'bg-pink-100', text: 'text-pink-700', border: 'border-pink-200' },
   purple: { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200' },
   cyan: { bg: 'bg-cyan-100', text: 'text-cyan-700', border: 'border-cyan-200' },
 };
@@ -35,8 +37,8 @@ const eventColors = [
   { gradient: 'from-blue-500 to-blue-600', border: 'border-blue-500', text: 'text-blue-500', key: 'blue' },
   { gradient: 'from-green-500 to-emerald-600', border: 'border-green-500', text: 'text-green-500', key: 'green' },
   { gradient: 'from-purple-500 to-violet-600', border: 'border-purple-500', text: 'text-purple-500', key: 'purple' },
-  { gradient: 'from-orange-500 to-amber-600', border: 'border-orange-500', text: 'text-orange-500', key: 'amber' },
-  { gradient: 'from-pink-500 to-rose-600', border: 'border-pink-500', text: 'text-pink-500', key: 'red' },
+  { gradient: 'from-orange-500 to-amber-600', border: 'border-orange-500', text: 'text-orange-500', key: 'orange' },
+  { gradient: 'from-pink-500 to-rose-600', border: 'border-pink-500', text: 'text-pink-500', key: 'pink' },
   { gradient: 'from-cyan-500 to-teal-600', border: 'border-cyan-500', text: 'text-cyan-500', key: 'cyan' },
 ];
 
@@ -53,11 +55,14 @@ function formatDate(year: number, month: number, day: number) {
 }
 
 function getColorKey(colorGradient: string): string {
+  // Handle gradient format like "from-blue-500 to-blue-600"
   if (colorGradient.includes('blue')) return 'blue';
   if (colorGradient.includes('green') || colorGradient.includes('emerald')) return 'green';
   if (colorGradient.includes('purple') || colorGradient.includes('violet')) return 'purple';
-  if (colorGradient.includes('orange') || colorGradient.includes('amber')) return 'amber';
-  if (colorGradient.includes('pink') || colorGradient.includes('rose') || colorGradient.includes('red')) return 'red';
+  if (colorGradient.includes('orange')) return 'orange';
+  if (colorGradient.includes('amber')) return 'amber';
+  if (colorGradient.includes('pink') || colorGradient.includes('rose')) return 'pink';
+  if (colorGradient.includes('red')) return 'red';
   if (colorGradient.includes('cyan') || colorGradient.includes('teal')) return 'cyan';
   return 'blue';
 }
@@ -83,6 +88,13 @@ function getWeekDates(date: Date) {
 
 const hours = Array.from({ length: 24 }, (_, i) => i);
 
+// Helper to get day index in week (0-6)
+function getDayIndex(date: Date, weekStartDate: Date): number {
+  const d1 = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const d2 = new Date(weekStartDate.getFullYear(), weekStartDate.getMonth(), weekStartDate.getDate()).getTime();
+  return Math.floor((d1 - d2) / (24 * 60 * 60 * 1000));
+}
+
 // Calculate event positions for multi-day spanning
 interface PositionedEvent {
   event: CalendarEvent;
@@ -96,7 +108,7 @@ interface PositionedEvent {
 function calculateEventPositions(
   events: CalendarEvent[],
   weekStart: Date,
-  weekEnd: Date
+  _weekEnd: Date
 ): PositionedEvent[][] {
   const rows: PositionedEvent[][] = [];
   
@@ -116,16 +128,21 @@ function calculateEventPositions(
     const eventStart = new Date(event.startTime);
     const eventEnd = new Date(event.endTime);
     
-    // Calculate column positions (0-6 for Sun-Sat)
-    let startCol = Math.max(0, Math.floor((eventStart.getTime() - weekStart.getTime()) / (24 * 60 * 60 * 1000)));
-    let endCol = Math.min(6, Math.floor((eventEnd.getTime() - weekStart.getTime()) / (24 * 60 * 60 * 1000)));
+    // Get day indices
+    let startCol = getDayIndex(eventStart, weekStart);
+    let endCol = getDayIndex(eventEnd, weekStart);
+    
+    // Skip if event is completely outside this week
+    if (startCol > 6 || endCol < 0) continue;
     
     // Clamp to week bounds
-    if (eventStart < weekStart) startCol = 0;
-    if (eventEnd > weekEnd) endCol = 6;
+    const originalStartCol = startCol;
+    const originalEndCol = endCol;
+    startCol = Math.max(0, startCol);
+    endCol = Math.min(6, endCol);
     
-    const isStart = eventStart >= weekStart;
-    const isEnd = eventEnd <= new Date(weekEnd.getTime() + 24 * 60 * 60 * 1000);
+    const isStart = originalStartCol >= 0;
+    const isEnd = originalEndCol <= 6;
 
     // Find a row where this event fits
     let rowIndex = 0;
