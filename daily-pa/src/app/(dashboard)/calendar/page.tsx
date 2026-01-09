@@ -201,7 +201,7 @@ export default function CalendarPage() {
     startTime: '09:00',
     endTime: '10:00',
     allDay: false,
-    color: eventColors[0]?.gradient || 'from-blue-500 to-blue-600',
+    color: eventColors[0]?.key || 'blue',
   });
 
   const currentYear = currentDate.getFullYear();
@@ -221,7 +221,11 @@ export default function CalendarPage() {
         const res = await fetch('/api/calendar/sync/status');
         if (res.ok) {
           const data = await res.json();
-          setSyncStatus(data);
+          setSyncStatus({
+            hasIntegration: data.hasIntegration,
+            provider: data.integration?.provider,
+            lastSyncAt: data.integration?.lastSyncAt,
+          });
         }
       } catch (error) {
         console.error('Failed to fetch sync status:', error);
@@ -233,6 +237,23 @@ export default function CalendarPage() {
   const handleSync = async () => {
     setIsSyncing(true);
     try {
+      // First, try to setup integration if it doesn't exist
+      if (!syncStatus?.hasIntegration) {
+        const setupRes = await fetch('/api/calendar/setup-integration', { method: 'POST' });
+        if (setupRes.ok) {
+          // Refresh sync status
+          const statusRes = await fetch('/api/calendar/sync/status');
+          if (statusRes.ok) {
+            const statusData = await statusRes.json();
+            setSyncStatus({
+              hasIntegration: statusData.hasIntegration,
+              provider: statusData.integration?.provider,
+              lastSyncAt: statusData.integration?.lastSyncAt,
+            });
+          }
+        }
+      }
+
       const res = await fetch('/api/calendar/sync', { method: 'POST' });
       if (res.ok) {
         lastFetchKey.current = '';
@@ -255,9 +276,14 @@ export default function CalendarPage() {
         }
         
         setSyncStatus(prev => prev ? { ...prev, lastSyncAt: new Date().toISOString() } : null);
+      } else {
+        const errorData = await res.json();
+        console.error('Sync failed:', errorData.error);
+        alert(`Sync failed: ${errorData.error}`);
       }
     } catch (error) {
       console.error('Failed to sync calendar:', error);
+      alert('Failed to sync calendar. Please try again.');
     } finally {
       setIsSyncing(false);
     }
@@ -378,7 +404,7 @@ export default function CalendarPage() {
           startTime: '09:00',
           endTime: '10:00',
           allDay: false,
-          color: eventColors[0]?.gradient || 'from-blue-500 to-blue-600',
+          color: eventColors[0]?.key || 'blue',
         });
       }
     } catch (error) {
@@ -462,38 +488,53 @@ export default function CalendarPage() {
       
       <div className="flex-1 p-4 md:p-6 space-y-4 max-w-6xl">
         {/* Sync Status */}
-        {syncStatus?.hasIntegration && (
-          <GlassCard>
-            <GlassCardContent className="py-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {syncStatus.provider === 'google' ? (
-                    <Cloud className="w-5 h-5 text-blue-500" strokeWidth={1.5} />
-                  ) : (
-                    <CloudOff className="w-5 h-5 text-gray-400" strokeWidth={1.5} />
-                  )}
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      {syncStatus.provider === 'google' ? 'Google Calendar' : 'Apple Calendar'} Sync
-                    </p>
-                    {syncStatus.lastSyncAt && (
-                      <p className="text-xs text-gray-500">
-                        Last synced: {new Date(syncStatus.lastSyncAt).toLocaleString()}
+        <GlassCard>
+          <GlassCardContent className="py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {syncStatus?.hasIntegration ? (
+                  <Cloud className="w-5 h-5 text-blue-500" strokeWidth={1.5} />
+                ) : (
+                  <CloudOff className="w-5 h-5 text-gray-400" strokeWidth={1.5} />
+                )}
+                <div>
+                  {syncStatus?.hasIntegration ? (
+                    <>
+                      <p className="text-sm font-medium text-gray-900">
+                        {syncStatus.provider === 'google' ? 'Google Calendar' : 'Apple Calendar'} Connected
                       </p>
-                    )}
-                  </div>
-                </div>
-                <Button size="sm" variant="outline" onClick={handleSync} disabled={isSyncing} className="rounded-xl">
-                  {isSyncing ? (
-                    <><Loader2 className="w-4 h-4 mr-1 animate-spin" />Syncing...</>
+                      {syncStatus.lastSyncAt && (
+                        <p className="text-xs text-gray-500">
+                          Last synced: {new Date(syncStatus.lastSyncAt).toLocaleString()}
+                        </p>
+                      )}
+                    </>
                   ) : (
-                    <><RefreshCw className="w-4 h-4 mr-1" />Sync</>
+                    <>
+                      <p className="text-sm font-medium text-gray-900">Google Calendar</p>
+                      <p className="text-xs text-gray-500">Connect to sync your events</p>
+                    </>
                   )}
-                </Button>
+                </div>
               </div>
-            </GlassCardContent>
-          </GlassCard>
-        )}
+              <Button 
+                size="sm" 
+                variant={syncStatus?.hasIntegration ? "outline" : "default"}
+                onClick={handleSync} 
+                disabled={isSyncing} 
+                className="rounded-xl"
+              >
+                {isSyncing ? (
+                  <><Loader2 className="w-4 h-4 mr-1 animate-spin" />Syncing...</>
+                ) : syncStatus?.hasIntegration ? (
+                  <><RefreshCw className="w-4 h-4 mr-1" />Sync</>
+                ) : (
+                  <><Cloud className="w-4 h-4 mr-1" />Connect</>
+                )}
+              </Button>
+            </div>
+          </GlassCardContent>
+        </GlassCard>
 
         {/* View Mode Selector */}
         <div className="flex gap-2 p-1 bg-white/50 backdrop-blur-sm rounded-xl">
@@ -1045,12 +1086,12 @@ export default function CalendarPage() {
                 <div className="flex gap-2">
                   {eventColors.map((colorObj) => (
                     <button
-                      key={colorObj.gradient}
-                      onClick={() => setNewEvent(prev => ({ ...prev, color: colorObj.gradient }))}
+                      key={colorObj.key}
+                      onClick={() => setNewEvent(prev => ({ ...prev, color: colorObj.key }))}
                       className={cn(
-                        'w-8 h-8 rounded-full border-2',
-                        colorObj.border,
-                        newEvent.color === colorObj.gradient && 'ring-2 ring-offset-2 ring-blue-500'
+                        'w-8 h-8 rounded-full bg-gradient-to-r',
+                        colorObj.gradient,
+                        newEvent.color === colorObj.key && 'ring-2 ring-offset-2 ring-blue-500'
                       )}
                     />
                   ))}

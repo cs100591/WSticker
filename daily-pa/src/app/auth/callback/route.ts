@@ -11,6 +11,24 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     
     if (!error) {
+      // After successful OAuth login, try to set up calendar integration
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.provider_token && session?.user?.app_metadata?.provider === 'google') {
+          // Setup calendar integration for Google users
+          await fetch(`${origin}/api/calendar/setup-integration`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+          });
+        }
+      } catch (integrationError) {
+        // Don't fail the login if calendar setup fails
+        console.error('Calendar integration setup failed:', integrationError);
+      }
+      
       return NextResponse.redirect(`${origin}${next}`);
     }
   }
