@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card';
 import { useExpenses } from '@/lib/hooks/useExpenses';
+import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import type { ExpenseCategory } from '@/types/expense';
 
@@ -14,7 +15,18 @@ interface ReceiptScannerProps {
   onClose: () => void;
 }
 
-const categories: { value: ExpenseCategory; label: string; emoji: string }[] = [
+const categoriesEn: { value: ExpenseCategory; label: string; emoji: string }[] = [
+  { value: 'food', label: 'Food', emoji: '🍔' },
+  { value: 'transport', label: 'Transport', emoji: '🚗' },
+  { value: 'shopping', label: 'Shopping', emoji: '🛍️' },
+  { value: 'entertainment', label: 'Fun', emoji: '🎬' },
+  { value: 'bills', label: 'Bills', emoji: '📄' },
+  { value: 'health', label: 'Health', emoji: '💊' },
+  { value: 'education', label: 'Education', emoji: '📚' },
+  { value: 'other', label: 'Other', emoji: '📦' },
+];
+
+const categoriesZh: { value: ExpenseCategory; label: string; emoji: string }[] = [
   { value: 'food', label: '餐饮', emoji: '🍔' },
   { value: 'transport', label: '交通', emoji: '🚗' },
   { value: 'shopping', label: '购物', emoji: '🛍️' },
@@ -26,6 +38,9 @@ const categories: { value: ExpenseCategory; label: string; emoji: string }[] = [
 ];
 
 export function ReceiptScanner({ isOpen, onClose }: ReceiptScannerProps) {
+  const { locale } = useI18n();
+  const categories = locale === 'zh' ? categoriesZh : categoriesEn;
+  
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -39,15 +54,33 @@ export function ReceiptScanner({ isOpen, onClose }: ReceiptScannerProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [success, setSuccess] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
-  const [scanProgress, setScanProgress] = useState(0);
   const [ocrText, setOcrText] = useState('');
-
-  // Form state
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<ExpenseCategory>('food');
   const [description, setDescription] = useState('');
 
   const { createExpense } = useExpenses();
+
+  const t = {
+    title: locale === 'zh' ? '📸 扫描收据' : '📸 Scan Receipt',
+    scanning: locale === 'zh' ? 'AI 正在识别...' : 'AI scanning...',
+    ocrResult: locale === 'zh' ? 'AI 识别结果' : 'AI Result',
+    amount: locale === 'zh' ? '金额' : 'Amount',
+    category: locale === 'zh' ? '分类' : 'Category',
+    description: locale === 'zh' ? '描述' : 'Description',
+    descPlaceholder: locale === 'zh' ? '这笔消费是什么？' : 'What was this for?',
+    retake: locale === 'zh' ? '重拍' : 'Retake',
+    save: locale === 'zh' ? '保存' : 'Save',
+    saved: locale === 'zh' ? '已保存！' : 'Saved!',
+    tryAgain: locale === 'zh' ? '重试' : 'Try Again',
+    upload: locale === 'zh' ? '上传图片' : 'Upload',
+    takePhoto: locale === 'zh' ? '拍摄收据，AI 自动识别' : 'Take a photo, AI will scan',
+    startingCamera: locale === 'zh' ? '正在启动相机...' : 'Starting camera...',
+    cameraError: locale === 'zh' ? '无法访问相机' : 'Cannot access camera',
+    invalidAmount: locale === 'zh' ? '请输入有效金额' : 'Please enter valid amount',
+    saveFailed: locale === 'zh' ? '保存失败' : 'Save failed',
+    manualHint: locale === 'zh' ? '💡 如果识别不准确，可以直接修改' : '💡 You can edit if scan is inaccurate',
+  };
 
   const stopCamera = useCallback(() => {
     if (stream) {
@@ -61,149 +94,98 @@ export function ReceiptScanner({ isOpen, onClose }: ReceiptScannerProps) {
     setIsLoading(true);
     setError(null);
     setCameraReady(false);
-    
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-    }
-
+    if (stream) stream.getTracks().forEach(track => track.stop());
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: { facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
         audio: false,
       });
-      
       setStream(mediaStream);
-      
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
         videoRef.current.onloadedmetadata = () => {
           videoRef.current?.play().then(() => {
             setCameraReady(true);
             setIsLoading(false);
-          }).catch(err => {
-            console.error('Video play error:', err);
-            setError('无法启动视频预览');
+          }).catch(() => {
+            setError(t.cameraError);
             setIsLoading(false);
           });
         };
       }
-    } catch (err) {
-      console.error('Camera error:', err);
-      setError('无法访问相机，请使用文件上传');
+    } catch {
+      setError(t.cameraError);
       setIsLoading(false);
     }
-  }, [facingMode, stream]);
+  }, [facingMode, stream, t.cameraError]);
 
-  const switchCamera = useCallback(async () => {
+  const switchCamera = useCallback(() => {
     stopCamera();
     setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
   }, [stopCamera]);
 
   useEffect(() => {
-    if (isOpen && !capturedImage && !error && !showForm) {
-      startCamera();
-    }
+    if (isOpen && !capturedImage && !error && !showForm) startCamera();
   }, [facingMode, isOpen]);
 
-  // OCR 扫描图片
   const scanImage = async (imageData: string) => {
     setIsScanning(true);
-    setScanProgress(0);
     setOcrText('');
-    
+    setError(null);
     try {
-      // 动态导入 Tesseract.js
-      const Tesseract = await import('tesseract.js');
-      
-      // 使用更好的 OCR 设置
-      const result = await Tesseract.recognize(
-        imageData,
-        'chi_sim+eng', // 中文简体 + 英文
-        {
-          logger: (m) => {
-            if (m.status === 'recognizing text') {
-              setScanProgress(Math.round(m.progress * 100));
-            }
-          },
-        }
-      );
-      
-      const text = result.data.text;
-      setOcrText(text);
-      
-      // 用 AI 解析 OCR 结果
-      if (text.trim()) {
-        await parseOcrResult(text);
-      } else {
-        // OCR 没有识别到文字，提示用户手动输入
-        setError('未能识别收据内容，请手动输入金额');
-      }
-    } catch (err) {
-      console.error('OCR error:', err);
-      // OCR 失败提示用户手动输入
-      setError('识别失败，请手动输入金额');
-    } finally {
-      setIsScanning(false);
-      setScanProgress(0);
-    }
-  };
-
-  // AI 解析 OCR 文本
-  const parseOcrResult = async (text: string) => {
-    try {
-      const response = await fetch('/api/ocr/parse', {
+      const response = await fetch('/api/ocr/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ image: imageData, language: locale }),
       });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.data) {
-          if (result.data.amount) setAmount(result.data.amount.toString());
-          if (result.data.category) setCategory(result.data.category as ExpenseCategory);
-          if (result.data.description) setDescription(result.data.description);
-        }
+      const result = await response.json();
+      if (result.ocrText) setOcrText(result.ocrText);
+      if (result.success && result.data) {
+        if (result.data.amount) setAmount(result.data.amount.toString());
+        if (result.data.category) setCategory(result.data.category as ExpenseCategory);
+        if (result.data.description) setDescription(result.data.description);
+      } else if (result.error) {
+        setError(result.error);
       }
-    } catch (err) {
-      console.error('Parse error:', err);
+    } catch {
+      setError(locale === 'zh' ? '扫描失败，请手动输入' : 'Scan failed');
+    } finally {
+      setIsScanning(false);
     }
   };
 
-  const takePhoto = useCallback(async () => {
+  const takePhoto = useCallback(() => {
     if (videoRef.current && canvasRef.current && cameraReady) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 480;
+      canvas.width = video.videoWidth || 1280;
+      canvas.height = video.videoHeight || 720;
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.drawImage(video, 0, 0);
-        const imageData = canvas.toDataURL('image/jpeg', 0.8);
+        const imageData = canvas.toDataURL('image/jpeg', 0.9);
         setCapturedImage(imageData);
         stopCamera();
         setShowForm(true);
-        // 自动开始 OCR 扫描
         scanImage(imageData);
       }
     }
-  }, [stopCamera, cameraReady]);
+  }, [stopCamera, cameraReady, locale]);
 
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = async (event) => {
+      reader.onload = (event) => {
         const imageData = event.target?.result as string;
         setCapturedImage(imageData);
         stopCamera();
         setShowForm(true);
-        // 自动开始 OCR 扫描
         scanImage(imageData);
       };
       reader.readAsDataURL(file);
     }
-  }, [stopCamera]);
+  }, [stopCamera, locale]);
 
   const retake = useCallback(() => {
     setCapturedImage(null);
@@ -218,24 +200,22 @@ export function ReceiptScanner({ isOpen, onClose }: ReceiptScannerProps) {
   const handleSubmit = async () => {
     const amountNum = parseFloat(amount);
     if (isNaN(amountNum) || amountNum <= 0) {
-      setError('请输入有效金额');
+      setError(t.invalidAmount);
       return;
     }
-
     setIsCreating(true);
+    setError(null);
     try {
       await createExpense({
         amount: amountNum,
         category,
-        description: description || '收据扫描',
+        description: description || 'Receipt',
         expenseDate: new Date().toISOString().split('T')[0] as string,
       });
       setSuccess(true);
-      setTimeout(() => {
-        handleClose();
-      }, 1500);
-    } catch (err) {
-      setError('保存失败，请重试');
+      setTimeout(handleClose, 1500);
+    } catch {
+      setError(t.saveFailed);
     } finally {
       setIsCreating(false);
     }
@@ -255,22 +235,12 @@ export function ReceiptScanner({ isOpen, onClose }: ReceiptScannerProps) {
   }, [stopCamera, onClose]);
 
   useEffect(() => {
-    if (isOpen && !capturedImage && !showForm) {
-      startCamera();
-    }
-    return () => {
-      if (!isOpen) {
-        stopCamera();
-      }
-    };
+    if (isOpen && !capturedImage && !showForm) startCamera();
+    return () => { if (!isOpen) stopCamera(); };
   }, [isOpen]);
 
   useEffect(() => {
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-    };
+    return () => { if (stream) stream.getTracks().forEach(track => track.stop()); };
   }, []);
 
   if (!isOpen) return null;
@@ -279,10 +249,8 @@ export function ReceiptScanner({ isOpen, onClose }: ReceiptScannerProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
       <GlassCard className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <GlassCardHeader className="flex flex-row items-center justify-between">
-          <GlassCardTitle>📸 扫描收据</GlassCardTitle>
-          <button onClick={handleClose} className="p-2 hover:bg-gray-100 rounded-lg">
-            <X className="w-5 h-5" />
-          </button>
+          <GlassCardTitle>{t.title}</GlassCardTitle>
+          <button onClick={handleClose} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
         </GlassCardHeader>
         <GlassCardContent className="space-y-4">
           {success ? (
@@ -290,111 +258,59 @@ export function ReceiptScanner({ isOpen, onClose }: ReceiptScannerProps) {
               <div className="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-4">
                 <Check className="w-8 h-8 text-green-500" />
               </div>
-              <p className="text-green-600 font-medium">消费已保存！</p>
+              <p className="text-green-600 font-medium">{t.saved}</p>
             </div>
           ) : showForm ? (
             <>
-              {/* Show captured image */}
               {capturedImage && (
                 <div className="relative rounded-xl overflow-hidden bg-black">
                   <img src={capturedImage} alt="Receipt" className="w-full max-h-40 object-contain" />
                   {isScanning && (
                     <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center">
                       <Scan className="w-8 h-8 text-blue-400 animate-pulse mb-2" />
-                      <p className="text-white text-sm">AI 正在识别... {scanProgress}%</p>
-                      <div className="w-32 h-1 bg-gray-600 rounded-full mt-2">
-                        <div 
-                          className="h-full bg-blue-500 rounded-full transition-all"
-                          style={{ width: `${scanProgress}%` }}
-                        />
-                      </div>
+                      <p className="text-white text-sm">{t.scanning}</p>
                     </div>
                   )}
                 </div>
               )}
-
-              {/* OCR 识别结果 */}
               {ocrText && !isScanning && (
                 <div className="p-3 bg-gray-50 rounded-xl">
                   <div className="flex items-center gap-2 mb-2">
                     <Sparkles className="w-4 h-4 text-blue-500" />
-                    <span className="text-sm font-medium text-gray-700">AI 识别结果</span>
+                    <span className="text-sm font-medium text-gray-700">{t.ocrResult}</span>
                   </div>
                   <p className="text-xs text-gray-500 line-clamp-3">{ocrText}</p>
                 </div>
               )}
-
-              {/* 快捷输入提示 */}
-              {!isScanning && !amount && (
-                <div className="p-3 bg-blue-50 rounded-xl">
-                  <p className="text-sm text-blue-600">
-                    💡 如果识别不准确，可以直接在下方输入金额
-                  </p>
-                </div>
-              )}
-
-              {/* Expense form */}
+              {!isScanning && <div className="p-3 bg-blue-50 rounded-xl"><p className="text-sm text-blue-600">{t.manualHint}</p></div>}
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">金额 *</label>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">{t.amount} *</label>
                   <div className="relative">
                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <Input
-                      type="number"
-                      placeholder="0.00"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      className="h-12 pl-10 rounded-xl text-lg"
-                    />
+                    <Input type="number" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-12 pl-10 rounded-xl text-lg" />
                   </div>
                 </div>
-
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">分类</label>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">{t.category}</label>
                   <div className="grid grid-cols-4 gap-2">
                     {categories.map((cat) => (
-                      <button
-                        key={cat.value}
-                        onClick={() => setCategory(cat.value)}
-                        className={cn(
-                          'p-2 rounded-xl text-center transition-all',
-                          category === cat.value
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-gray-100 hover:bg-gray-200'
-                        )}
-                      >
+                      <button key={cat.value} onClick={() => setCategory(cat.value)} className={cn('p-2 rounded-xl text-center transition-all', category === cat.value ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200')}>
                         <span className="text-xl">{cat.emoji}</span>
                         <p className="text-xs mt-1">{cat.label}</p>
                       </button>
                     ))}
                   </div>
                 </div>
-
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">描述</label>
-                  <Input
-                    placeholder="这笔消费是什么？"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="h-12 rounded-xl"
-                  />
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">{t.description}</label>
+                  <Input placeholder={t.descPlaceholder} value={description} onChange={(e) => setDescription(e.target.value)} className="h-12 rounded-xl" />
                 </div>
-
-                {error && (
-                  <p className="text-red-500 text-sm">{error}</p>
-                )}
-
+                {error && <p className="text-red-500 text-sm">{error}</p>}
                 <div className="flex gap-3">
-                  <Button variant="outline" className="flex-1 h-12 rounded-xl" onClick={retake}>
-                    <RotateCcw className="w-4 h-4 mr-2" />
-                    重拍
-                  </Button>
-                  <Button
-                    className="flex-1 h-12 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500"
-                    onClick={handleSubmit}
-                    disabled={isCreating || !amount || isScanning}
-                  >
-                    {isCreating ? <Loader2 className="w-5 h-5 animate-spin" /> : '保存'}
+                  <Button variant="outline" className="flex-1 h-12 rounded-xl" onClick={retake}><RotateCcw className="w-4 h-4 mr-2" />{t.retake}</Button>
+                  <Button className="flex-1 h-12 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500" onClick={handleSubmit} disabled={isCreating || !amount || isScanning}>
+                    {isCreating ? <Loader2 className="w-5 h-5 animate-spin" /> : t.save}
                   </Button>
                 </div>
               </div>
@@ -404,75 +320,26 @@ export function ReceiptScanner({ isOpen, onClose }: ReceiptScannerProps) {
               <Camera className="w-12 h-12 mx-auto text-gray-400 mb-4" />
               <p className="text-red-500 mb-4">{error}</p>
               <div className="flex gap-3 justify-center">
-                <Button onClick={startCamera} variant="outline">重试</Button>
-                <Button onClick={() => fileInputRef.current?.click()}>
-                  <ImageIcon className="w-4 h-4 mr-2" />
-                  上传图片
-                </Button>
+                <Button onClick={startCamera} variant="outline">{t.tryAgain}</Button>
+                <Button onClick={() => fileInputRef.current?.click()}><ImageIcon className="w-4 h-4 mr-2" />{t.upload}</Button>
               </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
+              <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileUpload} className="hidden" />
             </div>
           ) : (
             <>
               <div className="relative rounded-xl overflow-hidden bg-black aspect-video">
-                {isLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black">
-                    <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-                  </div>
-                )}
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover"
-                />
-                {!cameraReady && !isLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black text-white">
-                    <p>正在启动相机...</p>
-                  </div>
-                )}
+                {isLoading && <div className="absolute inset-0 flex items-center justify-center bg-black"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /></div>}
+                <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                {!cameraReady && !isLoading && <div className="absolute inset-0 flex items-center justify-center bg-black text-white"><p>{t.startingCamera}</p></div>}
               </div>
               <canvas ref={canvasRef} className="hidden" />
-              <p className="text-center text-sm text-gray-500">
-                拍摄收据，AI 自动识别金额
-              </p>
+              <p className="text-center text-sm text-gray-500">{t.takePhoto}</p>
               <div className="flex gap-3 justify-center items-center">
-                <Button variant="outline" size="icon" onClick={switchCamera} className="rounded-full">
-                  <RotateCcw className="w-5 h-5" />
-                </Button>
-                <Button
-                  size="lg"
-                  onClick={takePhoto}
-                  disabled={!cameraReady}
-                  className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 disabled:opacity-50"
-                >
-                  <Camera className="w-6 h-6" />
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  onClick={() => fileInputRef.current?.click()} 
-                  className="rounded-full"
-                >
-                  <ImageIcon className="w-5 h-5" />
-                </Button>
+                <Button variant="outline" size="icon" onClick={switchCamera} className="rounded-full"><RotateCcw className="w-5 h-5" /></Button>
+                <Button size="lg" onClick={takePhoto} disabled={!cameraReady} className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 disabled:opacity-50"><Camera className="w-6 h-6" /></Button>
+                <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} className="rounded-full"><ImageIcon className="w-5 h-5" /></Button>
               </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
+              <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileUpload} className="hidden" />
             </>
           )}
         </GlassCardContent>
