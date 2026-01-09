@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useI18n } from '@/lib/i18n';
 import { useExpenses } from '@/lib/hooks/useExpenses';
-import { Plus, Trash2, ShoppingBag, Utensils, Car, Home, Gamepad2, MoreHorizontal, ArrowDownRight, Loader2 } from 'lucide-react';
+import { Plus, Trash2, ShoppingBag, Utensils, Car, Gamepad2, MoreHorizontal, ArrowDownRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ExpenseCategory } from '@/types/expense';
 
@@ -15,7 +15,6 @@ const categoryIcons = {
   food: Utensils,
   shopping: ShoppingBag,
   transport: Car,
-  housing: Home,
   entertainment: Gamepad2,
   bills: MoreHorizontal,
   health: MoreHorizontal,
@@ -27,7 +26,6 @@ const categoryGradients = {
   food: 'from-orange-500 to-red-500',
   shopping: 'from-pink-500 to-rose-500',
   transport: 'from-blue-500 to-cyan-500',
-  housing: 'from-green-500 to-emerald-500',
   entertainment: 'from-purple-500 to-violet-500',
   bills: 'from-amber-500 to-yellow-500',
   health: 'from-red-500 to-pink-500',
@@ -45,7 +43,6 @@ export default function ExpensesPage() {
     { id: 'food' as ExpenseCategory, label: t.expenses.categories.food },
     { id: 'shopping' as ExpenseCategory, label: t.expenses.categories.shopping },
     { id: 'transport' as ExpenseCategory, label: t.expenses.categories.transport },
-    { id: 'housing' as ExpenseCategory, label: t.expenses.categories.housing },
     { id: 'entertainment' as ExpenseCategory, label: t.expenses.categories.entertainment },
     { id: 'other' as ExpenseCategory, label: t.expenses.categories.other },
   ];
