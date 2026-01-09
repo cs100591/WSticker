@@ -237,9 +237,10 @@ export async function syncCalendarEvents(
 export async function getUserAuthProvider(userId: string): Promise<string | null> {
   const supabase = await createClient();
   
-  const { data: { user }, error } = await supabase.auth.admin.getUserById(userId);
+  // Use getUser() instead of admin API
+  const { data: { user }, error } = await supabase.auth.getUser();
 
-  if (error || !user) {
+  if (error || !user || user.id !== userId) {
     return null;
   }
 
@@ -247,6 +248,11 @@ export async function getUserAuthProvider(userId: string): Promise<string | null
   const identities = user.identities || [];
   if (identities.length > 0 && identities[0]) {
     return identities[0].provider;
+  }
+
+  // Check app_metadata for provider
+  if (user.app_metadata?.provider) {
+    return user.app_metadata.provider;
   }
 
   return null;
