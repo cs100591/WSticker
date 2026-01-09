@@ -13,10 +13,8 @@ const protectedRoutes = ['/dashboard', '/todos', '/calendar', '/expenses', '/rep
 // 认证相关路由（已登录用户不应访问）
 const authRoutes = ['/login', '/register', '/forgot-password'];
 
-// 检查是否为开发模式跳过认证
-// TEMPORARY: Always skip auth
-const isDevSkipAuth = true;
-// const isDevSkipAuth = process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === 'true';
+// 检查是否为开发模式跳过认证 (仅在非生产环境生效)
+const isDevSkipAuth = process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === 'true' && process.env.NODE_ENV !== 'production';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

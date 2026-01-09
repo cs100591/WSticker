@@ -1,10 +1,6 @@
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 
 export default function HomePage() {
-  // TEMPORARY: Skip login, go directly to dashboard
-  redirect('/dashboard');
-  
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-6 bg-gradient-to-b from-background to-muted">
       <div className="max-w-2xl text-center space-y-8">

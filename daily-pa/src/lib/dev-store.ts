@@ -164,8 +164,5 @@ export function addDevExpense(expense: Partial<Expense>): Expense {
 }
 
 export function isDevMode(): boolean {
-  // TEMPORARY: Always use dev mode to skip authentication
-  // TODO: Remove this when authentication is ready
-  return true;
-  // return process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === 'true';
+  return process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === 'true';
 }
