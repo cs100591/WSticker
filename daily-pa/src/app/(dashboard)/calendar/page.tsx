@@ -179,6 +179,8 @@ export default function CalendarPage() {
   const [newEvent, setNewEvent] = useState({
     title: '',
     description: '',
+    startDate: formatDate(today.getFullYear(), today.getMonth(), today.getDate()),
+    endDate: formatDate(today.getFullYear(), today.getMonth(), today.getDate()),
     startTime: '09:00',
     endTime: '10:00',
     allDay: false,
@@ -323,15 +325,15 @@ export default function CalendarPage() {
   const selectedEvents = selectedDate ? getEventsForDate(selectedDate) : [];
 
   const handleAddEvent = async () => {
-    if (!newEvent.title.trim() || !selectedDate) return;
+    if (!newEvent.title.trim() || !newEvent.startDate) return;
 
     try {
       const startTime = newEvent.allDay 
-        ? `${selectedDate}T00:00:00` 
-        : `${selectedDate}T${newEvent.startTime}:00`;
+        ? `${newEvent.startDate}T00:00:00` 
+        : `${newEvent.startDate}T${newEvent.startTime}:00`;
       const endTime = newEvent.allDay 
-        ? `${selectedDate}T23:59:59` 
-        : `${selectedDate}T${newEvent.endTime}:00`;
+        ? `${newEvent.endDate}T23:59:59` 
+        : `${newEvent.endDate}T${newEvent.endTime}:00`;
 
       const res = await fetch('/api/calendar', {
         method: 'POST',
@@ -350,9 +352,12 @@ export default function CalendarPage() {
         const created = await res.json();
         setEvents(prev => [...prev, created]);
         setShowAddModal(false);
+        const todayDate = formatDate(today.getFullYear(), today.getMonth(), today.getDate());
         setNewEvent({
           title: '',
           description: '',
+          startDate: todayDate,
+          endDate: todayDate,
           startTime: '09:00',
           endTime: '10:00',
           allDay: false,
@@ -518,7 +523,11 @@ export default function CalendarPage() {
               <Button 
                 size="sm" 
                 className="rounded-xl bg-blue-500 hover:bg-blue-600"
-                onClick={() => setShowAddModal(true)}
+                onClick={() => {
+                  const dateToUse = selectedDate || todayStr;
+                  setNewEvent(prev => ({ ...prev, startDate: dateToUse, endDate: dateToUse }));
+                  setShowAddModal(true);
+                }}
               >
                 <Plus className="w-4 h-4 mr-1" />
                 Add
@@ -746,7 +755,12 @@ export default function CalendarPage() {
                       <div
                         onClick={() => {
                           setSelectedDate(dateStr);
-                          setNewEvent(prev => ({ ...prev, startTime: `${hour.toString().padStart(2, '0')}:00` }));
+                          setNewEvent(prev => ({ 
+                            ...prev, 
+                            startDate: dateStr,
+                            endDate: dateStr,
+                            startTime: `${hour.toString().padStart(2, '0')}:00` 
+                          }));
                           setShowAddModal(true);
                         }}
                         className="flex-1 min-h-[50px] hover:bg-blue-50 cursor-pointer rounded p-1"
@@ -809,7 +823,10 @@ export default function CalendarPage() {
               <Button 
                 size="sm" 
                 className="rounded-xl bg-blue-500 hover:bg-blue-600"
-                onClick={() => setShowAddModal(true)}
+                onClick={() => {
+                  setNewEvent(prev => ({ ...prev, startDate: selectedDate, endDate: selectedDate }));
+                  setShowAddModal(true);
+                }}
               >
                 <Plus className="w-4 h-4 mr-1" />
                 {t.calendar.add}
@@ -913,7 +930,7 @@ export default function CalendarPage() {
       {/* Add Event Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <GlassCard className="w-full max-w-md">
+          <GlassCard className="w-full max-w-md max-h-[90vh] overflow-y-auto">
             <GlassCardHeader className="flex flex-row items-center justify-between">
               <GlassCardTitle>Add Event</GlassCardTitle>
               <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
@@ -939,6 +956,37 @@ export default function CalendarPage() {
                   onChange={(e) => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
                   className="h-12 rounded-xl"
                 />
+              </div>
+
+              {/* Date Range */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Start Date</label>
+                  <Input
+                    type="date"
+                    value={newEvent.startDate}
+                    onChange={(e) => {
+                      const newStartDate = e.target.value;
+                      setNewEvent(prev => ({
+                        ...prev,
+                        startDate: newStartDate,
+                        // If end date is before start date, update it
+                        endDate: prev.endDate < newStartDate ? newStartDate : prev.endDate
+                      }));
+                    }}
+                    className="h-12 rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">End Date</label>
+                  <Input
+                    type="date"
+                    value={newEvent.endDate}
+                    min={newEvent.startDate}
+                    onChange={(e) => setNewEvent(prev => ({ ...prev, endDate: e.target.value }))}
+                    className="h-12 rounded-xl"
+                  />
+                </div>
               </div>
 
               <div className="flex items-center gap-2">
