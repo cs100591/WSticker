@@ -14,7 +14,11 @@ import {
   TrendingDown,
   Clock,
   Target,
-  Lightbulb
+  Lightbulb,
+  Plus,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Zap
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -42,7 +46,6 @@ interface Expense {
   expenseDate: string;
 }
 
-// Smart greeting based on time of day
 function getGreeting(locale: string): string {
   const hour = new Date().getHours();
   if (locale === 'zh') {
@@ -55,7 +58,6 @@ function getGreeting(locale: string): string {
   return 'Good evening';
 }
 
-// Generate smart recommendations based on data
 function getRecommendations(
   todos: Todo[], 
   events: CalendarEvent[], 
@@ -234,47 +236,118 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <div className="flex-1 p-4 md:p-6 space-y-6 max-w-4xl">
-        {/* AI Greeting Panel */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 p-6 text-white">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-          <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
-          
-          <div className="relative z-10">
-            <h1 className="text-2xl md:text-3xl font-bold mb-1">
+    <div className="flex flex-col min-h-screen bg-gradient-to-b from-background via-background to-muted">
+      <div className="flex-1 p-4 md:p-8 space-y-8 max-w-6xl mx-auto w-full">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900">
               {getGreeting(locale)}{displayName ? `, ${displayName}` : ''} 👋
             </h1>
-            
-            <p className="text-blue-100 text-sm md:text-base">
+            <p className="text-gray-600 mt-2">
               {locale === 'zh' 
                 ? `今天有 ${activeTodos.length} 个待办事项和 ${events.length} 个日程`
                 : `You have ${activeTodos.length} task${activeTodos.length !== 1 ? 's' : ''} and ${events.length} event${events.length !== 1 ? 's' : ''} today`
               }
             </p>
           </div>
+          <Link href="/todos">
+            <Button className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:shadow-lg hover:shadow-blue-500/30">
+              <Plus className="w-4 h-4 mr-2" />
+              {locale === 'zh' ? '新建任务' : 'New Task'}
+            </Button>
+          </Link>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Active Tasks */}
+          <Link href="/todos">
+            <GlassCard className="h-full hover:scale-[1.02] transition-transform cursor-pointer">
+              <GlassCardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">{locale === 'zh' ? '活跃任务' : 'Active Tasks'}</p>
+                    <p className="text-3xl font-bold text-gray-900">{activeTodos.length}</p>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
+                    <CheckCircle2 className="w-6 h-6 text-blue-500" />
+                  </div>
+                </div>
+              </GlassCardContent>
+            </GlassCard>
+          </Link>
+
+          {/* Completion Rate */}
+          <GlassCard>
+            <GlassCardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">{locale === 'zh' ? '完成率' : 'Completion'}</p>
+                  <p className="text-3xl font-bold text-gray-900">{completionRate}%</p>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
+                  <TrendingUp className="w-6 h-6 text-green-500" />
+                </div>
+              </div>
+            </GlassCardContent>
+          </GlassCard>
+
+          {/* Monthly Spending */}
+          <Link href="/expenses">
+            <GlassCard className="h-full hover:scale-[1.02] transition-transform cursor-pointer">
+              <GlassCardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">{locale === 'zh' ? '本月消费' : 'Monthly Spend'}</p>
+                    <p className="text-3xl font-bold text-gray-900">${monthlySpending.toFixed(0)}</p>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center">
+                    <DollarSign className="w-6 h-6 text-orange-500" />
+                  </div>
+                </div>
+              </GlassCardContent>
+            </GlassCard>
+          </Link>
+
+          {/* Events Today */}
+          <Link href="/calendar">
+            <GlassCard className="h-full hover:scale-[1.02] transition-transform cursor-pointer">
+              <GlassCardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">{locale === 'zh' ? '今日日程' : 'Today Events'}</p>
+                    <p className="text-3xl font-bold text-gray-900">{events.length}</p>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
+                    <Calendar className="w-6 h-6 text-purple-500" />
+                  </div>
+                </div>
+              </GlassCardContent>
+            </GlassCard>
+          </Link>
         </div>
 
         {/* Smart Recommendations */}
         {recommendations.length > 0 && (
-          <GlassCard>
-            <GlassCardContent className="p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Lightbulb className="w-4 h-4 text-amber-500" />
-                <span className="text-sm font-medium text-gray-700">
-                  {locale === 'zh' ? '智能建议' : 'Suggestions'}
+          <GlassCard variant="premium">
+            <GlassCardContent className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Lightbulb className="w-5 h-5 text-amber-500" />
+                <span className="text-lg font-semibold text-gray-900">
+                  {locale === 'zh' ? '智能建议' : 'Smart Suggestions'}
                 </span>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {recommendations.map((rec, i) => (
-                  <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-gray-50/50 hover:bg-gray-100/50 transition-colors">
+                  <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-white/50 to-blue-50/30 hover:from-white/70 hover:to-blue-50/50 transition-all">
                     <div className="flex items-center gap-3">
                       {rec.icon}
                       <span className="text-sm text-gray-700">{rec.text}</span>
                     </div>
                     {rec.href && (
                       <Link href={rec.href}>
-                        <Button variant="ghost" size="sm" className="text-blue-500 hover:text-blue-600 h-7 px-2">
+                        <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 h-8 px-3">
                           {rec.action} <ArrowRight className="w-3 h-3 ml-1" />
                         </Button>
                       </Link>
@@ -286,249 +359,112 @@ export default function DashboardPage() {
           </GlassCard>
         )}
 
-        {/* Quick Stats Row */}
-        <div className="grid grid-cols-3 gap-3">
-          <Link href="/todos">
-            <GlassCard className="h-full hover:scale-[1.02] transition-transform">
-              <GlassCardContent className="p-4 text-center">
-                <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-blue-50 flex items-center justify-center">
-                  <CheckCircle2 className="w-5 h-5 text-blue-500" />
-                </div>
-                <p className="text-2xl font-bold text-gray-900">{activeTodos.length}</p>
-                <p className="text-xs text-gray-500">{locale === 'zh' ? '待办' : 'Tasks'}</p>
-              </GlassCardContent>
-            </GlassCard>
-          </Link>
-
-          <Link href="/calendar">
-            <GlassCard className="h-full hover:scale-[1.02] transition-transform">
-              <GlassCardContent className="p-4 text-center">
-                <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-green-50 flex items-center justify-center">
-                  <Calendar className="w-5 h-5 text-green-500" />
-                </div>
-                <p className="text-2xl font-bold text-gray-900">{events.length}</p>
-                <p className="text-xs text-gray-500">{locale === 'zh' ? '日程' : 'Events'}</p>
-              </GlassCardContent>
-            </GlassCard>
-          </Link>
-
-          <Link href="/expenses">
-            <GlassCard className="h-full hover:scale-[1.02] transition-transform">
-              <GlassCardContent className="p-4 text-center">
-                <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-orange-50 flex items-center justify-center">
-                  <DollarSign className="w-5 h-5 text-orange-500" />
-                </div>
-                <p className="text-2xl font-bold text-gray-900">${monthlySpending.toFixed(0)}</p>
-                <p className="text-xs text-gray-500">{locale === 'zh' ? '本月' : 'This month'}</p>
-              </GlassCardContent>
-            </GlassCard>
-          </Link>
-        </div>
-
-        {/* Focus Section - Priority Tasks */}
-        <GlassCard>
-          <GlassCardContent className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Target className="w-4 h-4 text-blue-500" />
-                <span className="font-medium text-gray-800">
-                  {locale === 'zh' ? '今日重点' : 'Focus Today'}
-                </span>
-              </div>
-              <Link href="/todos">
-                <Button variant="ghost" size="sm" className="text-gray-500 hover:text-blue-500 h-7 px-2">
-                  {locale === 'zh' ? '全部' : 'All'} <ArrowRight className="w-3 h-3 ml-1" />
-                </Button>
-              </Link>
-            </div>
-
-            {isLoading ? (
-              <div className="py-8 text-center text-gray-400">
-                {locale === 'zh' ? '加载中...' : 'Loading...'}
-              </div>
-            ) : activeTodos.length === 0 ? (
-              <div className="py-8 text-center">
-                <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gray-100 flex items-center justify-center">
-                  <CheckCircle2 className="w-6 h-6 text-gray-300" />
-                </div>
-                <p className="text-gray-500 text-sm mb-3">
-                  {locale === 'zh' ? '暂无待办事项' : 'No tasks yet'}
-                </p>
-                <Link href="/todos">
-                  <Button variant="outline" size="sm" className="rounded-lg">
-                    {locale === 'zh' ? '添加任务' : 'Add Task'}
-                  </Button>
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {activeTodos.slice(0, 5).map((todo) => (
-                  <div
-                    key={todo.id}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-white/60 hover:bg-white/80 transition-all group"
-                  >
-                    <button
-                      onClick={() => handleToggleTodo(todo.id)}
-                      className="flex-shrink-0 transition-transform hover:scale-110"
-                    >
-                      <Circle className="w-5 h-5 text-gray-300 group-hover:text-blue-500" strokeWidth={1.5} />
-                    </button>
-                    <span className="flex-1 text-sm text-gray-800 truncate">{todo.title}</span>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                      {priorityLabel(todo.priority)}
-                    </span>
-                  </div>
-                ))}
-                {activeTodos.length > 5 && (
-                  <Link href="/todos" className="block text-center text-sm text-blue-500 hover:underline pt-2">
-                    {locale === 'zh' ? `查看全部 ${activeTodos.length} 个任务` : `View all ${activeTodos.length} tasks`} →
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Recent Todos */}
+          <div className="lg:col-span-2">
+            <GlassCard>
+              <GlassCardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    {locale === 'zh' ? '最近任务' : 'Recent Tasks'}
+                  </h2>
+                  <Link href="/todos">
+                    <Button variant="ghost" size="sm" className="text-blue-600">
+                      {locale === 'zh' ? '查看全部' : 'View All'} <ArrowRight className="w-3 h-3 ml-1" />
+                    </Button>
                   </Link>
-                )}
-              </div>
-            )}
-          </GlassCardContent>
-        </GlassCard>
-
-        {/* Today's Schedule */}
-        <GlassCard>
-          <GlassCardContent className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-green-500" />
-                <span className="font-medium text-gray-800">
-                  {locale === 'zh' ? '今日日程' : "Today's Schedule"}
-                </span>
-              </div>
-              <Link href="/calendar">
-                <Button variant="ghost" size="sm" className="text-gray-500 hover:text-green-500 h-7 px-2">
-                  {locale === 'zh' ? '日历' : 'Calendar'} <ArrowRight className="w-3 h-3 ml-1" />
-                </Button>
-              </Link>
-            </div>
-
-            {isLoading ? (
-              <div className="py-8 text-center text-gray-400">
-                {locale === 'zh' ? '加载中...' : 'Loading...'}
-              </div>
-            ) : events.length === 0 ? (
-              <div className="py-6 text-center">
-                <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gray-100 flex items-center justify-center">
-                  <Calendar className="w-6 h-6 text-gray-300" />
                 </div>
-                <p className="text-gray-500 text-sm">
-                  {locale === 'zh' ? '今天没有日程安排' : 'No events today'}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {events.slice(0, 4).map((event) => (
-                  <div
-                    key={event.id}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-white/60 hover:bg-white/80 transition-all"
-                  >
-                    <div className="w-1 h-10 rounded-full bg-green-500" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800 truncate">{event.title}</p>
-                      <p className="text-xs text-gray-500">
-                        {event.allDay 
-                          ? (locale === 'zh' ? '全天' : 'All day')
-                          : `${event.startTime.slice(11, 16)} - ${event.endTime.slice(11, 16)}`
-                        }
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </GlassCardContent>
-        </GlassCard>
-
-        {/* Spending Overview */}
-        <GlassCard>
-          <GlassCardContent className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-orange-500" />
-                <span className="font-medium text-gray-800">
-                  {locale === 'zh' ? '消费概览' : 'Spending Overview'}
-                </span>
-              </div>
-              <Link href="/expenses">
-                <Button variant="ghost" size="sm" className="text-gray-500 hover:text-orange-500 h-7 px-2">
-                  {locale === 'zh' ? '详情' : 'Details'} <ArrowRight className="w-3 h-3 ml-1" />
-                </Button>
-              </Link>
-            </div>
-
-            {isLoading ? (
-              <div className="py-8 text-center text-gray-400">
-                {locale === 'zh' ? '加载中...' : 'Loading...'}
-              </div>
-            ) : expenses.length === 0 ? (
-              <div className="py-6 text-center">
-                <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gray-100 flex items-center justify-center">
-                  <DollarSign className="w-6 h-6 text-gray-300" />
-                </div>
-                <p className="text-gray-500 text-sm mb-3">
-                  {locale === 'zh' ? '本月暂无消费记录' : 'No expenses this month'}
-                </p>
-                <Link href="/expenses">
-                  <Button variant="outline" size="sm" className="rounded-lg">
-                    {locale === 'zh' ? '记录消费' : 'Add Expense'}
-                  </Button>
-                </Link>
-              </div>
-            ) : (
-              <div>
-                {/* Spending Summary */}
-                <div className="flex items-end justify-between mb-4 pb-4 border-b border-gray-100">
-                  <div>
-                    <p className="text-3xl font-bold text-gray-900">${monthlySpending.toFixed(2)}</p>
-                    <p className="text-xs text-gray-500">
-                      {locale === 'zh' ? `${expenses.length} 笔交易` : `${expenses.length} transactions`}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <div className="flex items-center gap-1 text-sm">
-                      {completionRate >= 50 ? (
-                        <TrendingUp className="w-4 h-4 text-green-500" />
-                      ) : (
-                        <TrendingDown className="w-4 h-4 text-orange-500" />
-                      )}
-                      <span className={completionRate >= 50 ? 'text-green-600' : 'text-orange-600'}>
-                        {completionRate}%
+                <div className="space-y-2">
+                  {activeTodos.slice(0, 5).map((todo) => (
+                    <div
+                      key={todo.id}
+                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors group"
+                    >
+                      <button
+                        onClick={() => handleToggleTodo(todo.id)}
+                        className="flex-shrink-0"
+                      >
+                        <Circle className="w-5 h-5 text-gray-300 group-hover:text-blue-500 transition-colors" />
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-700 truncate">{todo.title}</p>
+                        {todo.dueDate && (
+                          <p className="text-xs text-gray-500">{new Date(todo.dueDate).toLocaleDateString()}</p>
+                        )}
+                      </div>
+                      <span className="text-xs font-medium px-2 py-1 rounded-full bg-blue-50 text-blue-600">
+                        {priorityLabel(todo.priority)}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-500">
-                      {locale === 'zh' ? '任务完成率' : 'Task completion'}
-                    </p>
+                  ))}
+                  {activeTodos.length === 0 && (
+                    <div className="text-center py-8">
+                      <Zap className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                      <p className="text-gray-500 text-sm">
+                        {locale === 'zh' ? '没有待办事项' : 'No tasks yet'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </GlassCardContent>
+            </GlassCard>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="space-y-4">
+            <GlassCard>
+              <GlassCardContent className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  {locale === 'zh' ? '快速操作' : 'Quick Actions'}
+                </h3>
+                <div className="space-y-3">
+                  <Link href="/todos" className="block">
+                    <Button variant="outline" className="w-full justify-start h-10">
+                      <Plus className="w-4 h-4 mr-2" />
+                      {locale === 'zh' ? '新建任务' : 'New Task'}
+                    </Button>
+                  </Link>
+                  <Link href="/expenses" className="block">
+                    <Button variant="outline" className="w-full justify-start h-10">
+                      <Plus className="w-4 h-4 mr-2" />
+                      {locale === 'zh' ? '记录消费' : 'Log Expense'}
+                    </Button>
+                  </Link>
+                  <Link href="/calendar" className="block">
+                    <Button variant="outline" className="w-full justify-start h-10">
+                      <Plus className="w-4 h-4 mr-2" />
+                      {locale === 'zh' ? '新建日程' : 'New Event'}
+                    </Button>
+                  </Link>
+                </div>
+              </GlassCardContent>
+            </GlassCard>
+
+            {/* Stats Card */}
+            <GlassCard>
+              <GlassCardContent className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  {locale === 'zh' ? '本周统计' : 'Weekly Stats'}
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">{locale === 'zh' ? '完成任务' : 'Completed'}</span>
+                    <span className="text-lg font-semibold text-green-600">{completedTodos.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">{locale === 'zh' ? '待处理' : 'Pending'}</span>
+                    <span className="text-lg font-semibold text-orange-600">{activeTodos.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                    <span className="text-sm text-gray-600">{locale === 'zh' ? '完成率' : 'Rate'}</span>
+                    <span className="text-lg font-semibold text-blue-600">{completionRate}%</span>
                   </div>
                 </div>
-
-                {/* Recent Expenses */}
-                <div className="space-y-2">
-                  {expenses.slice(0, 3).map((expense) => (
-                    <div
-                      key={expense.id}
-                      className="flex items-center justify-between p-2 rounded-lg bg-white/60"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
-                          <DollarSign className="w-4 h-4 text-orange-500" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-800">{expense.category}</p>
-                          <p className="text-xs text-gray-500">{expense.expenseDate}</p>
-                        </div>
-                      </div>
-                      <span className="font-semibold text-gray-900">${expense.amount.toFixed(2)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </GlassCardContent>
-        </GlassCard>
+              </GlassCardContent>
+            </GlassCard>
+          </div>
+        </div>
       </div>
     </div>
   );
