@@ -5,7 +5,6 @@ import { GlassCard, GlassCardContent } from '@/components/ui/glass-card';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/lib/i18n';
 import { 
-  Sparkles, 
   CheckCircle2, 
   Circle, 
   Calendar, 
@@ -243,13 +242,6 @@ export default function DashboardPage() {
           <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
           
           <div className="relative z-10">
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-5 h-5" />
-              <span className="text-sm font-medium text-blue-100">
-                {locale === 'zh' ? '智能助手' : 'AI Assistant'}
-              </span>
-            </div>
-            
             <h1 className="text-2xl md:text-3xl font-bold mb-1">
               {getGreeting(locale)}{displayName ? `, ${displayName}` : ''} 👋
             </h1>
