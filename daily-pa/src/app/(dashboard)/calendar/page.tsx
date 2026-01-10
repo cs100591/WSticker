@@ -698,7 +698,7 @@ export default function CalendarPage() {
                                   <div
                                     key={pe.event.id}
                                     className={cn(
-                                      'text-xs px-1.5 py-0.5 mb-0.5 truncate cursor-pointer transition-all hover:opacity-80',
+                                      'text-xs px-1.5 py-0.5 truncate cursor-pointer transition-all hover:opacity-80',
                                       colors.bg,
                                       colors.text,
                                       pe.isStart ? 'rounded-l-md' : '',
@@ -706,8 +706,8 @@ export default function CalendarPage() {
                                       !pe.isStart && !pe.isEnd && 'rounded-none'
                                     )}
                                     style={{
-                                      width: `calc(${span * 100}% + ${(span - 1) * 1}px)`,
-                                      marginTop: `${pe.row * 22}px`,
+                                      width: span > 1 ? `calc(${span * 100}% + ${(span - 1)}px)` : '100%',
+                                      marginTop: `${pe.row * 20}px`,
                                       position: 'relative',
                                       zIndex: 10 - pe.row,
                                     }}
@@ -733,7 +733,7 @@ export default function CalendarPage() {
                                     }
                                   }}
                                   className="text-xs text-blue-500 hover:text-blue-600 font-medium mt-1 px-1"
-                                  style={{ marginTop: `${Math.min(eventsStartingHere.length, MAX_VISIBLE_EVENTS) * 22 + 4}px` }}
+                                  style={{ marginTop: `${Math.min(eventsStartingHere.length, MAX_VISIBLE_EVENTS) * 20 + 4}px` }}
                                 >
                                   +{hiddenCount} more
                                 </button>
