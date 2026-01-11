@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_BASE_URL = 'https://api.deepseek.com';
+const GOOGLE_VISION_API_KEY = process.env.GOOGLE_VISION_API_KEY;
 
-// Google Cloud Service Account credentials
+// Google Cloud Service Account credentials (fallback)
 const GOOGLE_SERVICE_ACCOUNT = {
   type: 'service_account',
   project_id: process.env.GOOGLE_PROJECT_ID,
@@ -19,7 +20,6 @@ async function getAccessToken(): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const exp = now + 3600;
 
-  // Create JWT header and payload
   const header = { alg: 'RS256', typ: 'JWT' };
   const payload = {
     iss: GOOGLE_SERVICE_ACCOUNT.client_email,
@@ -29,7 +29,6 @@ async function getAccessToken(): Promise<string> {
     exp: exp,
   };
 
-  // Base64url encode
   const base64url = (obj: object) => {
     const json = JSON.stringify(obj);
     const base64 = Buffer.from(json).toString('base64');
@@ -40,7 +39,6 @@ async function getAccessToken(): Promise<string> {
   const payloadB64 = base64url(payload);
   const signatureInput = `${headerB64}.${payloadB64}`;
 
-  // Sign with private key
   const crypto = await import('crypto');
   const sign = crypto.createSign('RSA-SHA256');
   sign.update(signatureInput);
@@ -49,7 +47,6 @@ async function getAccessToken(): Promise<string> {
 
   const jwt = `${signatureInput}.${signatureB64}`;
 
-  // Exchange JWT for access token
   const tokenResponse = await fetch(GOOGLE_SERVICE_ACCOUNT.token_uri, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -66,28 +63,20 @@ async function getAccessToken(): Promise<string> {
   return tokenData.access_token;
 }
 
-// Google Cloud Vision API for accurate OCR
-async function googleVisionOCR(imageBase64: string): Promise<string> {
-  const accessToken = await getAccessToken();
-  
-  // Remove data URL prefix if present
+// Google Cloud Vision API with API Key (simpler)
+async function googleVisionOCRWithApiKey(imageBase64: string): Promise<string> {
   const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
   const response = await fetch(
-    'https://vision.googleapis.com/v1/images:annotate',
+    `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_VISION_API_KEY}`,
     {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        requests: [
-          {
-            image: { content: base64Data },
-            features: [{ type: 'TEXT_DETECTION', maxResults: 1 }],
-          },
-        ],
+        requests: [{
+          image: { content: base64Data },
+          features: [{ type: 'TEXT_DETECTION', maxResults: 1 }],
+        }],
       }),
     }
   );
@@ -99,8 +88,39 @@ async function googleVisionOCR(imageBase64: string): Promise<string> {
   }
 
   const data = await response.json();
-  const text = data.responses?.[0]?.fullTextAnnotation?.text || '';
-  return text;
+  return data.responses?.[0]?.fullTextAnnotation?.text || '';
+}
+
+// Google Cloud Vision API with Service Account
+async function googleVisionOCRWithServiceAccount(imageBase64: string): Promise<string> {
+  const accessToken = await getAccessToken();
+  const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+
+  const response = await fetch(
+    'https://vision.googleapis.com/v1/images:annotate',
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        requests: [{
+          image: { content: base64Data },
+          features: [{ type: 'TEXT_DETECTION', maxResults: 1 }],
+        }],
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('Google Vision API error:', error);
+    throw new Error('OCR failed');
+  }
+
+  const data = await response.json();
+  return data.responses?.[0]?.fullTextAnnotation?.text || '';
 }
 
 // Parse OCR text with DeepSeek
@@ -110,7 +130,19 @@ async function parseReceiptText(text: string, language: string): Promise<{
   error?: string;
 }> {
   if (!DEEPSEEK_API_KEY) {
-    return { success: false, error: 'AI not configured' };
+    // If no AI, try to extract amount manually
+    const amountMatch = text.match(/(?:合计|总计|实付|Total|Amount|Sum)[:\s]*[¥$]?\s*(\d+\.?\d*)/i);
+    if (amountMatch) {
+      return {
+        success: true,
+        data: {
+          amount: parseFloat(amountMatch[1] || '0'),
+          category: 'other',
+          description: text.split('\n')[0]?.slice(0, 30) || 'Receipt',
+        },
+      };
+    }
+    return { success: false, error: 'Could not parse amount' };
   }
 
   const isZh = language === 'zh';
@@ -120,22 +152,10 @@ async function parseReceiptText(text: string, language: string): Promise<{
 2. 分类（根据商家判断）
 3. 描述（商家名称）
 
-返回JSON：
-{"success":true,"data":{"amount":数字,"category":"food|transport|shopping|entertainment|bills|health|education|other","description":"描述"}}
+返回JSON：{"success":true,"data":{"amount":数字,"category":"food|transport|shopping|entertainment|bills|health|education|other","description":"描述"}}
 
-分类：food(餐饮)、transport(交通)、shopping(购物)、entertainment(娱乐)、bills(账单)、health(医疗)、education(教育)、other(其他)
-
-只返回JSON。` : `You are a receipt parsing expert. Extract from OCR text:
-1. Total amount (find number after "Total", "Amount", "Sum")
-2. Category (based on merchant)
-3. Description (merchant name)
-
-Return JSON:
-{"success":true,"data":{"amount":number,"category":"food|transport|shopping|entertainment|bills|health|education|other","description":"description"}}
-
-Categories: food, transport, shopping, entertainment, bills, health, education, other
-
-Only return JSON.`;
+只返回JSON。` : `Extract from receipt: amount, category, description. Return JSON only:
+{"success":true,"data":{"amount":number,"category":"food|transport|shopping|entertainment|bills|health|education|other","description":"text"}}`;
 
   const response = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
     method: 'POST',
@@ -147,10 +167,10 @@ Only return JSON.`;
       model: 'deepseek-chat',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `OCR Text:\n${text}` },
+        { role: 'user', content: text },
       ],
       temperature: 0.1,
-      max_tokens: 300,
+      max_tokens: 200,
     }),
   });
 
@@ -181,45 +201,54 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Image is required' }, { status: 400 });
     }
 
-    // Check if Google credentials are configured
-    if (!GOOGLE_SERVICE_ACCOUNT.private_key || !GOOGLE_SERVICE_ACCOUNT.client_email) {
+    // Check which OCR method is available
+    const hasApiKey = !!GOOGLE_VISION_API_KEY;
+    const hasServiceAccount = !!(GOOGLE_SERVICE_ACCOUNT.private_key && GOOGLE_SERVICE_ACCOUNT.client_email);
+
+    if (!hasApiKey && !hasServiceAccount) {
+      console.error('No Google Vision credentials configured');
       return NextResponse.json({ 
         success: false, 
         error: language === 'zh' ? 'OCR服务未配置' : 'OCR service not configured',
-        ocrText: '' 
       });
     }
 
     // Step 1: OCR with Google Cloud Vision
     let ocrText = '';
     try {
-      ocrText = await googleVisionOCR(image);
+      if (hasApiKey) {
+        console.log('Using API Key for OCR');
+        ocrText = await googleVisionOCRWithApiKey(image);
+      } else {
+        console.log('Using Service Account for OCR');
+        ocrText = await googleVisionOCRWithServiceAccount(image);
+      }
     } catch (err) {
       console.error('OCR error:', err);
       return NextResponse.json({ 
         success: false, 
-        error: language === 'zh' ? '图片识别失败，请手动输入' : 'OCR failed, please enter manually',
-        ocrText: '' 
+        error: language === 'zh' ? '图片识别失败' : 'OCR failed',
       });
     }
 
     if (!ocrText.trim()) {
       return NextResponse.json({ 
         success: false, 
-        error: language === 'zh' ? '未识别到文字，请手动输入' : 'No text detected, please enter manually',
-        ocrText: '' 
+        error: language === 'zh' ? '未识别到文字' : 'No text detected',
       });
     }
+
+    console.log('OCR text:', ocrText.slice(0, 100));
 
     // Step 2: Parse with AI
     const result = await parseReceiptText(ocrText, language);
     
-    return NextResponse.json({
-      ...result,
-      ocrText,
-    });
+    return NextResponse.json({ ...result, ocrText });
   } catch (error) {
     console.error('OCR scan error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Internal server error' 
+    }, { status: 500 });
   }
 }
