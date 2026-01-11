@@ -168,7 +168,12 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
     if (stream) stream.getTracks().forEach(track => track.stop());
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: { 
+          facingMode: 'environment', 
+          width: { ideal: 720 }, 
+          height: { ideal: 1280 },
+          aspectRatio: { ideal: 3/4 }
+        },
         audio: false,
       });
       setStream(mediaStream);
@@ -210,8 +215,26 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
           category: result.data.category,
           description: result.data.description,
         });
+      } else {
+        // Show error message - OCR failed or not configured
+        setMessages(prev => [...prev, {
+          id: Date.now().toString(),
+          type: 'assistant',
+          content: result.error || (locale === 'zh' ? '无法识别图片，请手动输入' : 'Could not read image, please enter manually'),
+        }]);
+        setCapturedImage(null);
+        setShowCamera(false);
       }
-    } catch { /* Scan failed */ }
+    } catch {
+      // Scan failed
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        type: 'assistant',
+        content: locale === 'zh' ? '扫描失败，请重试' : 'Scan failed, please try again',
+      }]);
+      setCapturedImage(null);
+      setShowCamera(false);
+    }
     finally { setIsScanning(false); }
   };
 
@@ -729,7 +752,7 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
             <div className="space-y-2">
               {capturedImage ? (
                 <>
-                  <div className="relative rounded-xl overflow-hidden bg-gray-900 aspect-video">
+                  <div className="relative rounded-xl overflow-hidden bg-gray-900 aspect-[3/4] max-h-[50vh]">
                     <img src={capturedImage} alt="Receipt" className="w-full h-full object-contain" />
                     {isScanning && (
                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -760,7 +783,7 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
                 </>
               ) : (
                 <>
-                  <div className="relative rounded-xl overflow-hidden bg-gray-900 aspect-video">
+                  <div className="relative rounded-xl overflow-hidden bg-gray-900 aspect-[3/4] max-h-[50vh]">
                     <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
                     {!cameraReady && (
                       <div className="absolute inset-0 flex items-center justify-center">
