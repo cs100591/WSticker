@@ -1,15 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createClientWithToken } from '@/lib/supabase/server';
 import { isDevMode, getDevCalendarEvents, addDevCalendarEvent } from '@/lib/dev-store';
 
-async function getUserId() {
+async function getUserId(request?: NextRequest) {
   if (isDevMode()) {
     return 'dev-user-id';
   }
-  
+
   const supabase = await createClient();
+
+  // 1. Try Cookie-based session (Web)
   const { data: { user } } = await supabase.auth.getUser();
-  return user?.id;
+  if (user) return user.id;
+
+  // 2. Try Header-based session (Mobile/API)
+  if (request) {
+    const authHeader = request.headers.get('Authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const { data: { user: headerUser } } = await supabase.auth.getUser(token);
+      if (headerUser) return headerUser.id;
+    }
+  }
+
+  return null;
 }
 
 // GET /api/calendar - 获取日历事件
@@ -25,7 +39,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ events });
     }
 
-    const userId = await getUserId();
+    const userId = await getUserId(request);
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -73,7 +87,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
+
     if (!body.title?.trim()) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
     }
@@ -91,12 +105,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(event, { status: 201 });
     }
 
-    const userId = await getUserId();
+    const userId = await getUserId(request);
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = await createClient();
+    // Determine client based on Auth method (Token vs Cookie)
+    let supabase;
+    const authHeader = request.headers.get('Authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      supabase = await createClientWithToken(token);
+    } else {
+      supabase = await createClient();
+    }
 
     const colorValue = body.color || 'blue';
 

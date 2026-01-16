@@ -27,7 +27,7 @@ async function getUserId() {
   if (isDevMode()) {
     return 'dev-user-id';
   }
-  
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   return user?.id;
@@ -45,7 +45,7 @@ async function checkTimeConflicts(date: string, startTime: string, endTime: stri
       return events.filter((event: CalendarEvent) => {
         const eventStart = event.startTime;
         const eventEnd = event.endTime;
-        
+
         // Check if times overlap
         return (
           (startDateTime >= eventStart && startDateTime < eventEnd) ||
@@ -61,7 +61,7 @@ async function checkTimeConflicts(date: string, startTime: string, endTime: stri
     }
 
     const supabase = await createClient();
-    
+
     // Query for overlapping events
     const { data, error } = await supabase
       .from('calendar_events')
@@ -80,7 +80,7 @@ async function checkTimeConflicts(date: string, startTime: string, endTime: stri
     const conflicts = (data || []).filter(event => {
       const eventStart = event.start_time;
       const eventEnd = event.end_time;
-      
+
       return (
         (startDateTime >= eventStart && startDateTime < eventEnd) ||
         (endDateTime > eventStart && endDateTime <= eventEnd) ||
@@ -157,6 +157,14 @@ User: "How are you?"
 Response: {"message": "I'm doing great! 😊 How can I help you today?", "action": null}
 
 Be conversational, friendly, and use emojis occasionally. Keep responses concise.
+IMPORTANT: Do NOT ask for missing details like priority, category, or time.
+If details are missing, USE DEFAULTS and generate the action immediately.
+- Default time: 09:00
+- Default priority: medium
+- Default category: other
+- Default date: today
+
+CRITICAL: You are a JSON API. If you are creating a task/event/expense, you MUST include the "action" or "actions" object. NEVER return a text confirmation without the accompanying action object.
 Today's date is: ${getTodayDate()}`;
 
 const SYSTEM_PROMPT_ZH = `你是一个友好的 AI 助手，帮助用户管理日常生活。你可以创建待办事项、记录消费和安排日历事件。
@@ -215,6 +223,14 @@ const SYSTEM_PROMPT_ZH = `你是一个友好的 AI 助手，帮助用户管理�
 回复：{"message": "你好呀！😊 有什么我可以帮你的吗？", "action": null}
 
 保持对话友好自然，适当使用 emoji，回复简洁。
+重要：不要追问缺失的细节（如优先级、分类、时间）。
+如果信息缺失，使用默认值并立即生成 action。
+- 默认时间：09:00
+- 默认优先级：medium
+- 默认分类：other
+- 默认日期：today
+
+关键：你是一个 JSON API。如果你要创建任务/日程/消费，必须包含 "action" 或 "actions" 对象。绝不要只返回文本确认而没有 action 对象。
 今天日期：${getTodayDate()}`;
 
 export async function POST(request: NextRequest) {
@@ -246,8 +262,8 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         model: 'deepseek-chat',
         messages,
-        temperature: 0.7,
-        max_tokens: 500,
+        temperature: 0.8,
+        max_tokens: 800,
       }),
     });
 
@@ -261,9 +277,9 @@ export async function POST(request: NextRequest) {
     const content = data.choices?.[0]?.message?.content;
 
     if (!content) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         message: language === 'zh' ? '抱歉，我没有理解。请再说一次？' : 'Sorry, I didn\'t understand. Could you say that again?',
-        action: null 
+        action: null
       });
     }
 
@@ -272,7 +288,7 @@ export async function POST(request: NextRequest) {
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
-        
+
         // Check for conflicts in calendar actions
         if (parsed.action?.type === 'calendar') {
           const conflicts = await checkTimeConflicts(
@@ -280,7 +296,7 @@ export async function POST(request: NextRequest) {
             parsed.action.data.startTime,
             parsed.action.data.endTime
           );
-          
+
           if (conflicts.length > 0) {
             const conflictList = conflicts.map((c: CalendarEvent) => {
               const startParts = c.startTime.split('T');
@@ -289,7 +305,7 @@ export async function POST(request: NextRequest) {
               const end = endParts[1]?.substring(0, 5) || '00:00';
               return `${c.title} (${start}-${end})`;
             }).join(', ');
-            
+
             return NextResponse.json({
               message: language === 'zh'
                 ? `⚠️ 那个时间段你已经有「${conflictList}」了。要不要换个时间？`
@@ -298,7 +314,7 @@ export async function POST(request: NextRequest) {
             });
           }
         }
-        
+
         // Check for conflicts in multiple calendar actions
         if (parsed.actions && Array.isArray(parsed.actions)) {
           for (let i = 0; i < parsed.actions.length; i++) {
@@ -309,7 +325,7 @@ export async function POST(request: NextRequest) {
                 action.data.startTime,
                 action.data.endTime
               );
-              
+
               if (conflicts.length > 0) {
                 const conflictList = conflicts.map((c: CalendarEvent) => {
                   const startParts = c.startTime.split('T');
@@ -318,7 +334,7 @@ export async function POST(request: NextRequest) {
                   const end = endParts[1]?.substring(0, 5) || '00:00';
                   return `${c.title} (${start}-${end})`;
                 }).join(', ');
-                
+
                 return NextResponse.json({
                   message: language === 'zh'
                     ? `⚠️ ${action.data.startTime} 到 ${action.data.endTime} 这个时间段你已经有「${conflictList}」了。要不要换个时间？`
@@ -329,7 +345,7 @@ export async function POST(request: NextRequest) {
             }
           }
         }
-        
+
         return NextResponse.json(parsed);
       }
     } catch (error) {

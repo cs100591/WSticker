@@ -1,16 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createClientWithToken } from '@/lib/supabase/server';
 import { expenseRowToExpense, createExpenseInputToInsert, type CreateExpenseInput, type ExpenseFilters } from '@/types/expense';
 import { isDevMode, getDevExpenses, addDevExpense } from '@/lib/dev-store';
 
-async function getUserId() {
+async function getUserId(request?: NextRequest) {
   if (isDevMode()) {
     return 'dev-user-id';
   }
-  
+
   const supabase = await createClient();
+
+  // 1. Try Cookie-based session (Web)
   const { data: { user } } = await supabase.auth.getUser();
-  return user?.id;
+  if (user) return user.id;
+
+  // 2. Try Header-based session (Mobile/API)
+  if (request) {
+    const authHeader = request.headers.get('Authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const { data: { user: headerUser } } = await supabase.auth.getUser(token);
+      if (headerUser) return headerUser.id;
+    }
+  }
+
+  return null;
 }
 
 // GET /api/expenses - 获取消费记录列表
@@ -27,14 +41,14 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const userId = await getUserId();
+    const userId = await getUserId(request);
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const supabase = await createClient();
     const { searchParams } = new URL(request.url);
-    
+
     // 解析查询参数
     const category = searchParams.get('category') as ExpenseFilters['category'];
     const dateFrom = searchParams.get('dateFrom');
@@ -66,9 +80,9 @@ export async function GET(request: NextRequest) {
     }
 
     // 应用排序
-    const dbSortField = sortField === 'expenseDate' ? 'expense_date' 
-      : sortField === 'createdAt' ? 'created_at' 
-      : sortField;
+    const dbSortField = sortField === 'expenseDate' ? 'expense_date'
+      : sortField === 'createdAt' ? 'created_at'
+        : sortField;
     query = query.order(dbSortField, { ascending: sortOrder === 'asc' });
 
     // 应用分页
@@ -100,7 +114,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body: CreateExpenseInput = await request.json();
-    
+
     if (!body.amount || body.amount <= 0) {
       return NextResponse.json({ error: 'Valid amount is required' }, { status: 400 });
     }
@@ -110,8 +124,8 @@ export async function POST(request: NextRequest) {
 
     // 开发模式：存入内存存储
     if (isDevMode()) {
-      const expenseDateStr = typeof body.expenseDate === 'string' 
-        ? body.expenseDate 
+      const expenseDateStr = typeof body.expenseDate === 'string'
+        ? body.expenseDate
         : body.expenseDate?.toISOString().split('T')[0];
       const expense = addDevExpense({
         amount: body.amount,
@@ -125,12 +139,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(expense, { status: 201 });
     }
 
-    const userId = await getUserId();
+    const userId = await getUserId(request);
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = await createClient();
+    // Determine client based on Auth method (Token vs Cookie)
+    let supabase;
+    const authHeader = request.headers.get('Authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      supabase = await createClientWithToken(token);
+    } else {
+      supabase = await createClient();
+    }
+
     const insertData = createExpenseInputToInsert(body, userId);
 
     const { data, error } = await supabase

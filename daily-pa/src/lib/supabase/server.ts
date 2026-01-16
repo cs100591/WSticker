@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
 interface CookieToSet {
@@ -38,29 +39,17 @@ export async function createClient() {
 }
 
 /**
- * 创建带有服务角色密钥的 Supabase 客户端
- * 用于需要绕过 RLS 的管理操作
- * 警告：仅在服务端使用，不要暴露给客户端
+ * 创建带有 Authorization Token 的 Supabase 客户端
+ * 用于移动端 API 请求，解决 Cookies 不存在时的 RLS 问题
  */
-export async function createServiceClient() {
-  const cookieStore = await cookies();
-
-  return createServerClient(
+export async function createClientWithToken(token: string) {
+  return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet: CookieToSet[]) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // 忽略错误
-          }
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
       },
     }

@@ -1,16 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createClientWithToken } from '@/lib/supabase/server';
 import { todoRowToTodo, type CreateTodoInput, type TodoFilters } from '@/types/todo';
 import { isDevMode, getDevTodos, addDevTodo } from '@/lib/dev-store';
 
-async function getUserId() {
+async function getUserId(request?: NextRequest) {
   if (isDevMode()) {
     return 'dev-user-id';
   }
-  
+
   const supabase = await createClient();
+
+  // 1. Try Cookie-based session (Web)
   const { data: { user } } = await supabase.auth.getUser();
-  return user?.id;
+  if (user) return user.id;
+
+  // 2. Try Header-based session (Mobile/API)
+  if (request) {
+    const authHeader = request.headers.get('Authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const { data: { user: headerUser } } = await supabase.auth.getUser(token);
+      if (headerUser) return headerUser.id;
+    }
+  }
+
+  return null;
 }
 
 // GET /api/todos - 获取待办事项列表
@@ -35,14 +49,14 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const userId = await getUserId();
+    const userId = await getUserId(request);
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const supabase = await createClient();
     const { searchParams } = new URL(request.url);
-    
+
     // 解析查询参数
     const status = searchParams.get('status') as TodoFilters['status'];
     const priority = searchParams.get('priority') as TodoFilters['priority'];
@@ -70,9 +84,9 @@ export async function GET(request: NextRequest) {
     }
 
     // 应用排序
-    const dbSortField = sortField === 'createdAt' ? 'created_at' 
-      : sortField === 'dueDate' ? 'due_date' 
-      : sortField;
+    const dbSortField = sortField === 'createdAt' ? 'created_at'
+      : sortField === 'dueDate' ? 'due_date'
+        : sortField;
     query = query.order(dbSortField, { ascending: sortOrder === 'asc' });
 
     // 应用分页
@@ -104,14 +118,14 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body: CreateTodoInput = await request.json();
-    
+
     if (!body.title?.trim()) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
     }
 
     // 开发模式：存入内存存储
     if (isDevMode()) {
-      const dueDateStr = body.dueDate 
+      const dueDateStr = body.dueDate
         ? (typeof body.dueDate === 'string' ? body.dueDate : body.dueDate.toISOString().split('T')[0])
         : undefined;
       const devTodo = addDevTodo({
@@ -133,13 +147,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(todo, { status: 201 });
     }
 
-    const userId = await getUserId();
+    const userId = await getUserId(request);
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = await createClient();
-    
+    // Determine client based on Auth method (Token vs Cookie)
+    let supabase;
+    const authHeader = request.headers.get('Authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      supabase = await createClientWithToken(token);
+    } else {
+      supabase = await createClient();
+    }
+
     // Build insert data without color if it might cause issues
     const insertData: Record<string, unknown> = {
       user_id: userId,
@@ -153,7 +175,7 @@ export async function POST(request: NextRequest) {
       priority: body.priority ?? 'medium',
       tags: body.tags ?? [],
     };
-    
+
     // Only add color if provided (column might not exist in production)
     if (body.color) {
       insertData.color = body.color;
@@ -175,7 +197,7 @@ export async function POST(request: NextRequest) {
           .insert(insertData)
           .select()
           .single();
-        
+
         if (retryError) {
           return NextResponse.json({ error: retryError.message }, { status: 500 });
         }
