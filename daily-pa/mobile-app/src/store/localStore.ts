@@ -69,6 +69,7 @@ interface LocalStore {
   todos: Todo[];
   expenses: Expense[];
   calendarEvents: CalendarEvent[];
+  isHydrated: boolean; // Tracking hydration state
 
   // Todo actions
   addTodo: (todo: Omit<Todo, 'id' | 'createdAt' | 'updatedAt'>) => Todo;
@@ -93,6 +94,7 @@ interface LocalStore {
 
   // Utility
   clearAll: () => void;
+  setHydrated: (state: boolean) => void;
 }
 
 const generateId = () => `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -104,6 +106,7 @@ export const useLocalStore = create<LocalStore>()(
       todos: [],
       expenses: [],
       calendarEvents: [],
+      isHydrated: false,
 
       // Todo actions
       addTodo: (todoData) => {
@@ -199,13 +202,15 @@ export const useLocalStore = create<LocalStore>()(
       setCalendarEvents: (events) => set({ calendarEvents: events }),
 
       // Utility
-      clearAll: () => {
-        set({ todos: [], expenses: [], calendarEvents: [] });
-      },
+      clearAll: () => set({ todos: [], expenses: [], calendarEvents: [] }),
+      setHydrated: (state) => set({ isHydrated: state }),
     }),
     {
       name: 'daily-pa-local-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      onRehydrateStorage: () => (state) => {
+        state?.setHydrated(true);
+      },
     }
   )
 );
