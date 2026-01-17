@@ -239,13 +239,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'API not configured' }, { status: 500 });
     }
 
-    const { message, language = 'en', history = [] } = await request.json();
+    const { message, language = 'en', date, history = [] } = await request.json();
 
     if (!message) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
 
-    const systemPrompt = language === 'zh' ? SYSTEM_PROMPT_ZH : SYSTEM_PROMPT_EN;
+    const todayDate = date || getTodayDate();
+    const systemPrompt = language === 'zh'
+      ? `${SYSTEM_PROMPT_ZH}\n\n当前日期 (Today): ${todayDate} (用户本地时间)\n\nCRITICAL: Only generate actions for the NEW request in the latest user message. Do NOT re-generate actions for previous requests that were already proposed.`
+      : `${SYSTEM_PROMPT_EN}\n\nToday's date: ${todayDate} (User's local time)\n\nCRITICAL: Only generate actions for the NEW request in the latest user message. Do NOT re-generate actions for previous requests that were already proposed.`;
 
     const messages = [
       { role: 'system', content: systemPrompt },

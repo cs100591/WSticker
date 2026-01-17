@@ -7,7 +7,7 @@ import { useI18n } from '@/lib/i18n';
 import { useTodos } from '@/lib/hooks/useTodos';
 import { Plus, ChevronDown, ChevronUp, Calendar, X, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { TodoPriority } from '@/types/todo';
+import type { TodoPriority, Todo } from '@/types/todo';
 
 const priorityConfig = {
   high: { badge: '🔴', bgLight: 'bg-red-100', textColor: 'text-red-700' },
@@ -504,7 +504,7 @@ function PriorityGroup({
   locale,
 }: { 
   priority: TodoPriority; 
-  todos: any[]; 
+  todos: Todo[]; 
   isExpanded: boolean; 
   onToggleExpand: () => void; 
   onToggleTodo: (id: string) => void;
@@ -563,7 +563,7 @@ function TodoItemRow({
   isExpanded,
   onToggleExpand,
 }: { 
-  todo: any; 
+  todo: Todo; 
   onToggle: (id: string) => void;
   onAddToCalendar: (todo: { id: string; title: string }) => void;
   onAddNotes: (todo: { id: string; title: string; description: string | null }) => void;

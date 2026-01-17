@@ -64,7 +64,7 @@ export default function SecurityPage() {
       } else {
         setError(data.error || 'Failed to change password');
       }
-    } catch (error) {
+    } catch {
       setError('An error occurred');
     } finally {
       setIsLoading(false);

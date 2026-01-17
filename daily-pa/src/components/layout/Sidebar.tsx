@@ -21,7 +21,7 @@ import { useState } from 'react';
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { t } = useI18n();
+  const { t: _t } = useI18n();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const navItems = [

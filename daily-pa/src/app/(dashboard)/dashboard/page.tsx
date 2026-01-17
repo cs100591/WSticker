@@ -6,14 +6,12 @@ import {
   Circle, 
   Calendar, 
   DollarSign, 
-  ArrowRight,
   TrendingUp,
   Clock,
   Target,
   Lightbulb,
   Plus,
   Zap,
-  LayoutDashboard,
   ArrowUpRight,
   MoreHorizontal,
   Search,
@@ -48,12 +46,12 @@ interface Expense {
 }
 
 export default function DashboardPage() {
-  const { locale } = useI18n();
+  const { } = useI18n();
   const [displayName, setDisplayName] = useState('');
   const [todos, setTodos] = useState<Todo[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [_isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -111,7 +109,7 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Good day, {displayName}</h1>
-            <p className="text-slate-500 text-sm mt-1">Here's what's happening with your productivity today.</p>
+            <p className="text-slate-500 text-sm mt-1">Here&apos;s what&apos;s happening with your productivity today.</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="relative hidden sm:block">
@@ -216,7 +214,7 @@ export default function DashboardPage() {
                   <h2 className="font-bold">Productivity Insight</h2>
                 </div>
                 <p className="text-blue-100 leading-relaxed">
-                  You've completed <span className="font-bold text-white">{completedTodos.length} tasks</span> this week. That's 15% more than last week! Keep up the momentum to reach your monthly goals.
+                  You&apos;ve completed <span className="font-bold text-white">{completedTodos.length} tasks</span> this week. That&apos;s 15% more than last week! Keep up the momentum to reach your monthly goals.
                 </p>
                 <Button className="mt-6 bg-white text-blue-600 hover:bg-blue-50 font-bold text-xs px-6">
                   View Full Report
@@ -231,7 +229,7 @@ export default function DashboardPage() {
             {/* Calendar Widget */}
             <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-100">
-                <h2 className="font-bold text-slate-900">Today's Schedule</h2>
+                <h2 className="font-bold text-slate-900">Today&apos;s Schedule</h2>
               </div>
               <div className="p-6">
                 {events.length > 0 ? (

@@ -8,14 +8,12 @@ import {
   BarChart3, 
   Zap, 
   Shield, 
-  Smartphone, 
   LayoutDashboard, 
   Calendar, 
   CreditCard,
   Users,
   Briefcase,
   GraduationCap,
-  ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 

@@ -1,0 +1,4 @@
+mobile-app
+tests
+*.md
+!README.md

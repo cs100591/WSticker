@@ -104,7 +104,7 @@ export default function DevicesPage() {
           <GlassCardHeader>
             <GlassCardTitle>Active Sessions</GlassCardTitle>
             <p className="text-sm text-gray-500 mt-1">
-              Manage devices where you're currently signed in
+              Manage devices where you&apos;re currently signed in
             </p>
           </GlassCardHeader>
           <GlassCardContent className="space-y-3">

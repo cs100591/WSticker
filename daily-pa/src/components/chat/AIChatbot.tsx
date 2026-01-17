@@ -219,7 +219,7 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
         // Show error message - OCR failed or not configured
         setMessages(prev => [...prev, {
           id: Date.now().toString(),
-          type: 'assistant',
+          role: 'assistant',
           content: result.error || (locale === 'zh' ? '无法识别图片，请手动输入' : 'Could not read image, please enter manually'),
         }]);
         setCapturedImage(null);
@@ -229,7 +229,7 @@ export function AIChatbot({ isOpen, onClose }: AIChatbotProps) {
       // Scan failed
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
-        type: 'assistant',
+        role: 'assistant',
         content: locale === 'zh' ? '扫描失败，请重试' : 'Scan failed, please try again',
       }]);
       setCapturedImage(null);

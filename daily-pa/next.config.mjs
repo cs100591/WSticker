@@ -24,6 +24,15 @@ const nextConfig = {
       bodySizeLimit: '2mb',
     },
   },
+
+  // Exclude mobile-app directory from webpack compilation
+  webpack: (config, { isServer }) => {
+    config.watchOptions = {
+      ...config.watchOptions,
+      ignored: ['**/node_modules', '**/mobile-app/**', '**/.git/**'],
+    };
+    return config;
+  },
 };
 
 export default nextConfig;

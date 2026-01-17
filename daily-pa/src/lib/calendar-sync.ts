@@ -5,6 +5,24 @@ import { createClient } from '@/lib/supabase/server';
 
 export type CalendarProvider = 'google' | 'apple';
 
+interface GoogleCalendarItem {
+  id: string;
+  summary?: string;
+  description?: string;
+  start?: {
+    dateTime?: string;
+    date?: string;
+  };
+  end?: {
+    dateTime?: string;
+    date?: string;
+  };
+}
+
+interface GoogleCalendarResponse {
+  items?: GoogleCalendarItem[];
+}
+
 interface CalendarIntegration {
   id: string;
   userId: string;
@@ -88,16 +106,24 @@ export async function fetchGoogleCalendarEvents(
       throw new Error(`Google Calendar API error: ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const data: GoogleCalendarResponse = await response.json();
     
-    return (data.items || []).map((item: any) => ({
-      id: item.id,
-      title: item.summary || 'Untitled Event',
-      description: item.description,
-      startTime: item.start.dateTime || item.start.date,
-      endTime: item.end.dateTime || item.end.date,
-      allDay: !item.start.dateTime,
-    }));
+    return (data.items || [])
+      .filter((item): item is GoogleCalendarItem & { 
+        id: string; 
+        start: { dateTime?: string; date?: string }; 
+        end: { dateTime?: string; date?: string } 
+      } => {
+        return !!(item.id && item.start && item.end && (item.start.dateTime || item.start.date) && (item.end.dateTime || item.end.date));
+      })
+      .map((item) => ({
+        id: item.id,
+        title: item.summary || 'Untitled Event',
+        description: item.description,
+        startTime: (item.start.dateTime || item.start.date) as string,
+        endTime: (item.end.dateTime || item.end.date) as string,
+        allDay: !item.start.dateTime,
+      }));
   } catch (error) {
     console.error('Error fetching Google Calendar events:', error);
     return [];
@@ -118,9 +144,18 @@ export async function createGoogleCalendarEvent(
   }
 ): Promise<string | null> {
   try {
-    const eventData: any = {
+    interface GoogleEventData {
+      summary: string;
+      description?: string;
+      start: { date?: string; dateTime?: string; timeZone?: string };
+      end: { date?: string; dateTime?: string; timeZone?: string };
+    }
+
+    const eventData: GoogleEventData = {
       summary: event.title,
       description: event.description,
+      start: {},
+      end: {},
     };
 
     if (event.allDay) {

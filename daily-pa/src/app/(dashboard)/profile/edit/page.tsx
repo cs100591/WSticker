@@ -64,7 +64,7 @@ export default function EditProfilePage() {
         const data = await res.json();
         setError(data.error || 'Failed to update profile');
       }
-    } catch (error) {
+    } catch {
       setError('An error occurred');
     } finally {
       setIsSaving(false);
