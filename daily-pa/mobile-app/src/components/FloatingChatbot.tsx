@@ -28,9 +28,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
+import { File } from 'expo-file-system';
 import Constants from 'expo-constants';
-import { useLanguageStore, translations } from '@/store/languageStore';
+import { useLanguageStore, translations, useEffectiveLanguage } from '@/store/languageStore';
 import { useLocalStore } from '@/store/localStore';
 import { supabase } from '@/services/supabase';
 import { todoService } from '@/services/TodoService';
@@ -69,7 +69,7 @@ interface FloatingChatbotProps {
 }
 
 export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClose }) => {
-  const lang = useLanguageStore((state) => state.getEffectiveLanguage());
+  const lang = useEffectiveLanguage();
   const t = translations[lang];
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -83,11 +83,20 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
   useEffect(() => {
     if (visible && messages.length === 0) {
       const welcomeMsg = lang === 'zh'
-        ? '你好！我是智能助手 ✨\n\n我可以帮你：\n📝 创建任务\n📅 添加日程\n💰 记录支出\n🎤 语音输入\n📷 扫描收据\n\n请告诉我你需要什么帮助！'
-        : "Hi! I'm your smart assistant ✨\n\nI can help you:\n📝 Create tasks\n📅 Add calendar events\n💰 Track expenses\n🎤 Voice input\n📷 Scan receipts\n\nWhat can I help you with today?";
+        ? '你好！我是智能助手 ✨\n\n🔌 离线模式\n我可以帮你：\n📝 创建任务（说"添加任务..."）\n📅 添加日程（说"创建会议..."）\n💰 记录支出（说"支出50元..."）\n📷 扫描收据\n\n请告诉我你需要什么帮助！'
+        : "Hi! I'm your smart assistant ✨\n\n🔌 Offline Mode\nI can help you:\n📝 Create tasks (say 'add task...')\n📅 Add events (say 'create meeting...')\n💰 Track expenses (say 'spent $50...')\n📷 Scan receipts\n\nWhat can I help you with today?";
       setMessages([{ id: 'welcome', text: welcomeMsg, isUser: false }]);
     }
   }, [visible, lang]);
+
+  // Helper to get local date string YYYY-MM-DD
+  const getLocalDate = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
   // Execute action via API calls (like web version)
   const executeAction = async (action: ParsedAction): Promise<{ success: boolean; error?: string; todoId?: string }> => {
@@ -98,6 +107,7 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
       const { type, data } = action;
       if (type === 'task') {
         const userId = session?.user?.id || 'mock-user-id';
+        console.log('ExecuteAction: Creating task with userId:', userId);
         const createdTodo = await todoService.createTodo({
           title: data.title as string,
           priority: (data.priority as 'low' | 'medium' | 'high') || 'medium',
@@ -119,12 +129,14 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
           currency: 'CNY',
           category: (data.category as any) || 'other',
           description: data.description as string || '',
-          expenseDate: (data.date as string) || new Date().toISOString().split('T')[0],
+          expenseDate: (data.date as string) || getLocalDate(),
           tags: []
         });
       } else if (type === 'calendar') {
         const userId = session?.user?.id || 'mock-user-id';
-        const eventDate = data.date as string || new Date().toISOString().split('T')[0];
+        console.log('ExecuteAction: Creating calendar event with userId:', userId, 'Date:', data.date);
+
+        const eventDate = data.date as string || getLocalDate();
         const startTime = data.startTime as string || '09:00';
         const endTime = data.endTime as string || '10:00';
 
@@ -182,7 +194,7 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
       setTimeout(() => {
         setMessages(prev => [...prev, {
           id: Date.now().toString(),
-          role: 'assistant',
+          isUser: false,
           text: lang === 'zh'
             ? `✓ 待办已创建！要添加到日历吗？选择一个颜色吧 🎨`
             : `✓ Todo created! Add to calendar? Choose a color 🎨`,
@@ -347,8 +359,15 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
       for (let i = 0; i < 7; i++) {
         const d = new Date(today);
         d.setDate(today.getDate() + i);
+
+        // Use local date string YYYY-MM-DD
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const full = `${year}-${month}-${day}`;
+
         dates.push({
-          full: d.toISOString().split('T')[0],
+          full,
           day: d.getDate(),
           weekday: lang === 'zh' ? ['日', '一', '二', '三', '四', '五', '六'][d.getDay()] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()]
         });
@@ -493,7 +512,7 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
                       <TouchableOpacity
                         style={[
                           styles.dateBtn,
-                          (action.data.date === item.full || (!action.data.date && item.full === new Date().toISOString().split('T')[0])) && styles.timeSelected
+                          (action.data.date === item.full || (!action.data.date && item.full === getLocalDate())) && styles.timeSelected
                         ]}
                         onPress={() => {
                           const updatedAction = { ...action, data: { ...action.data, date: item.full } };
@@ -503,8 +522,8 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
                           }));
                         }}
                       >
-                        <Text style={[styles.dateDay, (action.data.date === item.full || (!action.data.date && item.full === new Date().toISOString().split('T')[0])) && styles.timeLabelSelected]}>{item.weekday}</Text>
-                        <Text style={[styles.dateNum, (action.data.date === item.full || (!action.data.date && item.full === new Date().toISOString().split('T')[0])) && styles.timeLabelSelected]}>{item.day}</Text>
+                        <Text style={[styles.dateDay, (action.data.date === item.full || (!action.data.date && item.full === getLocalDate())) && styles.timeLabelSelected]}>{item.weekday}</Text>
+                        <Text style={[styles.dateNum, (action.data.date === item.full || (!action.data.date && item.full === getLocalDate())) && styles.timeLabelSelected]}>{item.day}</Text>
                       </TouchableOpacity>
                     )}
                     style={{ marginBottom: 8 }}
@@ -561,7 +580,7 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
         });
 
         const { recording } = await Audio.Recording.createAsync(
-          Audio.RecordingOptionsPresets.HIGH_QUALITY
+          Audio.RecordingOptionsPresets.LOW_QUALITY
         );
 
         setRecording(recording);
@@ -580,64 +599,67 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
 
     setIsRecording(false);
     setRecording(null);
-    setIsLoading(true); // Show loading while transcribing
 
     try {
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
       if (!uri) throw new Error('No recording URI');
 
-      // Read audio file as Base64 using fetch (workaround for expo-file-system issues)
-      const responseAudio = await fetch(uri);
-      const blob = await responseAudio.blob();
-      const reader = new FileReader();
+      // OFFLINE MODE: Show message that voice transcription needs backend
+      Alert.alert(
+        lang === 'zh' ? '语音功能' : 'Voice Feature',
+        lang === 'zh' 
+          ? '语音转文字功能需要后端服务器。请使用文字输入或启动后端服务器。' 
+          : 'Voice transcription requires the backend server. Please use text input or start the backend server.',
+        [{ text: 'OK' }]
+      );
 
-      const base64Audio = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => {
-          const result = reader.result as string;
-          // Result is "data:audio/m4a;base64,.....", we need just the base64 part
-          const base64 = result.split(',')[1];
-          resolve(base64);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
+      /* ORIGINAL CODE - Requires backend API
+      console.log('Reading audio file from:', uri);
+      const file = new File(uri);
+      const base64Audio = await file.base64();
+      console.log('Audio file successfully read. Length:', base64Audio.length);
 
-      // Get Token for Authorization
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
-      // Send to backend Whisper API
-      const response = await fetch(`${API_URL}/api/voice/transcribe`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({
-          audio: base64Audio,
-          language: lang, // This forces the output to match the app language (en or zh)
-        })
-      });
+      console.log('Sending audio to API:', `${API_URL}/api/voice/transcribe`);
 
-      if (!response.ok) {
-        throw new Error(`Transcription failed: ${response.status}`);
+      try {
+        const response = await fetch(`${API_URL}/api/voice/transcribe`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({
+            audio: base64Audio,
+            language: lang,
+          })
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          console.error('Transcription API Error:', response.status, errText);
+          throw new Error(`Transcription failed: ${response.status} ${errText}`);
+        }
+
+        const data = await response.json();
+
+        if (data.text) {
+          sendMessage(data.text);
+        } else {
+          Alert.alert(lang === 'zh' ? '未能识别语音' : 'Could not recognize speech');
+        }
+      } catch (fetchError) {
+        console.error('Network request failed details:', fetchError);
+        throw fetchError;
       }
-
-      const data = await response.json();
-
-      if (data.text) {
-        // Auto-send the transcribed text
-        sendMessage(data.text);
-      } else {
-        Alert.alert(lang === 'zh' ? '未能识别语音' : 'Could not recognize speech');
-      }
+      */
 
     } catch (error) {
       console.error('Voice processing error:', error);
-      Alert.alert('Error', lang === 'zh' ? '语音处理失败' : 'Voice processing failed');
-    } finally {
-      setIsLoading(false);
+      // Don't show error alert since we're in offline mode
     }
   };
 
@@ -671,25 +693,30 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
         id: `ai_${Date.now()}`,
         text: lang === 'zh' ? `识别到收据：¥${amount} (${category})\n确认添加这笔支出吗？` : `Receipt detected: $${amount} (${category})\nAdd this expense?`,
         isUser: false,
-        actions: [{ id: `${Date.now()}_receipt`, type: 'expense', title: 'Receipt', data: { amount, category, date: new Date().toISOString().split('T')[0] }, status: 'pending' }],
+        actions: [{ id: `${Date.now()}_receipt`, type: 'expense', title: 'Receipt', data: { amount, category, date: getLocalDate() }, status: 'pending' }],
       }]);
       setIsLoading(false);
     }, 1500);
   };
 
-  // Enhanced send message
+  // Enhanced send message with offline fallback
   const sendMessage = async (manualText?: string) => {
     const text = typeof manualText === 'string' ? manualText.trim() : inputText.trim();
     if (!text || isLoading) return;
 
     setMessages(prev => [...prev, { id: `user_${Date.now()}`, text, isUser: true }]);
     const userMessage = text;
-    const detectedLang = lang; // Use UI language for now
+    const detectedLang = lang;
+
+    // Get local date in YYYY-MM-DD format
+    const localDate = getLocalDate();
+
     setInputText('');
     Keyboard.dismiss();
     setIsLoading(true);
 
     try {
+      // Try API first
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
@@ -702,7 +729,14 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
         body: JSON.stringify({
           message: userMessage,
           language: detectedLang,
-          history: messages.slice(-6).map(m => ({ role: m.isUser ? 'user' : 'assistant', content: m.text })),
+          date: localDate,
+          history: messages.slice(-6).map(m => {
+            let content = m.text;
+            if (!m.isUser && m.actions && m.actions.length > 0) {
+              content += " [System: Actions in this message are already processed/presented. Do not re-suggest them.]";
+            }
+            return { role: m.isUser ? 'user' : 'assistant', content };
+          }),
         }),
       });
 
@@ -730,13 +764,67 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
       }]);
     } catch (error) {
       console.error('Chat API error:', error);
-      const errorMsg = detectedLang === 'zh'
-        ? '抱歉，连接出现问题。请检查网络连接后重试。'
-        : 'Sorry, there was a connection issue. Please check your network and try again.';
+      
+      // OFFLINE FALLBACK: Local intent detection
+      const lowerText = userMessage.toLowerCase();
+      let responseText = '';
+      let actions: ParsedAction[] | undefined;
+
+      // Detect task/todo intent
+      if (lowerText.includes('task') || lowerText.includes('todo') || lowerText.includes('待办') || lowerText.includes('任务')) {
+        const title = userMessage.replace(/add|create|new|task|todo|待办|任务|添加|创建/gi, '').trim() || 'New Task';
+        responseText = detectedLang === 'zh' 
+          ? `我帮你创建任务："${title}"` 
+          : `I'll create a task: "${title}"`;
+        actions = [{
+          id: `${Date.now()}_0`,
+          type: 'task',
+          title: 'Create Task',
+          data: { title, priority: 'medium' },
+          status: 'pending',
+        }];
+      }
+      // Detect expense intent
+      else if (lowerText.includes('expense') || lowerText.includes('spent') || lowerText.includes('支出') || lowerText.includes('花费') || lowerText.includes('¥') || lowerText.includes('$')) {
+        const amountMatch = userMessage.match(/(\d+\.?\d*)/);
+        const amount = amountMatch ? parseFloat(amountMatch[1]) : 0;
+        responseText = detectedLang === 'zh'
+          ? `我帮你记录支出：¥${amount}`
+          : `I'll record an expense: $${amount}`;
+        actions = [{
+          id: `${Date.now()}_0`,
+          type: 'expense',
+          title: 'Add Expense',
+          data: { amount, category: 'other', date: localDate },
+          status: 'pending',
+        }];
+      }
+      // Detect calendar/meeting intent
+      else if (lowerText.includes('meeting') || lowerText.includes('event') || lowerText.includes('calendar') || lowerText.includes('会议') || lowerText.includes('日程') || lowerText.includes('活动')) {
+        const title = userMessage.replace(/add|create|new|meeting|event|calendar|会议|日程|活动|添加|创建/gi, '').trim() || 'New Event';
+        responseText = detectedLang === 'zh'
+          ? `我帮你创建日程："${title}"`
+          : `I'll create an event: "${title}"`;
+        actions = [{
+          id: `${Date.now()}_0`,
+          type: 'calendar',
+          title: 'Create Event',
+          data: { title, date: localDate, startTime: '09:00', endTime: '10:00' },
+          status: 'pending',
+        }];
+      }
+      // Default response
+      else {
+        responseText = detectedLang === 'zh'
+          ? '抱歉，我现在处于离线模式。我可以帮你：\n📝 创建任务（说"添加任务..."）\n💰 记录支出（说"支出50元..."）\n📅 添加日程（说"创建会议..."）'
+          : "Sorry, I'm in offline mode. I can help you:\n📝 Create tasks (say 'add task...')\n💰 Track expenses (say 'spent $50...')\n📅 Add events (say 'create meeting...')";
+      }
+
       setMessages(prev => [...prev, {
-        id: `error_${Date.now()}`,
-        text: errorMsg,
+        id: `ai_${Date.now()}`,
+        text: responseText,
         isUser: false,
+        actions,
       }]);
     }
 
@@ -967,9 +1055,7 @@ const styles = StyleSheet.create({
   categoryPicker: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    backgroundColor: '#F8FAFC', borderTopWidth: 1, borderTopColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
   },
   pickerLabel: {
     fontSize: 12,
@@ -1010,9 +1096,7 @@ const styles = StyleSheet.create({
   timePicker: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    backgroundColor: '#F8FAFC', borderTopWidth: 1, borderTopColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
   },
   timeGrid: {
     flexDirection: 'row',

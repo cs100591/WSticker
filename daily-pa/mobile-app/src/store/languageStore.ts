@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeModules, Platform } from 'react-native';
+import { useMemo } from 'react';
 
 export type AppLanguage = 'en' | 'zh' | 'system';
 
@@ -253,6 +254,23 @@ export const translations = {
 
 // Helper hook to get translations
 export const useTranslations = () => {
-  const lang = useLanguageStore((state) => state.getEffectiveLanguage());
+  const language = useLanguageStore((state) => state.language);
+  const lang = useMemo(() => {
+    if (language === 'system') {
+      return useLanguageStore.getState().getEffectiveLanguage();
+    }
+    return language;
+  }, [language]);
   return translations[lang];
+};
+
+// Helper hook to get effective language (safe for selectors)
+export const useEffectiveLanguage = (): 'en' | 'zh' => {
+  const language = useLanguageStore((state) => state.language);
+  return useMemo(() => {
+    if (language === 'system') {
+      return useLanguageStore.getState().getEffectiveLanguage();
+    }
+    return language;
+  }, [language]);
 };

@@ -3,7 +3,7 @@
  * With emoji selection, notes, and calendar features
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -21,21 +21,24 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { Todo, TodoPriority, useLocalStore } from '@/models';
-import { todoService } from '@/services/TodoService';
-import { useLanguageStore, translations } from '@/store/languageStore';
+import { useLanguageStore, translations, useEffectiveLanguage } from '@/store/languageStore';
 
 const TASK_EMOJIS = ['📝', '🛒', '💼', '🏃', '📞', '✉️', '🎯', '⭐', '🍽️', '💊', '🚗', '📚'];
 
 export const TodosScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const lang = useLanguageStore((state) => state.getEffectiveLanguage());
+  const lang = useEffectiveLanguage();
   const t = translations[lang];
 
-  const todos = useLocalStore((state) => state.todos);
-  const setTodos = useLocalStore((state) => state.setTodos);
-  const [loading, setLoading] = useState(true);
+  // Read directly from Zustand store for reactive updates
+  const allTodos = useLocalStore((state) => state.getTodos());
+  const addTodo = useLocalStore((state) => state.addTodo);
+  const updateTodo = useLocalStore((state) => state.updateTodo);
+  const addCalendarEvent = useLocalStore((state) => state.addCalendarEvent);
+  const isHydrated = useLocalStore((state) => state.isHydrated);
+  
   const [refreshing, setRefreshing] = useState(false);
 
   // Add Modal
@@ -59,59 +62,42 @@ export const TodosScreen: React.FC = () => {
 
   const userId = 'mock-user-id';
 
-  useFocusEffect(
-    useCallback(() => {
-      loadTodos();
-    }, [])
-  );
-
-  const loadTodos = async () => {
-    try {
-      setLoading(true);
-      const data = await todoService.getTodos({ userId, sortBy: 'createdAt', sortOrder: 'desc' });
-      setTodos(data);
-    } catch { Alert.alert('Error', 'Failed to load tasks'); }
-    finally { setLoading(false); }
-  };
-
-  const handleRefresh = async () => {
+  const handleRefresh = () => {
     setRefreshing(true);
-    await loadTodos();
-    setRefreshing(false);
+    // Just trigger a re-render since we're reading from store
+    setTimeout(() => setRefreshing(false), 500);
   };
 
-  const handleToggle = async (id: string) => {
-    try {
-      await todoService.toggleTodoStatus(id);
-      await loadTodos();
-    } catch { Alert.alert('Error', 'Failed to update'); }
+  const handleToggle = (id: string) => {
+    const todo = allTodos.find(t => t.id === id);
+    if (todo) {
+      updateTodo(id, { status: todo.status === 'completed' ? 'active' : 'completed' });
+    }
   };
 
-  const handleAdd = async () => {
+  const handleAdd = () => {
     if (!newTitle.trim()) return Alert.alert('Error', 'Enter a task title');
-    try {
-      await todoService.createTodo({
-        title: newTitle.trim(),
-        priority: newPriority,
-        userId,
-        emoji: selectedEmoji,
-      });
-      setNewTitle('');
-      setNewPriority('medium');
-      setSelectedEmoji('📝');
-      setShowAddModal(false);
-      await loadTodos();
-    } catch { Alert.alert('Error', 'Failed to add task'); }
+    addTodo({ 
+      title: newTitle.trim(), 
+      priority: newPriority, 
+      userId,
+      emoji: selectedEmoji,
+      status: 'active',
+      tags: [],
+      color: 'blue',
+      isDeleted: false,
+    });
+    setNewTitle('');
+    setNewPriority('medium');
+    setSelectedEmoji('📝');
+    setShowAddModal(false);
   };
 
-  const handleSaveNotes = async () => {
+  const handleSaveNotes = () => {
     if (!notesModal) return;
-    try {
-      await todoService.updateTodo(notesModal.id, { description: notesText });
-      if (notesText.trim()) setExpandedNotes(prev => new Set(prev).add(notesModal.id));
-      setNotesModal(null);
-      await loadTodos();
-    } catch { Alert.alert('Error', 'Failed to save notes'); }
+    updateTodo(notesModal.id, { description: notesText });
+    if (notesText.trim()) setExpandedNotes(prev => new Set(prev).add(notesModal.id));
+    setNotesModal(null);
   };
 
   const handleAddToCalendar = () => {
@@ -119,11 +105,25 @@ export const TodosScreen: React.FC = () => {
     const dateStr = dateValue.toISOString().split('T')[0];
     const timeStr = dateValue.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 
+    // Add to calendar using Zustand store
+    const start = new Date(`${dateStr}T${timeStr}:00`).toISOString();
+    const end = new Date(new Date(start).getTime() + 3600000).toISOString();
+    
+    addCalendarEvent({
+      userId,
+      title: calendarModal.title,
+      startTime: start,
+      endTime: end,
+      allDay: false,
+      source: 'local',
+      isDeleted: false,
+    });
+    
     Alert.alert('Success', `Added "${calendarModal.title}" to calendar at ${dateStr} ${timeStr}`);
     setCalendarModal(null);
   };
 
-  const onDateChange = (event: any, selectedDate?: Date) => {
+  const onDateChange = (_event: any, selectedDate?: Date) => {
     // On Android, dismissing the picker returns event.type === 'dismissed'
     if (Platform.OS === 'android') {
       setShowPicker(false);
@@ -156,8 +156,8 @@ export const TodosScreen: React.FC = () => {
     });
   };
 
-  const active = todos.filter(t => t.status === 'active');
-  const completed = todos.filter(t => t.status === 'completed');
+  const active = allTodos.filter(t => t.status === 'active');
+  const completed = allTodos.filter(t => t.status === 'completed');
   const byPriority = {
     high: active.filter(t => t.priority === 'high'),
     medium: active.filter(t => t.priority === 'medium'),
@@ -170,7 +170,7 @@ export const TodosScreen: React.FC = () => {
     low: { indicator: '▼', color: '#3B82F6', bg: '#EFF6FF', label: t.low },
   };
 
-  if (loading && !refreshing) {
+  if (!isHydrated) {
     return <View style={styles.center}><ActivityIndicator size="large" color="#8B5CF6" /></View>;
   }
 
@@ -242,7 +242,7 @@ export const TodosScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.progressText}>🎯 {completed.length}/{todos.length}</Text>
+          <Text style={styles.progressText}>🎯 {completed.length}/{allTodos.length}</Text>
         </View>
         <Text style={styles.headerTitle}>{t.tasks}</Text>
         <View style={styles.headerRight}>
@@ -309,7 +309,7 @@ export const TodosScreen: React.FC = () => {
           </View>
         )}
 
-        {todos.length === 0 && (
+        {allTodos.length === 0 && (
           <View style={styles.empty}>
             <Ionicons name="clipboard-outline" size={48} color="#9CA3AF" />
             <Text style={styles.emptyText}>{t.noTasks}</Text>

@@ -3,8 +3,7 @@
  * Matches web app layout with monthly spending card, category breakdown, and transaction history
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -23,7 +22,7 @@ import { ExpenseForm } from '@/components/ExpenseForm';
 import { supabase } from '@/services/supabase';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useLocalStore } from '@/store/localStore';
-import { useLanguageStore, translations } from '@/store/languageStore';
+import { useLanguageStore, translations, useEffectiveLanguage } from '@/store/languageStore';
 import { useCurrencyStore } from '@/store/currencyStore';
 
 const categoryIconNames: Record<ExpenseCategory, keyof typeof Ionicons.glyphMap> = {
@@ -49,14 +48,15 @@ const categoryColors: Record<ExpenseCategory, { border: string; text: string }> 
 };
 
 export const ExpensesScreen: React.FC = React.memo(() => {
-  const lang = useLanguageStore((state) => state.getEffectiveLanguage());
+  const lang = useEffectiveLanguage();
   const t = translations[lang];
   const currencySymbol = useCurrencyStore((state) => state.getSymbol());
 
-  const expenses = useLocalStore((state) => state.expenses);
-  const setExpenses = useLocalStore((state) => state.setExpenses);
+  // Read directly from Zustand store for reactive updates
+  const allExpenses = useLocalStore((state) => state.getExpenses());
+  const isHydrated = useLocalStore((state) => state.isHydrated);
+  
   const [summary, setSummary] = useState<ExpenseSummary | null>(null);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [userId, setUserId] = useState<string>('mock-user-id');
@@ -76,16 +76,10 @@ export const ExpensesScreen: React.FC = React.memo(() => {
     getUserId();
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      loadExpenses();
-    }, [])
-  );
-
   useEffect(() => {
     // Calculate summary from expenses whenever expenses change
-    if (expenses.length > 0) {
-      const total = expenses.reduce((sum, e) => sum + e.amount, 0);
+    if (allExpenses.length > 0) {
+      const total = allExpenses.reduce((sum, e) => sum + e.amount, 0);
       const categoryTotals: Record<ExpenseCategory, number> = {
         food: 0,
         transport: 0,
@@ -97,159 +91,27 @@ export const ExpensesScreen: React.FC = React.memo(() => {
         other: 0,
       };
 
-      expenses.forEach(e => {
+      allExpenses.forEach(e => {
         categoryTotals[e.category] += e.amount;
       });
 
-      const amounts = expenses.map(e => e.amount);
+      const amounts = allExpenses.map(e => e.amount);
       setSummary({
         total,
-        count: expenses.length,
-        average: total / expenses.length,
+        count: allExpenses.length,
+        average: total / allExpenses.length,
         highest: Math.max(...amounts),
         lowest: Math.min(...amounts),
         currency: 'USD',
         byCategory: categoryTotals,
       });
     }
-  }, [expenses]);
+  }, [allExpenses]);
 
-  const loadExpenses = async () => {
-    try {
-      setLoading(true);
-      const fetchedExpenses = await expenseService.getExpenses({
-        userId,
-        sortBy: 'expenseDate',
-        sortOrder: 'desc',
-      });
-
-      // If no expenses, add mock data for preview
-      if (fetchedExpenses.length === 0) {
-        const mockExpenses = [
-          {
-            id: 'mock-1',
-            userId,
-            amount: 45.50,
-            category: 'food' as ExpenseCategory,
-            description: 'Lunch at cafe',
-            expenseDate: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            currency: 'USD',
-            tags: [],
-            isDeleted: false,
-          },
-          {
-            id: 'mock-2',
-            userId,
-            amount: 120.00,
-            category: 'shopping' as ExpenseCategory,
-            description: 'New shoes',
-            expenseDate: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            currency: 'USD',
-            tags: [],
-            isDeleted: false,
-          },
-          {
-            id: 'mock-3',
-            userId,
-            amount: 25.00,
-            category: 'transport' as ExpenseCategory,
-            description: 'Taxi ride',
-            expenseDate: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            currency: 'USD',
-            tags: [],
-            isDeleted: false,
-          },
-          {
-            id: 'mock-4',
-            userId,
-            amount: 80.00,
-            category: 'entertainment' as ExpenseCategory,
-            description: 'Movie tickets',
-            expenseDate: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            currency: 'USD',
-            tags: [],
-            isDeleted: false,
-          },
-        ] as Expense[];
-        setExpenses(mockExpenses);
-      } else {
-        setExpenses(fetchedExpenses);
-      }
-    } catch (error) {
-      // On error, show mock data for preview
-      console.log('Using mock data for preview');
-      const mockExpenses = [
-        {
-          id: 'mock-1',
-          userId,
-          amount: 45.50,
-          category: 'food' as ExpenseCategory,
-          description: 'Lunch at cafe',
-          expenseDate: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          currency: 'USD',
-          tags: [],
-          isDeleted: false,
-        },
-        {
-          id: 'mock-2',
-          userId,
-          amount: 120.00,
-          category: 'shopping' as ExpenseCategory,
-          description: 'New shoes',
-          expenseDate: new Date(Date.now() - 86400000).toISOString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          currency: 'USD',
-          tags: [],
-          isDeleted: false,
-        },
-        {
-          id: 'mock-3',
-          userId,
-          amount: 25.00,
-          category: 'transport' as ExpenseCategory,
-          description: 'Taxi ride',
-          expenseDate: new Date(Date.now() - 86400000).toISOString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          currency: 'USD',
-          tags: [],
-          isDeleted: false,
-        },
-        {
-          id: 'mock-4',
-          userId,
-          amount: 80.00,
-          category: 'entertainment' as ExpenseCategory,
-          description: 'Movie tickets',
-          expenseDate: new Date(Date.now() - 172800000).toISOString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          currency: 'USD',
-          tags: [],
-          isDeleted: false,
-        },
-      ] as Expense[];
-      setExpenses(mockExpenses);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRefresh = async () => {
+  const handleRefresh = () => {
     setRefreshing(true);
-    await loadExpenses();
-    setRefreshing(false);
+    // Just trigger a re-render since we're reading from store
+    setTimeout(() => setRefreshing(false), 500);
   };
 
   const handleDelete = async (expenseId: string) => {
@@ -261,7 +123,6 @@ export const ExpensesScreen: React.FC = React.memo(() => {
         onPress: async () => {
           try {
             await expenseService.deleteExpense(expenseId);
-            await loadExpenses();
           } catch (error) {
             Alert.alert('Error', 'Failed to delete expense');
             console.error('Error deleting expense:', error);
@@ -282,27 +143,10 @@ export const ExpensesScreen: React.FC = React.memo(() => {
         expenseDate: data.expenseDate,
       });
       setShowAddModal(false);
-      await loadExpenses();
       Alert.alert('Success', 'Expense added successfully!');
     } catch (error) {
       console.error('Error adding expense:', error);
-      // Add to local state for preview mode
-      const newExpense = {
-        id: `local-${Date.now()}`,
-        userId,
-        amount: data.amount,
-        category: data.category,
-        description: data.description || 'No description',
-        expenseDate: typeof data.expenseDate === 'string' ? data.expenseDate : new Date(data.expenseDate).toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        currency: data.currency || 'USD',
-        tags: [],
-        isDeleted: false,
-      } as Expense;
-      setExpenses([newExpense, ...expenses]);
-      setShowAddModal(false);
-      Alert.alert('Success', 'Expense added locally (preview mode)');
+      Alert.alert('Error', 'Failed to add expense');
     }
   };
 
@@ -322,7 +166,7 @@ export const ExpensesScreen: React.FC = React.memo(() => {
       other: { total: 0, count: 0 },
     };
 
-    expenses.forEach(expense => {
+    allExpenses.forEach(expense => {
       stats[expense.category].total += expense.amount;
       stats[expense.category].count += 1;
     });
@@ -338,7 +182,7 @@ export const ExpensesScreen: React.FC = React.memo(() => {
   const groupExpensesByDate = () => {
     const groups: Record<string, Expense[]> = {};
 
-    expenses.forEach(expense => {
+    allExpenses.forEach(expense => {
       const date = new Date(expense.expenseDate).toISOString().split('T')[0] || '';
       if (!groups[date]) {
         groups[date] = [];
@@ -352,10 +196,10 @@ export const ExpensesScreen: React.FC = React.memo(() => {
   const categoryStats = getCategoryStats();
   const groupedExpenses = groupExpensesByDate();
 
-  if (loading && !refreshing) {
+  if (!isHydrated) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <ActivityIndicator size="large" color="#4A90E2" />
       </View>
     );
   }

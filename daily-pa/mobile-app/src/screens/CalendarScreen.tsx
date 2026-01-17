@@ -143,10 +143,6 @@ export const CalendarScreen: React.FC = React.memo(() => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showAddModal, setShowAddModal] = useState(false);
 
-  // Select raw data from store, not methods (prevents infinite re-renders)
-  const rawEvents = useLocalStore((state) => state.calendarEvents);
-  // const addCalendarEvent = useLocalStore((state) => state.addCalendarEvent); // Use service instead
-  const setCalendarEvents = useLocalStore((state) => state.setCalendarEvents);
   const [userId, setUserId] = useState('mock-user-id');
 
   useEffect(() => {
@@ -159,22 +155,8 @@ export const CalendarScreen: React.FC = React.memo(() => {
     getUserId();
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      const loadEvents = async () => {
-        try {
-          const events = await calendarService.getEvents({ userId });
-          setCalendarEvents(events);
-        } catch (error) {
-          console.error('Failed to load events', error);
-        }
-      };
-      loadEvents();
-    }, [userId])
-  );
-
-  // Filter deleted events with useMemo
-  const allEvents = useMemo(() => rawEvents.filter((e) => !e.isDeleted), [rawEvents]);
+  // Read directly from Zustand store for reactive updates
+  const allEvents = useLocalStore((state) => state.getCalendarEvents());
 
   const getEventsForSelectedDate = useCallback(() => {
     const startOfDay = new Date(selectedDate);

@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
-import { useLanguageStore, translations } from '@/store/languageStore';
+import { useLanguageStore, translations, useEffectiveLanguage } from '@/store/languageStore';
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl || 
   process.env.EXPO_PUBLIC_API_URL || 
@@ -30,7 +30,7 @@ interface Message {
 }
 
 export const ChatScreen: React.FC = () => {
-  const lang = useLanguageStore((state) => state.getEffectiveLanguage());
+  const lang = useEffectiveLanguage();
   const t = translations[lang];
   
   const [messages, setMessages] = useState<Message[]>([

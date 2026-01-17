@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WeatherData } from '@/services/weatherService';
 import { Ionicons } from '@expo/vector-icons';
-import { useLanguageStore, translations } from '@/store/languageStore';
+import { useLanguageStore, translations, useEffectiveLanguage } from '@/store/languageStore';
 
 interface WeatherHeaderProps {
     weather: WeatherData | null;
@@ -14,7 +14,7 @@ interface WeatherHeaderProps {
 }
 
 export const WeatherHeader: React.FC<WeatherHeaderProps> = ({ weather, greeting, emoji, children }) => {
-    const lang = useLanguageStore((state) => state.getEffectiveLanguage());
+    const lang = useEffectiveLanguage();
     const t = translations[lang];
     // Animation for "breathing" effect
     const pulseAnim = useRef(new Animated.Value(0)).current;

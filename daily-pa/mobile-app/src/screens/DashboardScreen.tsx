@@ -22,12 +22,12 @@ import { useLocalStore, Todo, CalendarEvent } from '@/models';
 import * as Location from 'expo-location';
 import { weatherService, WeatherData } from '@/services/weatherService';
 import { WeatherHeader } from '@/components/WeatherHeader';
-import { useLanguageStore, translations } from '@/store/languageStore';
+import { useLanguageStore, translations, useEffectiveLanguage } from '@/store/languageStore';
 import { useCurrencyStore } from '@/store/currencyStore';
 
 export const DashboardScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const lang = useLanguageStore((state) => state.getEffectiveLanguage());
+  const lang = useEffectiveLanguage();
   const t = translations[lang];
   const currencySymbol = useCurrencyStore((state) => state.getSymbol());
 

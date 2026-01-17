@@ -24,14 +24,14 @@ import { authService } from '@/services/authService';
 import { biometricService } from '@/services/biometricService';
 import { securityService } from '@/services/securityService';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { useLanguageStore, AppLanguage, translations } from '@/store/languageStore';
+import { useLanguageStore, AppLanguage, translations, useEffectiveLanguage } from '@/store/languageStore';
 import { useCurrencyStore } from '@/store/currencyStore';
 
 export const SettingsScreen: React.FC = React.memo(() => {
   const { user, signOut } = useAuth();
   const language = useLanguageStore((state) => state.language);
   const setLanguage = useLanguageStore((state) => state.setLanguage);
-  const effectiveLang = useLanguageStore((state) => state.getEffectiveLanguage());
+  const effectiveLang = useEffectiveLanguage();
   const t = translations[effectiveLang];
 
   // Settings state
