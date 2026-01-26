@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
+import OpenAI, { toFile } from 'openai';
 
 export async function POST(req: NextRequest) {
     try {
-        // 1. Authorization Check to prevent "Action failed: Unauthorized"
-        // We strictly check for the Authorization header.
+        // 1. Authorization Check - Allow both authenticated users and guests
         const authHeader = req.headers.get('Authorization');
         if (!authHeader) {
             return NextResponse.json({ error: 'Unauthorized: Missing Authorization header' }, { status: 401 });
         }
+
+        // Extract token and determine if user is guest or authenticated
+        const token = authHeader.replace('Bearer ', '');
+        const isGuest = token === 'guest-user';
+
+        // Log for monitoring (optional)
+        console.log(`Transcription request from: ${isGuest ? 'guest user' : 'authenticated user'}`);
 
         // 2. Validate Configuration
         if (!process.env.OPENAI_API_KEY) {
@@ -16,55 +23,73 @@ export async function POST(req: NextRequest) {
         }
 
         // 3. Parse Request Body
-        const { audio, language } = await req.json();
+        const { audio, language, targetLanguage } = await req.json();
 
         if (!audio) {
             return NextResponse.json({ error: 'Audio data is required' }, { status: 400 });
         }
 
-        // 4. Convert Base64 to Blob/File for FormData
-        // The mobile app sends base64 encoded audio (likely m4a/aac from expo-av)
+        console.log('Received audio data, length:', audio.length);
+        console.log('Language:', language, 'Target:', targetLanguage);
+
+        // 4. Convert Base64 to Buffer
         const buffer = Buffer.from(audio, 'base64');
+        console.log('Audio buffer size:', buffer.length);
 
-        // Create FormData for OpenAI API
-        const formData = new FormData();
+        // 5. Initialize OpenAI client
+        const apiKey = process.env.OPENAI_API_KEY;
+        console.log('Initializing OpenAI with Key:', apiKey ? `${apiKey.substring(0, 5)}...` : 'MISSING');
 
-        // We create a Blob from the buffer. 
-        // Important: 'audio.m4a' filename helps OpenAI infer the format.
-        const fileBlob = new Blob([buffer], { type: 'audio/m4a' });
-        formData.append('file', fileBlob, 'input.m4a');
-        formData.append('model', 'whisper-1');
-
-        // Optional: Prompt or Language
-        // Whisper handles mixed language well automatically, but we can hint if provided
-        // User requested "support mixed Chinese/English", Whisper model is excellent at this by default.
-        // If a specific language code is passed (e.g. 'zh'), we can use it, otherwise let it auto-detect.
-        if (language) {
-            formData.append('language', language);
-        }
-
-        // 5. Call OpenAI Whisper API
-        const whisperResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-                // Note: Do NOT set Content-Type header manually for FormData, fetch does it with boundary
-            },
-            body: formData,
+        const openai = new OpenAI({
+            apiKey: apiKey,
         });
 
-        if (!whisperResponse.ok) {
-            const errorText = await whisperResponse.text();
-            console.error('Whisper API Error:', errorText);
-            return NextResponse.json({ error: `Whisper API failed: ${whisperResponse.statusText}` }, { status: whisperResponse.status });
+        // 6. Create a File object for the OpenAI SDK
+        // Use toFile helper for better compatibility
+        const file = await toFile(buffer, 'audio.m4a', { type: 'audio/m4a' });
+
+        // 7. Call Whisper API
+        console.log('Calling Whisper API...');
+        const transcription = await openai.audio.transcriptions.create({
+            file: file,
+            model: 'whisper-1',
+            language: language, // Hint improves accuracy if known
+        });
+
+        console.log('Transcription successful:', transcription.text);
+        let finalText = transcription.text;
+
+        // 8. Translate if needed
+        if (targetLanguage && targetLanguage !== language && finalText) {
+            console.log(`Translating to ${targetLanguage}...`);
+            const completion = await openai.chat.completions.create({
+                model: "gpt-4o",
+                messages: [
+                    { role: "system", content: `You are a professional translator. Translate the following text into ${targetLanguage}. Maintain the tone and context. Output ONLY the translated text.` },
+                    { role: "user", content: finalText }
+                ],
+            });
+
+            const translated = completion.choices[0]?.message?.content;
+            if (translated) {
+                console.log('Translation successful');
+                finalText = translated; // You might want to return both, but for now replacing as per 'Notes' usually implies the result.
+                // Or maybe append? "Original: ... \n\nTranslated: ..."
+                // The user request was "user able to choose input language and output language", implying they want the output.
+                // Let's return just the output or maybe structured?
+                // The mobile app expects { text: string }.
+                // I will return the translated text as 'text'.
+            }
         }
 
-        const data = await whisperResponse.json();
+        return NextResponse.json({ text: finalText, original: transcription.text });
 
-        return NextResponse.json({ text: data.text });
-
-    } catch (error) {
+    } catch (error: any) {
         console.error('Transcription error:', error);
-        return NextResponse.json({ error: 'Internal server error during transcription' }, { status: 500 });
+        console.error('Error details:', error.message, error.status, error.type);
+        return NextResponse.json({
+            error: 'Internal server error during transcription',
+            details: error.message
+        }, { status: 500 });
     }
 }
