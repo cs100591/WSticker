@@ -7,6 +7,8 @@ import React from 'react';
 import { View, ScrollView, Text, StyleSheet, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, typography } from '../../theme/webMobileTheme';
+import { useThemeStore } from '@/store/themeStore';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface ScreenContainerProps {
   children: React.ReactNode;
@@ -17,14 +19,19 @@ interface ScreenContainerProps {
   contentContainerStyle?: ViewStyle;
 }
 
-export function ScreenContainer({ 
-  children, 
+export function ScreenContainer({
+  children,
   title,
   subtitle,
-  scrollable = true, 
+  scrollable = true,
   style,
-  contentContainerStyle 
+  contentContainerStyle
 }: ScreenContainerProps) {
+  const { mode } = useThemeStore();
+  const isSage = mode === 'sage';
+  const isBlueSage = mode === 'system';
+  const isGlassy = isSage || isBlueSage;
+
   const content = (
     <View style={[styles.content, contentContainerStyle]}>
       {(title || subtitle) && (
@@ -37,10 +44,36 @@ export function ScreenContainer({
     </View>
   );
 
+
+
+  if (isGlassy) {
+    const gradient = isSage ? ['#C3E0D8', '#D6E8E2', '#F9F6F0'] : ['#E0F2FE', '#E0F2FE', '#EFF6FF'];
+    return (
+      <LinearGradient
+        colors={gradient as any}
+        style={[styles.container, style]}
+      >
+        <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+          {scrollable ? (
+            <ScrollView
+              style={styles.scrollView}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {content}
+            </ScrollView>
+          ) : (
+            content
+          )}
+        </SafeAreaView>
+      </LinearGradient>
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.container, style]} edges={['top']}>
       {scrollable ? (
-        <ScrollView 
+        <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}

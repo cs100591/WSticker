@@ -41,19 +41,19 @@ class AuthService {
   async initialize(): Promise<void> {
     try {
       useAuthStore.getState().setLoading(true);
-      
+
       // Add timeout to prevent hanging
-      const timeoutPromise = new Promise((_, reject) => 
+      const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Auth initialization timeout')), 2000)
       );
-      
+
       const sessionPromise = supabase.auth.getSession();
-      
+
       const { data: { session } } = await Promise.race([
         sessionPromise,
         timeoutPromise
       ]) as any;
-      
+
       if (session) {
         useAuthStore.getState().setSession(session);
       }
@@ -81,13 +81,16 @@ class AuthService {
 
       if (data.session) {
         useAuthStore.getState().setSession(data.session);
+        await this.syncUserProfile(data.session);
+        // Migrate any local guest data to this new user
+        await this.migrateGuestData(data.session.user.id);
       }
 
       return { success: true };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Sign in failed' 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Sign in failed'
       };
     }
   }
@@ -113,13 +116,15 @@ class AuthService {
 
       if (data.session) {
         useAuthStore.getState().setSession(data.session);
+        await this.syncUserProfile(data.session);
+        await this.migrateGuestData(data.session.user.id);
       }
 
       return { success: true };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Sign up failed' 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Sign up failed'
       };
     }
   }
@@ -132,21 +137,34 @@ class AuthService {
       const { error } = await supabase.auth.signOut();
 
       if (error) {
-        return { success: false, error: error.message };
+        console.warn('Server sign out failed, continuing with local cleanup:', error.message);
       }
 
       // Clear auth store
       useAuthStore.getState().signOut();
-      
+
+      // Reset sync manager state (unsubscribe realtime, clear queue, reset last sync)
+      const { syncManager } = await import('./sync/SyncManager');
+      await syncManager.reset();
+
+      // Reset user profile to guest
+      const { useUserStore } = await import('@/store/userStore');
+      useUserStore.getState().resetProfile();
+
       // Clear secure storage
       const { secureStorage } = await import('./secureStorage');
       await secureStorage.clearAuthTokens();
 
       return { success: true };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Sign out failed' 
+      // Force cleanup even on unexpected error
+      useAuthStore.getState().signOut();
+      const { syncManager } = await import('./sync/SyncManager');
+      await syncManager.reset();
+
+      return {
+        success: true, // We successfully logged out locally at least
+        error: error instanceof Error ? error.message : 'Sign out failed on server'
       };
     }
   }
@@ -164,9 +182,9 @@ class AuthService {
 
       return { success: true };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Password reset failed' 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Password reset failed'
       };
     }
   }
@@ -184,13 +202,14 @@ class AuthService {
 
       if (data.session) {
         useAuthStore.getState().setSession(data.session);
+        this.syncUserProfile(data.session);
       }
 
       return { success: true };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Session refresh failed' 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Session refresh failed'
       };
     }
   }
@@ -216,16 +235,15 @@ class AuthService {
 
       return { success: true };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Profile update failed' 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Profile update failed'
       };
     }
   }
 
   /**
    * Change user password
-   * Requires current password verification
    */
   async changePassword(data: ChangePasswordData): Promise<AuthResult> {
     try {
@@ -255,9 +273,9 @@ class AuthService {
 
       return { success: true };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Password change failed' 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Password change failed'
       };
     }
   }
@@ -268,6 +286,9 @@ class AuthService {
   async getSession(): Promise<Session | null> {
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        this.syncUserProfile(session);
+      }
       return session;
     } catch (error) {
       console.error('Failed to get session:', error);
@@ -297,7 +318,7 @@ class AuthService {
       // For now, we'll use the auth.admin.deleteUser method if available
       // In production, this should be done via a secure API endpoint
       const { error: deleteError } = await supabase.rpc('delete_user_account');
-      
+
       if (deleteError) {
         console.error('Failed to delete account from server:', deleteError);
         // Continue anyway to ensure local cleanup
@@ -306,12 +327,47 @@ class AuthService {
       // Step 3: Sign out
       await supabase.auth.signOut();
       useAuthStore.getState().signOut();
+      const { useUserStore } = await import('@/store/userStore');
+      useUserStore.getState().resetProfile();
 
       return { success: true };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Account deletion failed' 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Account deletion failed'
+      };
+    }
+  }
+
+  /**
+   * Clear all account data (cloud only)
+   * Deletes alltodos, expenses, and calendar items on the server for the current user
+   */
+  async clearAccountData(): Promise<AuthResult> {
+    try {
+      const user = useAuthStore.getState().user;
+      if (!user) {
+        return { success: false, error: 'No user logged in' };
+      }
+
+      console.log('Clearing account data for user:', user.id);
+
+      const { error: todoError } = await supabase.from('todos').delete().eq('user_id', user.id);
+      if (todoError) console.error('Error deleting todos:', todoError);
+
+      const { error: expError } = await supabase.from('expenses').delete().eq('user_id', user.id);
+      if (expError) console.error('Error deleting expenses:', expError);
+
+      const { error: calError } = await supabase.from('calendar_events').delete().eq('user_id', user.id);
+      if (calError) console.error('Error deleting events:', calError);
+
+      // We don't stop on individual table errors, but we can return success if it mostly worked
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to clear account data:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to clear data'
       };
     }
   }
@@ -324,7 +380,7 @@ class AuthService {
     try {
       // Import local store
       const { useLocalStore } = await import('@/models');
-      
+
       // Clear all local store data
       useLocalStore.getState().clearAll();
 
@@ -343,7 +399,7 @@ class AuthService {
         '@crash_logs',
         'daily-pa-local-storage', // Zustand persist key
       ];
-      
+
       await AsyncStorage.multiRemove(asyncStorageKeys);
 
       // Clear SecureStore tokens
@@ -362,18 +418,169 @@ class AuthService {
   }
 
   /**
+   * Private helper to sync user profile from Supabase session
+   */
+  private async syncUserProfile(session: Session) {
+    if (!session?.user) return;
+
+    try {
+      const { useUserStore } = await import('@/store/userStore');
+      const user = session.user;
+      const metadata = user.user_metadata || {};
+
+      useUserStore.getState().updateProfile({
+        id: user.id,
+        email: user.email || '',
+        fullName: metadata.full_name || metadata.name || metadata.fullName || user.email?.split('@')[0] || 'User',
+        avatarUrl: metadata.avatar_url || metadata.picture,
+      });
+    } catch (e) {
+      console.error('Error syncing user profile:', e);
+    }
+  }
+
+  /**
    * Listen to auth state changes
    */
   setupAuthListener(): void {
-    supabase.auth.onAuthStateChange((event, session) => {
+    supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event);
-      
+
       if (session) {
         useAuthStore.getState().setSession(session);
+        this.syncUserProfile(session);
       } else {
         useAuthStore.getState().signOut();
+        const { useUserStore } = await import('@/store/userStore');
+        useUserStore.getState().resetProfile();
       }
     });
+  }
+
+  /**
+   * Migrate guest data to authenticated user
+   * Handles duplicate prevention, ID regeneration (for valid UUIDs), and relationships
+   */
+  private async migrateGuestData(userId: string): Promise<void> {
+    try {
+      console.log('Processing data migration for user:', userId);
+      const { useLocalStore } = await import('@/models');
+      const store = useLocalStore.getState();
+      const { syncManager } = await import('./sync/SyncManager');
+      const { syncQueue } = await import('./sync/SyncQueue');
+      const Crypto = await import('expo-crypto');
+
+      // Helper to check if data is truly "guest" data (no userId or explicit guest)
+      const isGuestItem = (itemUserId?: string) => !itemUserId || itemUserId === 'guest' || itemUserId.startsWith('offline-');
+
+      // Check for existing data from OTHER users
+      const existingTodos = store.getTodos();
+      const sampleItem = existingTodos[0];
+
+      if (sampleItem && sampleItem.userId && sampleItem.userId !== userId && !isGuestItem(sampleItem.userId)) {
+        console.log('Found data from another user. Wiping local data...');
+        store.clearAll();
+        await syncQueue.clear();
+        return;
+      }
+
+      await syncQueue.clear();
+
+      const idMap = new Map<string, string>();
+
+      // 1. Migrate Todos
+      const todos = store.getTodos();
+      for (const todo of todos) {
+        if (todo.userId === userId) continue;
+
+        const newId = Crypto.randomUUID();
+        idMap.set(todo.id, newId);
+
+        // Remove old item
+        store.deleteTodo(todo.id);
+
+        // Add new item with valid UUID
+        const newTodo = {
+          ...todo,
+          id: newId,
+          userId,
+          updatedAt: new Date().toISOString()
+        };
+        store.addTodo(newTodo);
+
+        await syncManager.queueChange('todos', newId, 'create', {
+          ...newTodo,
+          user_id: userId,
+          due_date: todo.dueDate,
+          created_at: todo.createdAt,
+          updated_at: newTodo.updatedAt,
+        });
+      }
+
+      // 2. Migrate Expenses
+      const expenses = store.getExpenses();
+      for (const expense of expenses) {
+        if (expense.userId === userId) continue;
+
+        const newId = Crypto.randomUUID();
+
+        store.deleteExpense(expense.id);
+
+        const newExpense = {
+          ...expense,
+          id: newId,
+          userId,
+          updatedAt: new Date().toISOString()
+        };
+        store.addExpense(newExpense);
+
+        await syncManager.queueChange('expenses', newId, 'create', {
+          ...newExpense,
+          user_id: userId,
+          expense_date: expense.expenseDate,
+          receipt_url: expense.receiptUrl,
+          created_at: expense.createdAt,
+          updated_at: newExpense.updatedAt,
+        });
+      }
+
+      // 3. Migrate Calendar Events (and fix relationships)
+      const events = store.getCalendarEvents();
+      for (const event of events) {
+        if (event.userId === userId) continue;
+
+        const newId = Crypto.randomUUID();
+        // Update foreign key if needed
+        const mappedTodoId = event.todoId && idMap.get(event.todoId) ? idMap.get(event.todoId) : event.todoId;
+
+        store.deleteCalendarEvent(event.id);
+
+        const newEvent = {
+          ...event,
+          id: newId,
+          userId,
+          todoId: mappedTodoId,
+          updatedAt: new Date().toISOString()
+        };
+        store.addCalendarEvent(newEvent);
+
+        await syncManager.queueChange('calendar_events', newId, 'create', {
+          ...newEvent,
+          user_id: userId,
+          start_time: event.startTime,
+          end_time: event.endTime,
+          all_day: event.allDay,
+          todo_id: mappedTodoId,
+          created_at: event.createdAt,
+          updated_at: newEvent.updatedAt,
+        });
+      }
+
+      console.log('Migration/Cleanup complete with ID regeneration.');
+
+    } catch (error) {
+      console.error('Failed to migrate/cleanup data:', error);
+    }
   }
 }
 

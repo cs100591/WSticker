@@ -1,10 +1,13 @@
 /**
- * Calendar Screen
- * Main screen for viewing calendar events with month/week/day views
- * Shows event list below calendar when date is selected
+ * Calendar Screen Pro
+ * Advanced calendar with split view, themes, and robust sync
+ * Re-designed to match specific visual requirements:
+ * - Large Month Header
+ * - Custom Grid Styling with Text Events
+ * - specific "New Schedule" button layout
  */
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,53 +17,72 @@ import {
   ScrollView,
   Modal,
   Alert,
+  Dimensions,
+  Linking,
+  Platform,
+  TextInput,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+
+
 import { useLocalStore, CalendarEvent } from '@/models';
 import { calendarService, CalendarView } from '@/services/CalendarService';
 import { EventForm, EventFormData } from '@/components/EventForm';
-import { ScreenHeader } from '@/components/ScreenHeader';
-import { supabase } from '@/services/supabase';
+import { CalendarSelector } from '@/components/CalendarSelector'; // Added
+import { useLanguageStore, translations, useEffectiveLanguage } from '@/store/languageStore';
+import { useThemeStore } from '@/store/themeStore';
+import { useUserStore } from '@/store/userStore';
+import { LinearGradient } from 'expo-linear-gradient';
 
-// Simple Month Calendar Component (no internal scroll)
-const SimpleMonthView: React.FC<{
+const SCREEN_WIDTH = Dimensions.get('window').width;
+
+// --- Components ---
+
+// --- Components ---
+
+const VIEW_MODES = ['List', 'Day', 'Week', 'Month'];
+
+const BlockMonthView: React.FC<{
   currentDate: Date;
-  events: Array<{ id: string; title: string; startTime: string; color?: string }>;
+  events: CalendarEvent[];
   onDateSelect: (date: Date) => void;
   selectedDate: Date;
-}> = ({ currentDate, events, onDateSelect, selectedDate }) => {
-  const getDaysInMonth = (date: Date): Date[] => {
+  themeColors: any;
+  isMinimal: boolean;
+  isSage: boolean;
+  isBlueSage: boolean;
+  isGlassy: boolean;
+}> = ({ currentDate, events, onDateSelect, selectedDate, themeColors, isMinimal, isSage, isBlueSage, isGlassy }) => {
+  const lang = useEffectiveLanguage();
+
+  const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
-    const startDayOfWeek = firstDay.getDay();
-    const days: Date[] = [];
+    const startDayOfWeek = firstDay.getDay(); // 0 = Sunday
 
+    const days = [];
     const prevMonthLastDay = new Date(year, month, 0).getDate();
+
+    // Prev Month Days
     for (let i = startDayOfWeek - 1; i >= 0; i--) {
-      days.push(new Date(year, month - 1, prevMonthLastDay - i));
+      const d = new Date(year, month - 1, prevMonthLastDay - i);
+      days.push({ date: d, isCurrentMonth: false });
     }
+
+    // Current Month Days
     for (let i = 1; i <= daysInMonth; i++) {
-      days.push(new Date(year, month, i));
+      const d = new Date(year, month, i);
+      days.push({ date: d, isCurrentMonth: true });
     }
-    const remainingDays = 42 - days.length;
-    for (let i = 1; i <= remainingDays; i++) {
-      days.push(new Date(year, month + 1, i));
-    }
+
     return days;
   };
 
-  const getEventsForDate = (date: Date) => {
-    return events.filter(event => {
-      const eventDate = new Date(event.startTime);
-      return eventDate.getFullYear() === date.getFullYear() &&
-        eventDate.getMonth() === date.getMonth() &&
-        eventDate.getDate() === date.getDate();
-    });
-  };
+  const dayData = useMemo(() => getDaysInMonth(currentDate), [currentDate]);
 
   const isSameDay = (d1: Date, d2: Date) =>
     d1.getFullYear() === d2.getFullYear() &&
@@ -68,49 +90,192 @@ const SimpleMonthView: React.FC<{
     d1.getDate() === d2.getDate();
 
   const isToday = (date: Date) => isSameDay(date, new Date());
-  const isCurrentMonth = (date: Date) => date.getMonth() === currentDate.getMonth();
 
-  const days = getDaysInMonth(currentDate);
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
-    <View style={monthStyles.container}>
-      <View style={monthStyles.weekDaysRow}>
-        {weekDays.map(day => (
-          <View key={day} style={monthStyles.weekDayCell}>
-            <Text style={monthStyles.weekDayText}>{day}</Text>
-          </View>
+    <View style={styles.monthContainer}>
+      <View style={styles.weekheader}>
+        {weekDays.map((day, i) => (
+          <Text key={i} style={[styles.weekDayText, { color: themeColors.text.secondary.light }]}>
+            {day}
+          </Text>
         ))}
       </View>
-      <View style={monthStyles.calendarGrid}>
-        {days.map((date, index) => {
-          const dayEvents = getEventsForDate(date);
-          const isSelected = isSameDay(date, selectedDate);
+
+      <View style={styles.grid}>
+        {dayData.map((item, index) => {
+          const { date, isCurrentMonth } = item;
+          const isSel = isSameDay(date, selectedDate);
+          const isTdy = isToday(date);
+
+          const dayStart = new Date(date); dayStart.setHours(0, 0, 0, 0);
+          const dayEnd = new Date(date); dayEnd.setHours(23, 59, 59, 999);
+
+          const cellEvents = events.filter(e => {
+            const eStart = new Date(e.startTime);
+            const eEnd = new Date(e.endTime);
+            return eStart < dayEnd && eEnd > dayStart;
+          }).sort((a, b) => {
+            const startA = new Date(a.startTime).getTime();
+            const startB = new Date(b.startTime).getTime();
+            if (startA !== startB) return startA - startB;
+            const durA = new Date(a.endTime).getTime() - startA;
+            const durB = new Date(b.endTime).getTime() - startB;
+            return durB - durA;
+          });
+
           return (
             <TouchableOpacity
               key={index}
               style={[
-                monthStyles.dayCell,
-                isSelected && monthStyles.selectedDay,
-                isToday(date) && monthStyles.todayCell,
+                styles.dayCell,
+                isSel && styles.selectedDayCell,
+                isSel && isGlassy && { backgroundColor: isSage ? '#065F46' : '#2563EB' }
               ]}
               onPress={() => onDateSelect(date)}
             >
               <Text style={[
-                monthStyles.dayText,
-                !isCurrentMonth(date) && monthStyles.otherMonthText,
-                isToday(date) && monthStyles.todayText,
-                isSelected && monthStyles.selectedDayText,
+                styles.dayNumber,
+                !isCurrentMonth && styles.mutedText,
+                isTdy && !isSel && styles.todayText,
+                isSel && styles.selectedDayText
               ]}>
                 {date.getDate()}
               </Text>
-              {dayEvents.length > 0 && (
-                <View style={monthStyles.eventDots}>
-                  {dayEvents.slice(0, 3).map((e, i) => (
-                    <View key={i} style={[monthStyles.eventDot, { backgroundColor: e.color || '#3B82F6' }]} />
-                  ))}
-                </View>
-              )}
+
+              <View style={styles.eventContainer}>
+                {cellEvents.slice(0, 3).map((ev, i) => {
+                  const eStart = new Date(ev.startTime);
+                  const eEnd = new Date(ev.endTime);
+                  const yesterday = new Date(date); yesterday.setDate(date.getDate() - 1);
+                  const continuesFromPrev = eStart < dayStart && date.getDay() !== 0;
+                  const tomorrow = new Date(date); tomorrow.setDate(date.getDate() + 1);
+                  const startOfTomorrow = new Date(tomorrow); startOfTomorrow.setHours(0, 0, 0, 0);
+                  const continuesToNext = eEnd > startOfTomorrow && date.getDay() !== 6;
+                  const isMultiDay = continuesFromPrev || continuesToNext;
+
+                  const baseColor = ev.color || '#10B981';
+                  const lighten = (col: string, amount: number) => {
+                    if (!col.startsWith('#')) return col;
+                    try {
+                      const num = parseInt(col.replace('#', ''), 16);
+                      const r = (num >> 16) + amount * (255 - (num >> 16));
+                      const g = ((num >> 8) & 0x00FF) + amount * (255 - ((num >> 8) & 0x00FF));
+                      const b = (num & 0x0000FF) + amount * (255 - (num & 0x0000FF));
+                      return `#${(0x1000000 + (Math.round(r) << 16) + (Math.round(g) << 8) + Math.round(b)).toString(16).slice(1)}`;
+                    } catch (e) { return col; }
+                  };
+                  const solidPastelColor = lighten(baseColor, 0.7);
+
+                  const barStyle: any = {
+                    backgroundColor: solidPastelColor,
+                    height: 18,
+                    marginBottom: 2,
+                    justifyContent: 'center',
+                    borderRadius: 4,
+                    marginHorizontal: 2,
+                  };
+
+                  let containerStyle: any = { marginBottom: 2 };
+                  if (isMultiDay) {
+                    barStyle.marginHorizontal = 0;
+                    containerStyle = { height: 20, width: '100%', marginBottom: 0, position: 'relative' };
+                    if (continuesFromPrev) {
+                      barStyle.borderTopLeftRadius = 0;
+                      barStyle.borderBottomLeftRadius = 0;
+                      barStyle.marginLeft = -1;
+                      barStyle.width = '105%';
+                      containerStyle.marginLeft = 0;
+                      containerStyle.width = '100%';
+                    }
+                    if (continuesToNext) {
+                      barStyle.borderTopRightRadius = 0;
+                      barStyle.borderBottomRightRadius = 0;
+                      if (!continuesFromPrev) barStyle.width = '105%';
+                    }
+                    if (continuesFromPrev && continuesToNext) {
+                      barStyle.width = '110%';
+                      barStyle.marginLeft = -1;
+                    }
+                  }
+
+                  return (
+                    <View key={i} style={containerStyle}>
+                      <View style={[barStyle, { overflow: 'hidden' }]}>
+                        <Text numberOfLines={1} style={[styles.miniEventText, { color: '#0F172A', marginLeft: 4, fontSize: 10, fontWeight: '500' }]}>
+                          {ev.title}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View >
+  );
+};
+
+
+const BlockWeekView: React.FC<{
+  currentDate: Date;
+  events: CalendarEvent[];
+  selectedDate: Date;
+  onDateSelect: (d: Date) => void;
+  themeColors: any;
+  viewRef?: React.Ref<View>;
+}> = ({ currentDate, events, selectedDate, onDateSelect, themeColors, viewRef }) => {
+  const startOfWeek = new Date(selectedDate);
+  const day = startOfWeek.getDay();
+  const diff = startOfWeek.getDate() - day;
+  startOfWeek.setDate(diff);
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  const weekDays = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(startOfWeek);
+    d.setDate(startOfWeek.getDate() + i);
+    weekDays.push(d);
+  }
+
+  const isSameDay = (d1: Date, d2: Date) => d1.getDate() === d2.getDate() && d1.getMonth() === d2.getMonth();
+
+  return (
+    <View style={styles.weekContainer}>
+      <View style={styles.weekHeaderRow}>
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => (
+          <Text key={i} style={styles.weekHeaderLabel}>{d}</Text>
+        ))}
+      </View>
+      <View style={styles.weekGrid} ref={viewRef}>
+        {weekDays.map((d, i) => {
+          const isSel = isSameDay(d, selectedDate);
+          const isTdy = isSameDay(d, new Date());
+
+          return (
+            <TouchableOpacity
+              key={i}
+              style={[styles.weekDayCell, isSel && styles.selectedDayCell]}
+              onPress={() => onDateSelect(d)}
+            >
+              <Text style={[
+                styles.dayNumber,
+                isSel && styles.selectedDayText,
+                isTdy && !isSel && styles.todayText
+              ]}>{d.getDate()}</Text>
+              <View style={{ flexDirection: 'row', gap: 2, marginTop: 4 }}>
+                {events.filter(e => {
+                  const s = new Date(e.startTime); s.setHours(0, 0, 0, 0);
+                  const end = new Date(e.endTime); end.setHours(23, 59, 59, 999);
+                  const cur = new Date(d); cur.setHours(12, 0, 0, 0);
+                  return s <= cur && end >= cur;
+                }).slice(0, 3).map((_, idx) => (
+                  <View key={idx} style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: isSel ? '#fff' : '#10B981' }} />
+                ))}
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -119,287 +284,548 @@ const SimpleMonthView: React.FC<{
   );
 };
 
-
-const monthStyles = StyleSheet.create({
-  container: { backgroundColor: '#fff', paddingBottom: 8 },
-  weekDaysRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e5e7eb', paddingVertical: 8 },
-  weekDayCell: { flex: 1, alignItems: 'center' },
-  weekDayText: { fontSize: 12, fontWeight: '600', color: '#6b7280' },
-  calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-  dayCell: { width: '14.28%', height: 50, padding: 2, borderWidth: 0.5, borderColor: '#e5e7eb', alignItems: 'center' },
-  selectedDay: { backgroundColor: '#dbeafe' },
-  todayCell: { borderColor: '#3b82f6', borderWidth: 2 },
-  dayText: { fontSize: 14, fontWeight: '500', color: '#111827' },
-  otherMonthText: { color: '#d1d5db' },
-  todayText: { color: '#3b82f6', fontWeight: '700' },
-  selectedDayText: { color: '#1e40af', fontWeight: '700' },
-  eventDots: { flexDirection: 'row', gap: 2, marginTop: 2 },
-  eventDot: { width: 6, height: 6, borderRadius: 3 },
-});
-
 export const CalendarScreen: React.FC = React.memo(() => {
   const [refreshing, setRefreshing] = useState(false);
-  const [currentView, setCurrentView] = useState<CalendarView>('month');
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState('Month');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showCalendarSelector, setShowCalendarSelector] = useState(false);
+  const [editEvent, setEditEvent] = useState<CalendarEvent | null>(null);
+  const storeUserId = useUserStore(state => state.profile.id);
+  const [userId, setUserId] = useState(storeUserId || 'guest_user');
 
-  const [userId, setUserId] = useState('mock-user-id');
+  React.useEffect(() => {
+    setUserId(storeUserId || 'guest_user');
+  }, [storeUserId]);
 
-  useEffect(() => {
-    const getUserId = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user?.id) {
-        setUserId(session.user.id);
-      }
-    };
-    getUserId();
-  }, []);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Read directly from Zustand store for reactive updates
-  const allEvents = useLocalStore((state) => state.getCalendarEvents());
+  const navigation = useNavigation<any>();
+  const lang = useEffectiveLanguage();
+  const t = translations[lang];
+  const { colors: themeColors, mode } = useThemeStore();
+  const isMinimal = mode === 'minimal';
+  const isSage = mode === 'sage';
+  const isBlueSage = mode === 'system';
+  const isGlassy = mode !== 'minimal';
+  const gradient = useMemo(() => {
+    switch (mode) {
+      case 'sage': return ['#C3E0D8', '#D6E8E2', '#F9F6F0'];
+      case 'sunset': return ['#FECDD3', '#FFE4E6', '#FFF5F5'];
+      case 'ocean': return ['#BAE6FD', '#E0F2FE', '#F0F9FF'];
+      default: return ['#E0F2FE', '#DBEAFE', '#EFF6FF'];
+    }
+  }, [mode]);
 
-  const getEventsForSelectedDate = useCallback(() => {
-    const startOfDay = new Date(selectedDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(selectedDate);
-    endOfDay.setHours(23, 59, 59, 999);
-    return allEvents.filter((e) => {
-      const eventStart = new Date(e.startTime);
-      const eventEnd = new Date(e.endTime);
-      return eventStart <= endOfDay && eventEnd >= startOfDay;
-    });
-  }, [allEvents, selectedDate]);
+  const rawCalendarEvents = useLocalStore((state) => state.calendarEvents);
 
-  const selectedDateEvents = getEventsForSelectedDate();
+  const calendarEvents = useMemo(() => {
+    let events = rawCalendarEvents.filter(e => !e.isDeleted);
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      events = events.filter(e =>
+        e.title?.toLowerCase().includes(q) ||
+        e.description?.toLowerCase().includes(q)
+      );
+    }
+    return events;
+  }, [rawCalendarEvents, searchQuery]);
 
-  // Mock events for preview
-  const mockEvents: CalendarEvent[] = [
-    { id: 'mock-1', userId, title: 'Team Meeting', description: 'Weekly sync', startTime: new Date(new Date().setHours(10, 0)).toISOString(), endTime: new Date(new Date().setHours(11, 0)).toISOString(), allDay: false, source: 'local', color: '#3B82F6', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), isDeleted: false },
-    { id: 'mock-2', userId, title: 'Lunch Break', description: 'Lunch', startTime: new Date(new Date().setHours(12, 30)).toISOString(), endTime: new Date(new Date().setHours(13, 30)).toISOString(), allDay: false, source: 'local', color: '#10B981', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), isDeleted: false },
-    { id: 'mock-3', userId, title: 'Project Review', description: 'Review', startTime: new Date(new Date().setHours(15, 0)).toISOString(), endTime: new Date(new Date().setHours(16, 30)).toISOString(), allDay: false, source: 'local', color: '#F59E0B', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), isDeleted: false },
-  ];
+  const selectedDateEvents = useMemo(() => {
+    const start = new Date(selectedDate); start.setHours(0, 0, 0, 0);
+    const end = new Date(selectedDate); end.setHours(23, 59, 59, 999);
 
-  const displayEvents = allEvents.length > 0 ? allEvents : mockEvents;
-  const displaySelectedDateEvents = selectedDateEvents.length > 0 ? selectedDateEvents : mockEvents;
+    return calendarEvents
+      .filter(e => !e.isDeleted)
+      .filter(e => {
+        const eS = new Date(e.startTime);
+        const eE = new Date(e.endTime);
+        return eS <= end && eE >= start;
+      })
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  }, [selectedDate, calendarEvents]);
+
+  const changeMonth = (delta: number) => {
+    const newDate = new Date(selectedDate);
+    newDate.setMonth(newDate.getMonth() + delta);
+    setSelectedDate(newDate);
+  };
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      await calendarService.syncWithDevice(userId);
+    } catch (e) {
+      Alert.alert(
+        'Sync Failed',
+        'Please check your calendar permissions.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Settings', onPress: () => Linking.openSettings() }
+        ]
+      );
+    }
     setRefreshing(false);
   };
 
-  const handlePrevious = () => {
-    const newDate = new Date(selectedDate);
-    if (currentView === 'month') newDate.setMonth(newDate.getMonth() - 1);
-    else if (currentView === 'week') newDate.setDate(newDate.getDate() - 7);
-    else newDate.setDate(newDate.getDate() - 1);
-    setSelectedDate(newDate);
-  };
-
-  const handleNext = () => {
-    const newDate = new Date(selectedDate);
-    if (currentView === 'month') newDate.setMonth(newDate.getMonth() + 1);
-    else if (currentView === 'week') newDate.setDate(newDate.getDate() + 7);
-    else newDate.setDate(newDate.getDate() + 1);
-    setSelectedDate(newDate);
-  };
-
-  const getHeaderTitle = (): string => {
-    if (currentView === 'month') return selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    if (currentView === 'week') {
-      const range = calendarService.getWeekRange(selectedDate);
-      return `${range.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${range.end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-    }
-    return selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-  };
-
-  const formatTime = (dateString: string) => new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-  const handleAddEvent = async (data: EventFormData) => {
+  const handleCreateEvent = async (data: EventFormData) => {
     try {
       await calendarService.createEvent({
+        ...data,
         userId,
-        title: data.title,
-        description: data.description || '',
+        source: 'local',
         startTime: data.startTime.toISOString(),
         endTime: data.endTime.toISOString(),
-        allDay: data.allDay,
-        source: 'local',
-        color: data.color || '#3B82F6',
       });
       setShowAddModal(false);
-      // No need to reload events manually, local store updates automatically
-    } catch (error) {
-      console.error('Failed to add event:', error);
-      Alert.alert('Error', 'Failed to save event');
-    }
+    } catch (e) { Alert.alert('Error', 'Failed to create'); }
   };
 
+  const handleUpdateEvent = async (data: EventFormData) => {
+    if (!editEvent) return;
+    try {
+      await calendarService.updateEvent(editEvent, {
+        ...data,
+        startTime: data.startTime.toISOString(),
+        endTime: data.endTime.toISOString(),
+      });
+      setEditEvent(null);
+    } catch (e) { Alert.alert('Error', 'Failed to update'); }
+  };
+
+  const handleDeleteEvent = async () => {
+    if (!editEvent) return;
+    await calendarService.deleteEvent(editEvent);
+    setEditEvent(null);
+  };
+
+  const handleEventUpdate = async (event: CalendarEvent, startDate: Date, endDate: Date) => {
+    // Basic update logic handling (placeholder if needed)
+  };
+
+  const handleEventDrop = (event: CalendarEvent, date: Date) => {
+    // Placeholder for potential future drag-drop logic
+  };
+
+  const renderAgendaItem = ({ item }: { item: CalendarEvent }) => {
+    const startTime = new Date(item.startTime).toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' });
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.agendaItem,
+          isGlassy && { backgroundColor: 'rgba(255,255,255,0.6)', borderRadius: 16, borderBottomWidth: 0, shadowColor: 'rgba(0,0,0,0.03)', shadowOpacity: 1, shadowRadius: 10, marginHorizontal: 20, marginBottom: 12 }
+        ]}
+        onPress={() => setEditEvent(item)}
+      >
+        <View style={styles.agendaLeft}>
+          <Text style={styles.agendaTime}>{startTime}</Text>
+        </View>
+        <View style={[styles.agendaCard, { borderLeftColor: item.color || '#3B82F6', backgroundColor: isGlassy ? 'transparent' : '#F8FAFC' }]}>
+          <Text style={styles.agendaTitle}>{item.title}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.headerContainer}>
-        <ScreenHeader
-          title="Calendar"
-          rightContent={
-            <TouchableOpacity style={styles.addEventButton} onPress={() => setShowAddModal(true)}>
-              <Text style={styles.addEventButtonText}>+ Add</Text>
-            </TouchableOpacity>
-          }
-        />
+    <View style={[styles.container, { backgroundColor: isGlassy ? 'transparent' : '#fff' }]}>
+      {isGlassy && (
+        <View style={[StyleSheet.absoluteFill, { zIndex: -1 }]}>
+          <LinearGradient
+            colors={gradient as any}
+            style={{ flex: 1 }}
+          />
+        </View>
+      )}
 
-        {/* Navigation */}
-        <View style={styles.calendarControls}>
-          <Text style={styles.periodTitle}>{getHeaderTitle()}</Text>
-          <View style={styles.navigationRow}>
-            <TouchableOpacity style={styles.navButton} onPress={handlePrevious}>
-              <Ionicons name="chevron-back-outline" size={24} color="#3B82F6" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.todayButton} onPress={() => setSelectedDate(new Date())}>
-              <Text style={styles.todayButtonText}>Today</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.navButton} onPress={handleNext}>
-              <Ionicons name="chevron-forward-outline" size={24} color="#3B82F6" />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.viewSwitcher}>
-            {(['month', 'week', 'day'] as CalendarView[]).map((view) => (
-              <TouchableOpacity
-                key={view}
-                style={[styles.viewButton, currentView === view && styles.viewButtonActive]}
-                onPress={() => setCurrentView(view)}
-              >
-                <Text style={[styles.viewButtonText, currentView === view && styles.viewButtonTextActive]}>
-                  {view.charAt(0).toUpperCase() + view.slice(1)}
-                </Text>
+      {/* --- Top Navigation Header --- */}
+      <View style={[styles.topNavContainer, isGlassy && { backgroundColor: 'transparent', borderBottomWidth: 0 }]}>
+        <View style={styles.monthNavRow}>
+          {showSearch ? (
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', borderRadius: 8, paddingHorizontal: 10, marginRight: 12 }}>
+              <Ionicons name="search" size={20} color="#64748B" />
+              <TextInput
+                style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 8, fontSize: 16, color: '#0F172A' }}
+                placeholder="Search events..."
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoFocus
+              />
+              <TouchableOpacity onPress={() => { setShowSearch(false); setSearchQuery(''); }}>
+                <Ionicons name="close-circle" size={20} color="#94A3B8" />
               </TouchableOpacity>
-            ))}
+            </View>
+          ) : (
+            <>
+              <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.navArrow}>
+                <Ionicons name="chevron-back" size={24} color="#0F172A" />
+              </TouchableOpacity>
+
+              <Text style={styles.navMonthTitle}>
+                {selectedDate.toLocaleDateString(lang, { year: 'numeric', month: 'long' })}
+              </Text>
+
+              <TouchableOpacity onPress={() => changeMonth(1)} style={styles.navArrow}>
+                <Ionicons name="chevron-forward" size={24} color="#0F172A" />
+              </TouchableOpacity>
+            </>
+          )}
+
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12, alignItems: 'center', marginLeft: showSearch ? 0 : 'auto' }}>
+            <TouchableOpacity onPress={() => setShowSearch(!showSearch)}>
+              <Ionicons name={showSearch ? "search" : "search-outline"} size={22} color={showSearch ? "#3B82F6" : "#0F172A"} />
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => setShowCalendarSelector(true)}>
+              <Ionicons name="calendar-outline" size={22} color="#0F172A" />
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
+              <Ionicons name="settings-outline" size={22} color="#0F172A" />
+            </TouchableOpacity>
           </View>
+        </View>
+
+        <View style={styles.viewTabsRow}>
+          {['List', 'Day', 'Week', 'Month'].map(m => {
+            const isActive = viewMode === m;
+            return (
+              <TouchableOpacity
+                key={m}
+                style={[styles.viewTab, isActive && styles.viewTabActive]}
+                onPress={() => setViewMode(m)}
+              >
+                <Text style={[styles.viewTabText, isActive && styles.viewTabTextActive]}>{m}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
-      {/* Calendar Content */}
       <ScrollView
-        style={styles.content}
+        contentContainerStyle={{ flexGrow: 1 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
-        nestedScrollEnabled={true}
       >
-        {/* Month View - Simple inline calendar */}
-        {currentView === 'month' && (
-          <>
-            <SimpleMonthView
-              currentDate={selectedDate}
-              events={displayEvents}
-              onDateSelect={setSelectedDate}
-              selectedDate={selectedDate}
-            />
+        {viewMode === 'Month' && (
+          <BlockMonthView
+            currentDate={selectedDate}
+            selectedDate={selectedDate}
+            events={calendarEvents}
+            onDateSelect={setSelectedDate}
+            themeColors={themeColors}
+            isMinimal={isMinimal}
+            isSage={isSage}
+            isBlueSage={isBlueSage}
+            isGlassy={isGlassy}
+          />
+        )}
 
-            {/* Event List for Selected Date */}
-            <View style={styles.eventListContainer}>
-              <Text style={styles.eventListTitle}>
-                Events on {selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-              </Text>
-              {displaySelectedDateEvents.length > 0 ? (
-                displaySelectedDateEvents.map((event) => (
-                  <View key={event.id} style={styles.eventItem}>
-                    <View style={[styles.eventIndicator, { backgroundColor: event.color || '#3B82F6' }]} />
-                    <View style={styles.eventContent}>
-                      <Text style={styles.eventTitle}>{event.title}</Text>
-                      <Text style={styles.eventTime}>
-                        {event.allDay ? 'All Day' : `${formatTime(event.startTime)} - ${formatTime(event.endTime)}`}
-                      </Text>
-                      {event.description && <Text style={styles.eventDescription} numberOfLines={2}>{event.description}</Text>}
-                    </View>
+        {viewMode === 'Week' && (
+          <BlockWeekView
+            currentDate={selectedDate}
+            selectedDate={selectedDate}
+            events={calendarEvents}
+            onDateSelect={setSelectedDate}
+            themeColors={themeColors}
+          />
+        )}
+
+        {viewMode === 'List' ? (
+          <View style={styles.listContainer}>
+            {calendarEvents
+              .filter(e => new Date(e.startTime) >= new Date(new Date().setHours(0, 0, 0, 0)))
+              .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+              .slice(0, 50)
+              .map((item, index, arr) => {
+                const dateLabel = new Date(item.startTime).toLocaleDateString(lang, { weekday: 'short', month: 'short', day: 'numeric' });
+                const prevDateLabel = index > 0 ? new Date(arr[index - 1].startTime).toLocaleDateString(lang, { weekday: 'short', month: 'short', day: 'numeric' }) : '';
+                const showHeader = dateLabel !== prevDateLabel;
+
+                return (
+                  <View key={item.id}>
+                    {showHeader && (
+                      <Text style={styles.listHeaderDate}>{dateLabel}</Text>
+                    )}
+                    {renderAgendaItem({ item })}
                   </View>
-                ))
-              ) : (
-                <View style={styles.noEventsContainer}>
-                  <Text style={styles.noEventsText}>No events on this day</Text>
-                  <TouchableOpacity style={styles.addEventSmallButton} onPress={() => setShowAddModal(true)}>
-                    <Text style={styles.addEventSmallButtonText}>+ Add Event</Text>
-                  </TouchableOpacity>
+                );
+              })
+            }
+            {calendarEvents.length === 0 && <Text style={{ textAlign: 'center', marginTop: 20 }}>No upcoming events</Text>}
+          </View>
+        ) : (
+          <View style={styles.agendaSection}>
+            <Text style={styles.agendaSectionTitle}>
+              {selectedDate.toLocaleDateString(lang, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
+            </Text>
+
+            <View style={styles.actionRow}>
+              <TouchableOpacity style={styles.newScheduleBtn} onPress={() => setShowAddModal(true)}>
+                <Ionicons name="add" size={20} color="#0F172A" />
+                <Text style={styles.newScheduleText}>{t.newTask || 'New Schedule'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.listContainer}>
+              {selectedDateEvents.map(item => (
+                <View key={item.id}>
+                  {renderAgendaItem({ item })}
+                </View>
+              ))}
+              {selectedDateEvents.length === 0 && (
+                <View style={{ padding: 20, alignItems: 'center' }}>
+                  <Text style={{ color: '#94A3B8' }}>{t.noEventsToday}</Text>
                 </View>
               )}
             </View>
-          </>
-        )}
 
-        {/* Week/Day Views - Show simple list */}
-        {(currentView === 'week' || currentView === 'day') && (
-          <View style={styles.simpleListContainer}>
-            <Text style={styles.simpleListTitle}>
-              {currentView === 'week' ? 'This Week' : selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-            </Text>
-            {displayEvents.map((event) => (
-              <View key={event.id} style={styles.eventItem}>
-                <View style={[styles.eventIndicator, { backgroundColor: event.color || '#3B82F6' }]} />
-                <View style={styles.eventContent}>
-                  <Text style={styles.eventTitle}>{event.title}</Text>
-                  <Text style={styles.eventTime}>
-                    {event.allDay ? 'All Day' : `${formatTime(event.startTime)} - ${formatTime(event.endTime)}`}
-                  </Text>
-                </View>
-              </View>
-            ))}
+            <View style={{ height: 100 }} />
           </View>
         )}
       </ScrollView>
 
-      {/* Add Event Modal */}
-      <Modal visible={showAddModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowAddModal(false)}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>New Event</Text>
-            <TouchableOpacity onPress={() => setShowAddModal(false)}>
-              <Ionicons name="close-outline" size={28} color="#3B82F6" />
-            </TouchableOpacity>
-          </View>
+      <Modal visible={showCalendarSelector} animationType="slide" presentationStyle="formSheet">
+        <CalendarSelector
+          onClose={() => setShowCalendarSelector(false)}
+          onSync={() => handleRefresh()}
+        />
+      </Modal>
+
+      <Modal visible={showAddModal} animationType="slide" presentationStyle="formSheet">
+        <EventForm
+          onSubmit={handleCreateEvent}
+          onCancel={() => setShowAddModal(false)}
+          submitLabel={t.add}
+        />
+      </Modal>
+
+      <Modal visible={!!editEvent} animationType="slide" presentationStyle="formSheet">
+        {editEvent && (
           <EventForm
-            initialData={{ startTime: selectedDate, endTime: new Date(selectedDate.getTime() + 60 * 60 * 1000) }}
-            onSubmit={handleAddEvent}
-            onCancel={() => setShowAddModal(false)}
-            submitLabel="Create Event"
+            initialData={{
+              title: editEvent.title,
+              description: editEvent.description,
+              startTime: new Date(editEvent.startTime),
+              endTime: new Date(editEvent.endTime),
+              allDay: editEvent.allDay,
+              color: editEvent.color
+            }}
+            onSubmit={handleUpdateEvent}
+            onCancel={() => setEditEvent(null)}
+            onDelete={handleDeleteEvent}
+            submitLabel={t.save}
           />
-        </View>
+        )}
       </Modal>
     </View>
   );
 });
 
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
-  headerContainer: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
-  calendarControls: { paddingBottom: 16 },
-  periodTitle: { fontSize: 18, fontWeight: '600', color: '#0F172A', textAlign: 'center', marginBottom: 12 },
-  navigationRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20, marginBottom: 12, gap: 16 },
-  navButton: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center', borderRadius: 12, backgroundColor: '#F8FAFC' },
-  todayButton: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, backgroundColor: '#3B82F6' },
-  todayButtonText: { fontSize: 14, fontWeight: '600', color: '#fff' },
-  addEventButton: { backgroundColor: '#3B82F6', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
-  addEventButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  viewSwitcher: { flexDirection: 'row', justifyContent: 'center', gap: 8, paddingHorizontal: 20 },
-  viewButton: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 8, backgroundColor: '#F1F5F9' },
-  viewButtonActive: { backgroundColor: '#3B82F6' },
-  viewButtonText: { fontSize: 14, fontWeight: '500', color: '#64748B' },
-  viewButtonTextActive: { color: '#fff' },
-  content: { flex: 1 },
-  eventListContainer: { padding: 20, backgroundColor: '#fff', marginTop: 8, borderTopWidth: 1, borderTopColor: '#E2E8F0' },
-  eventListTitle: { fontSize: 16, fontWeight: '600', color: '#0F172A', marginBottom: 16 },
-  eventItem: { flexDirection: 'row', backgroundColor: '#F8FAFC', borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#E2E8F0' },
-  eventIndicator: { width: 4, borderRadius: 2, marginRight: 12 },
-  eventContent: { flex: 1 },
-  eventTitle: { fontSize: 15, fontWeight: '600', color: '#0F172A', marginBottom: 4 },
-  eventTime: { fontSize: 13, color: '#3B82F6', fontWeight: '500', marginBottom: 4 },
-  eventDescription: { fontSize: 13, color: '#64748B', lineHeight: 18 },
-  noEventsContainer: { alignItems: 'center', paddingVertical: 24 },
-  noEventsText: { fontSize: 14, color: '#64748B', marginBottom: 12 },
-  addEventSmallButton: { backgroundColor: '#EFF6FF', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
-  addEventSmallButtonText: { fontSize: 14, fontWeight: '600', color: '#3B82F6' },
-  simpleListContainer: { padding: 20, backgroundColor: '#fff' },
-  simpleListTitle: { fontSize: 16, fontWeight: '600', color: '#0F172A', marginBottom: 16 },
-  modalContainer: { flex: 1, backgroundColor: '#fff' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#E2E8F0', paddingTop: 50 },
-  modalTitle: { fontSize: 18, fontWeight: '600', color: '#0F172A' },
+  container: { flex: 1 },
+
+  // Navigation
+  topNavContainer: {
+    backgroundColor: '#fff',
+    paddingTop: 60,
+    paddingBottom: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  monthNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  navArrow: {
+    padding: 4,
+  },
+  navMonthTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginLeft: 8,
+    marginRight: 8,
+  },
+  viewTabsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 10,
+    paddingBottom: 4,
+  },
+  viewTab: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  viewTabActive: {
+    borderBottomColor: '#3B82F6',
+  },
+  viewTabText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#64748B',
+  },
+  viewTabTextActive: {
+    color: '#3B82F6',
+    fontWeight: '600',
+  },
+
+  // Week View
+  weekContainer: { paddingHorizontal: 16, paddingVertical: 10 },
+  weekHeaderRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 8 },
+  weekHeaderLabel: { width: '14.28%', textAlign: 'center', fontSize: 12, color: '#94A3B8' },
+  weekGrid: { flexDirection: 'row', justifyContent: 'space-around' },
+  weekDayCell: { width: '14.28%', alignItems: 'center', paddingVertical: 8, borderRadius: 8 },
+  weekDayText: { textAlign: 'center', width: '14.28%', fontSize: 13, fontWeight: '600' },
+
+  // Month
+  monthContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  weekheader: {
+    flexDirection: 'row',
+    marginBottom: 10,
+    justifyContent: 'space-around',
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  dayCell: {
+    width: '14.28%',
+    height: 100, // Fixed height to enlarge calendar
+    paddingTop: 8,
+    alignItems: 'center',
+    borderRightWidth: 1, // Optional: add grid lines if desired, but not requested. Keeping simple.
+    borderColor: 'transparent',
+  },
+  selectedDayCell: {
+    backgroundColor: '#3B82F6',
+    borderRadius: 8,
+  },
+  dayNumber: {
+    fontSize: 16,
+    color: '#334155',
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  mutedText: {
+    color: '#94A3B8', // Darker gray for better visibility
+  },
+  todayText: {
+    color: '#3B82F6',
+    fontWeight: '700',
+  },
+  selectedDayText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+
+  // Events in Month
+  eventContainer: {
+    width: '100%',
+    paddingHorizontal: 0, // Removed padding to allow continuous bars
+    marginTop: 2,
+  },
+  miniEventRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  miniEventBar: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    marginRight: 4,
+  },
+  miniEventText: {
+    fontSize: 10,
+    color: '#334155',
+    flex: 1,
+  },
+
+  // List View
+  listContainer: {
+    paddingBottom: 40,
+  },
+  listHeaderDate: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#64748B',
+    marginTop: 16,
+    marginBottom: 8,
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 4,
+    paddingHorizontal: 16,
+    alignSelf: 'flex-start',
+    borderRadius: 4,
+    marginLeft: 16,
+  },
+
+  // Agenda / Day View
+  agendaSection: {
+    paddingTop: 16,
+  },
+  agendaSectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    color: '#0F172A',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    gap: 12,
+  },
+  newScheduleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20, // Rounded
+  },
+  newScheduleText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#334155',
+    marginLeft: 6,
+  },
+  agendaItem: {
+    flexDirection: 'row',
+    marginBottom: 12,
+    paddingHorizontal: 16,
+    alignItems: 'flex-start',
+  },
+  agendaLeft: {
+    width: 60,
+    alignItems: 'center',
+    paddingTop: 2,
+  },
+  agendaTime: {
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  agendaCard: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 12,
+    borderLeftWidth: 4,
+  },
+  agendaTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
 });

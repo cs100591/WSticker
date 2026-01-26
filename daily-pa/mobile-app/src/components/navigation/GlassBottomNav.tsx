@@ -7,7 +7,8 @@ import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, typography, spacing, shadows } from '../../theme/webMobileTheme';
+import { typography, spacing, shadows } from '../../theme/webMobileTheme';
+import { useThemeStore } from '@/store/themeStore';
 
 export interface NavItem {
   name: string;
@@ -31,13 +32,16 @@ const navItems: NavItem[] = [
   { name: 'Expenses', label: 'Expenses', icon: 'wallet-outline' },
 ];
 
-export function GlassBottomNav({ 
-  currentRoute, 
-  onNavigate, 
+export function GlassBottomNav({
+  currentRoute,
+  onNavigate,
   onChatbotPress,
-  isChatbotOpen = false 
+  isChatbotOpen = false
 }: GlassBottomNavProps) {
-  
+  const { colors, mode } = useThemeStore();
+
+  // No custom theme flags needed for now as we use standard palette
+
   const handlePress = (item: NavItem) => {
     if (item.isSpecial && onChatbotPress) {
       onChatbotPress();
@@ -64,6 +68,7 @@ export function GlassBottomNav({
                 item={item}
                 isActive={isActive(item.name)}
                 onPress={() => handlePress(item)}
+                colors={colors}
               />
             ))}
           </View>
@@ -78,6 +83,7 @@ export function GlassBottomNav({
                 item={item}
                 isActive={isActive(item.name)}
                 onPress={() => handlePress(item)}
+                colors={colors}
               />
             ))}
           </View>
@@ -91,9 +97,10 @@ interface NavButtonProps {
   item: NavItem;
   isActive: boolean;
   onPress: () => void;
+  colors: any;
 }
 
-function NavButton({ item, isActive, onPress }: NavButtonProps) {
+function NavButton({ item, isActive, onPress, colors }: NavButtonProps) {
   // AI button (center) - special outline style
   if (item.isSpecial) {
     return (
@@ -104,12 +111,14 @@ function NavButton({ item, isActive, onPress }: NavButtonProps) {
       >
         <View style={[
           styles.aiIconContainer,
-          isActive ? styles.aiIconContainerActive : styles.aiIconContainerInactive
+          isActive ?
+            { backgroundColor: colors.primary[500], borderColor: colors.primary[500] } :
+            { backgroundColor: 'transparent', borderColor: colors.primary[500], borderWidth: 2 }
         ]}>
           <Ionicons
             name={item.icon}
             size={24}
-            color={isActive ? '#FFFFFF' : colors.primary}
+            color={isActive ? '#FFFFFF' : colors.primary[500]}
           />
         </View>
       </TouchableOpacity>
@@ -127,13 +136,16 @@ function NavButton({ item, isActive, onPress }: NavButtonProps) {
         <Ionicons
           name={item.icon}
           size={24}
-          color={isActive ? colors.primary : colors.textSecondary}
+          color={isActive ? colors.primary[500] : (colors.text?.secondary?.light || '#9CA3AF')}
         />
       </View>
       <Text style={[
         styles.label,
-        isActive ? styles.labelActive : styles.labelInactive
+        isActive ?
+          { color: colors.primary[500] } :
+          { color: (colors.text?.secondary?.light || '#9CA3AF') }
       ]}>
+
         {item.label}
       </Text>
     </TouchableOpacity>
@@ -150,7 +162,7 @@ const styles = StyleSheet.create({
   },
   blurContainer: {
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: 'rgba(200,200,200, 0.2)',
   },
   androidContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
@@ -169,35 +181,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: spacing.sm,
   },
-  // Regular nav items
   regularIconContainer: {
     padding: spacing.sm,
     borderRadius: 12,
   },
-  // AI button (special center button)
   aiIconContainer: {
     padding: 10,
     borderRadius: 16,
     borderWidth: 2,
+    borderColor: 'transparent', // Default, overridden by inline styles
   },
-  aiIconContainerActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  aiIconContainerInactive: {
-    backgroundColor: 'transparent',
-    borderColor: colors.primary,
-  },
-  // Labels
   label: {
     fontSize: typography.caption.fontSize,
     fontWeight: typography.caption.fontWeight as any,
     marginTop: 2,
-  },
-  labelActive: {
-    color: colors.primary,
-  },
-  labelInactive: {
-    color: colors.textSecondary,
   },
 });

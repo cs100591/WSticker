@@ -63,7 +63,7 @@ class AIService {
     try {
       // Get current session for authentication
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) {
         throw new Error('Not authenticated');
       }
@@ -121,7 +121,7 @@ class AIService {
       // For now, this is a placeholder that would:
       // 1. Convert audio to text using Expo Speech or cloud service
       // 2. Call sendMessage with the transcribed text
-      
+
       throw new Error('Voice message not yet implemented');
     } catch (error) {
       console.error('Failed to send voice message:', error);
@@ -151,7 +151,7 @@ class AIService {
    */
   private async createTodoFromAction(action: AIAction): Promise<void> {
     const { todoService } = await import('./TodoService');
-    
+
     // Get current user ID
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -162,7 +162,7 @@ class AIService {
       userId: session.user.id,
       title: action.data.title || 'Untitled',
       color: this.priorityToColor(action.data.priority),
-      dueDate: action.data.dueDate ? new Date(action.data.dueDate) : undefined,
+      dueDate: action.data.dueDate ? new Date(action.data.dueDate).toISOString() : undefined,
     });
   }
 
@@ -171,7 +171,7 @@ class AIService {
    */
   private async createExpenseFromAction(action: AIAction): Promise<void> {
     const { expenseService } = await import('./ExpenseService');
-    
+
     // Get current user ID
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -181,9 +181,10 @@ class AIService {
     await expenseService.createExpense({
       userId: session.user.id,
       amount: action.data.amount || 0,
+      currency: 'CNY',
       category: (action.data.category as 'food' | 'transport' | 'shopping' | 'entertainment' | 'bills' | 'health' | 'education' | 'other') || 'other',
       description: action.data.description || action.data.title || '',
-      expenseDate: new Date(),
+      expenseDate: new Date().toISOString(),
     });
   }
 
@@ -192,7 +193,7 @@ class AIService {
    */
   private generateResponseMessage(result: VoiceParseResult, language: 'en' | 'zh'): string {
     if (result.type === 'unknown' || result.confidence < 0.5) {
-      return language === 'zh' 
+      return language === 'zh'
         ? '抱歉，我没有理解您的意思。您可以说"提醒我买牛奶"或"午饭花了50块"。'
         : "I'm sorry, I didn't understand that. You can say things like 'remind me to buy milk' or 'spent $50 on lunch'.";
     }
@@ -200,7 +201,7 @@ class AIService {
     if (result.type === 'create_todo') {
       const title = result.data.title || 'task';
       const dueDate = result.data.dueDate ? ` for ${result.data.dueDate}` : '';
-      
+
       return language === 'zh'
         ? `好的，我可以帮您创建待办事项"${title}"${dueDate ? `，截止日期${dueDate}` : ''}。请确认？`
         : `I can create a todo "${title}"${dueDate} for you. Would you like me to proceed?`;
@@ -210,7 +211,7 @@ class AIService {
       const amount = result.data.amount || 0;
       const category = result.data.category || 'other';
       const description = result.data.description || '';
-      
+
       return language === 'zh'
         ? `好的，我可以帮您记录一笔${amount}元的${category}消费${description ? `（${description}）` : ''}。请确认？`
         : `I can record an expense of $${amount} for ${category}${description ? ` (${description})` : ''}. Would you like me to proceed?`;

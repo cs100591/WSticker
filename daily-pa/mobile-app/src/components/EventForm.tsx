@@ -14,9 +14,13 @@ import {
   ScrollView,
   Switch,
   Platform,
+  Alert,
 } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { z } from 'zod';
+import { calendarService } from '@/services/CalendarService';
+import { translations, useEffectiveLanguage } from '@/store/languageStore';
+import { InputAccessory } from './InputAccessory';
 
 // Validation schema
 const eventSchema = z.object({
@@ -26,6 +30,7 @@ const eventSchema = z.object({
   endTime: z.date(),
   allDay: z.boolean(),
   color: z.string().optional(),
+  externalCalendarId: z.string().optional(),
 }).refine(
   (data) => data.endTime > data.startTime,
   { message: 'End time must be after start time', path: ['endTime'] }
@@ -37,6 +42,7 @@ interface EventFormProps {
   initialData?: Partial<EventFormData>;
   onSubmit: (data: EventFormData) => void | Promise<void>;
   onCancel: () => void;
+  onDelete?: () => void;
   submitLabel?: string;
 }
 
@@ -49,13 +55,36 @@ const COLORS = [
   { name: 'Pink', value: '#E91E63' },
 ];
 
+// Helper to map app language to standard locale for DateTimePicker
+const getLocaleIdentifier = (lang: string) => {
+  switch (lang) {
+    case 'zh': return 'zh-Hans'; // Simplified Chinese
+    case 'ms': return 'ms-MY';
+    case 'ta': return 'ta-IN';
+    case 'ja': return 'ja-JP';
+    case 'ko': return 'ko-KR';
+    case 'id': return 'id-ID';
+    case 'es': return 'es-ES';
+    case 'fr': return 'fr-FR';
+    case 'de': return 'de-DE';
+    case 'th': return 'th-TH';
+    case 'vi': return 'vi-VN';
+    default: return 'en-US';
+  }
+};
+
 
 export const EventForm: React.FC<EventFormProps> = ({
   initialData,
   onSubmit,
   onCancel,
-  submitLabel = 'Save Event',
+  onDelete,
+  submitLabel,
 }) => {
+  const lang = useEffectiveLanguage();
+  const pickerLocale = getLocaleIdentifier(lang);
+  const t = translations[lang];
+
   const [title, setTitle] = useState(initialData?.title || '');
   const [description, setDescription] = useState(initialData?.description || '');
   const [startTime, setStartTime] = useState(initialData?.startTime || new Date());
@@ -64,6 +93,9 @@ export const EventForm: React.FC<EventFormProps> = ({
   );
   const [allDay, setAllDay] = useState(initialData?.allDay || false);
   const [color, setColor] = useState(initialData?.color || COLORS[0].value);
+  const [selectedCalendarId, setSelectedCalendarId] = useState<string | undefined>(initialData?.externalCalendarId);
+  const [calendars, setCalendars] = useState<any[]>([]);
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -72,6 +104,17 @@ export const EventForm: React.FC<EventFormProps> = ({
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+
+  React.useEffect(() => {
+    loadCalendars();
+  }, []);
+
+  const loadCalendars = async () => {
+    try {
+      const cals = await calendarService.getAvailableCalendars();
+      setCalendars(cals.sort((a, b) => (a.title === 'Daily PA' ? -1 : 1)));
+    } catch (e) { console.log(e); }
+  };
 
   const handleSubmit = async () => {
     try {
@@ -84,6 +127,7 @@ export const EventForm: React.FC<EventFormProps> = ({
         endTime,
         allDay,
         color,
+        externalCalendarId: selectedCalendarId
       });
       await onSubmit(data);
     } catch (error) {
@@ -191,48 +235,96 @@ export const EventForm: React.FC<EventFormProps> = ({
     setShowEndTimePicker(false);
   };
 
-  const formatDate = (date: Date) => date.toLocaleDateString('en-US', {
+  const formatDate = (date: Date) => date.toLocaleDateString(lang, {
     weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
   });
 
-  const formatTime = (date: Date) => date.toLocaleTimeString('en-US', {
+  const formatTime = (date: Date) => date.toLocaleTimeString(lang, {
     hour: '2-digit', minute: '2-digit'
   });
 
 
   return (
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+      <InputAccessory id="eventFormAccessory" />
+
       {/* Title */}
       <View style={styles.field}>
-        <Text style={styles.label}>Title *</Text>
+        <Text style={styles.label}>{t.eventTitleLabel} *</Text>
         <TextInput
           style={[styles.input, errors.title && styles.inputError]}
           value={title}
           onChangeText={setTitle}
-          placeholder="Event title"
+          placeholder={t.eventTitlePlaceholder}
+          placeholderTextColor="#94A3B8"
           maxLength={100}
+          inputAccessoryViewID="eventFormAccessory"
         />
         {errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
       </View>
 
+      {/* Calendar Selection */}
+      {calendars.length > 0 && (
+        <View style={styles.field}>
+          <Text style={styles.label}>Calendar</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8 }}
+            keyboardShouldPersistTaps="always"
+          >
+            <TouchableOpacity
+              style={[
+                styles.calChip,
+                !selectedCalendarId && styles.calChipSelected,
+                { borderColor: '#E2E8F0' }
+              ]}
+              onPress={() => setSelectedCalendarId(undefined)}
+            >
+              <View style={[styles.calDot, { backgroundColor: '#3B82F6' }]} />
+              <Text style={[styles.calChipText, !selectedCalendarId && { color: '#fff' }]}>App Local</Text>
+            </TouchableOpacity>
+
+            {calendars.map(cal => (
+              <TouchableOpacity
+                key={cal.id}
+                style={[
+                  styles.calChip,
+                  selectedCalendarId === cal.id && styles.calChipSelected,
+                  { borderColor: cal.color }
+                ]}
+                onPress={() => setSelectedCalendarId(cal.id)}
+              >
+                <View style={[styles.calDot, { backgroundColor: cal.color }]} />
+                <Text style={[styles.calChipText, selectedCalendarId === cal.id && { color: '#fff' }]}>
+                  {cal.title}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       {/* Description */}
       <View style={styles.field}>
-        <Text style={styles.label}>Description</Text>
+        <Text style={styles.label}>{t.eventDescLabel}</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={description}
           onChangeText={setDescription}
-          placeholder="Event description (optional)"
+          placeholder={t.eventDescPlaceholder}
+          placeholderTextColor="#94A3B8"
           multiline
           numberOfLines={3}
           maxLength={500}
+          inputAccessoryViewID="eventFormAccessory"
         />
       </View>
 
       {/* All Day Toggle */}
       <View style={styles.field}>
         <View style={styles.switchRow}>
-          <Text style={styles.label}>All Day Event</Text>
+          <Text style={styles.label}>{t.allDay}</Text>
           <Switch
             value={allDay}
             onValueChange={setAllDay}
@@ -244,7 +336,7 @@ export const EventForm: React.FC<EventFormProps> = ({
 
       {/* Start Date */}
       <View style={styles.field}>
-        <Text style={styles.label}>Start Date</Text>
+        <Text style={styles.label}>{t.startDate}</Text>
         <TouchableOpacity
           style={styles.pickerButton}
           onPress={() => { setTempStartDate(startTime); setShowStartDatePicker(true); }}
@@ -257,12 +349,15 @@ export const EventForm: React.FC<EventFormProps> = ({
             <DateTimePicker
               value={Platform.OS === 'ios' ? tempStartDate : startTime}
               mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              display={Platform.OS === 'ios' ? 'inline' : 'default'}
               onChange={onStartDateChange}
+              locale={pickerLocale}
+              themeVariant="light"
+              textColor="#000000"
             />
             {Platform.OS === 'ios' && (
               <TouchableOpacity style={styles.pickerDoneButton} onPress={confirmStartDatePicker}>
-                <Text style={styles.pickerDoneText}>Done</Text>
+                <Text style={styles.pickerDoneText}>{t.done}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -272,7 +367,7 @@ export const EventForm: React.FC<EventFormProps> = ({
       {/* Start Time */}
       {!allDay && (
         <View style={styles.field}>
-          <Text style={styles.label}>Start Time</Text>
+          <Text style={styles.label}>{t.startTime}</Text>
           <TouchableOpacity
             style={styles.pickerButton}
             onPress={() => { setTempStartDate(startTime); setShowStartTimePicker(true); }}
@@ -287,10 +382,13 @@ export const EventForm: React.FC<EventFormProps> = ({
                 mode="time"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={onStartTimeChange}
+                locale={pickerLocale}
+                themeVariant="light"
+                textColor="#000000"
               />
               {Platform.OS === 'ios' && (
                 <TouchableOpacity style={styles.pickerDoneButton} onPress={confirmStartTimePicker}>
-                  <Text style={styles.pickerDoneText}>Done</Text>
+                  <Text style={styles.pickerDoneText}>{t.done}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -300,7 +398,7 @@ export const EventForm: React.FC<EventFormProps> = ({
 
       {/* End Date */}
       <View style={styles.field}>
-        <Text style={styles.label}>End Date</Text>
+        <Text style={styles.label}>{t.endDate}</Text>
         <TouchableOpacity
           style={styles.pickerButton}
           onPress={() => { setTempEndDate(endTime); setShowEndDatePicker(true); }}
@@ -313,13 +411,16 @@ export const EventForm: React.FC<EventFormProps> = ({
             <DateTimePicker
               value={Platform.OS === 'ios' ? tempEndDate : endTime}
               mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              display={Platform.OS === 'ios' ? 'inline' : 'default'}
               onChange={onEndDateChange}
               minimumDate={startTime}
+              locale={pickerLocale}
+              themeVariant="light"
+              textColor="#000000"
             />
             {Platform.OS === 'ios' && (
               <TouchableOpacity style={styles.pickerDoneButton} onPress={confirmEndDatePicker}>
-                <Text style={styles.pickerDoneText}>Done</Text>
+                <Text style={styles.pickerDoneText}>{t.done}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -329,7 +430,7 @@ export const EventForm: React.FC<EventFormProps> = ({
       {/* End Time */}
       {!allDay && (
         <View style={styles.field}>
-          <Text style={styles.label}>End Time</Text>
+          <Text style={styles.label}>{t.endTime}</Text>
           <TouchableOpacity
             style={styles.pickerButton}
             onPress={() => { setTempEndDate(endTime); setShowEndTimePicker(true); }}
@@ -344,10 +445,13 @@ export const EventForm: React.FC<EventFormProps> = ({
                 mode="time"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={onEndTimeChange}
+                locale={pickerLocale}
+                themeVariant="light"
+                textColor="#000000"
               />
               {Platform.OS === 'ios' && (
                 <TouchableOpacity style={styles.pickerDoneButton} onPress={confirmEndTimePicker}>
-                  <Text style={styles.pickerDoneText}>Done</Text>
+                  <Text style={styles.pickerDoneText}>{t.done}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -359,7 +463,7 @@ export const EventForm: React.FC<EventFormProps> = ({
 
       {/* Color Picker */}
       <View style={styles.field}>
-        <Text style={styles.label}>Color</Text>
+        <Text style={styles.label}>{t.color}</Text>
         <View style={styles.colorPicker}>
           {COLORS.map((c) => (
             <TouchableOpacity
@@ -384,7 +488,7 @@ export const EventForm: React.FC<EventFormProps> = ({
           onPress={onCancel}
           disabled={isSubmitting}
         >
-          <Text style={styles.cancelButtonText}>Cancel</Text>
+          <Text style={styles.cancelButtonText}>{t.cancel}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.button, styles.submitButton]}
@@ -392,10 +496,31 @@ export const EventForm: React.FC<EventFormProps> = ({
           disabled={isSubmitting}
         >
           <Text style={styles.submitButtonText}>
-            {isSubmitting ? 'Saving...' : submitLabel}
+            {isSubmitting ? t.saving : (submitLabel || t.save)}
           </Text>
         </TouchableOpacity>
       </View>
+
+      {onDelete && (
+        <TouchableOpacity
+          style={[styles.button, styles.deleteButton]}
+          onPress={() => {
+            Alert.alert(
+              t.confirmDeleteTitle,
+              t.confirmDeleteMsg,
+              [
+                { text: t.cancel, style: 'cancel' },
+                { text: t.delete, style: 'destructive', onPress: onDelete },
+              ]
+            );
+          }}
+          disabled={isSubmitting}
+        >
+          <Text style={styles.deleteButtonText}>{t.confirmDeleteTitle}</Text>
+        </TouchableOpacity>
+      )}
+
+      <View style={{ height: 40 }} />
     </ScrollView>
   );
 };
@@ -419,9 +544,9 @@ const styles = StyleSheet.create({
   },
   pickerButtonText: { fontSize: 16, color: '#333', fontWeight: '500' },
   pickerIcon: { fontSize: 20 },
-  pickerContainer: { 
-    backgroundColor: '#F8FAFC', 
-    borderRadius: 12, 
+  pickerContainer: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
     marginTop: 8,
     borderWidth: 1,
     borderColor: '#e0e0e0',
@@ -442,10 +567,31 @@ const styles = StyleSheet.create({
   },
   colorOptionSelected: { borderColor: '#333', borderWidth: 3 },
   colorCheckmark: { fontSize: 24, color: '#fff', fontWeight: '700' },
-  buttons: { flexDirection: 'row', gap: 12, marginTop: 24, marginBottom: 32 },
+  buttons: { flexDirection: 'row', gap: 12, marginTop: 24, marginBottom: 20 },
   button: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
   cancelButton: { backgroundColor: '#F1F5F9' },
   cancelButtonText: { fontSize: 16, fontWeight: '600', color: '#64748B' },
   submitButton: { backgroundColor: '#3B82F6' },
   submitButtonText: { fontSize: 16, fontWeight: '600', color: '#fff' },
+  deleteButton: { backgroundColor: '#FEE2E2', marginTop: 0 },
+  deleteButtonText: { fontSize: 16, fontWeight: '600', color: '#EF4444' },
+
+  // Calendar Chip Styles
+  calChip: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 8, paddingHorizontal: 12,
+    borderRadius: 20, borderWidth: 1,
+    backgroundColor: '#fff',
+    marginRight: 4
+  },
+  calChipSelected: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6'
+  },
+  calDot: {
+    width: 8, height: 8, borderRadius: 4, marginRight: 6
+  },
+  calChipText: {
+    fontSize: 14, fontWeight: '500', color: '#1E293B'
+  }
 });

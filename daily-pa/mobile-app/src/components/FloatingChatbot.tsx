@@ -8,7 +8,8 @@
  * - Real API integration
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   View,
   Text,
@@ -24,11 +25,12 @@ import {
   Alert,
   Image,
   ActivityIndicator,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Audio } from 'expo-av';
-import { File } from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import Constants from 'expo-constants';
 import { useLanguageStore, translations, useEffectiveLanguage } from '@/store/languageStore';
 import { useLocalStore } from '@/store/localStore';
@@ -36,11 +38,19 @@ import { supabase } from '@/services/supabase';
 import { todoService } from '@/services/TodoService';
 import { expenseService } from '@/services/ExpenseService';
 import { calendarService } from '@/services/CalendarService';
+import { InputAccessory } from './InputAccessory';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const API_URL = Constants.expoConfig?.extra?.apiUrl ||
   process.env.EXPO_PUBLIC_API_URL ||
-  'http://192.168.100.111:3000';
+  'https://daily-pa1.vercel.app';
+
+const TASK_ICONS = [
+  'document-text-outline', 'cart-outline', 'briefcase-outline',
+  'walk-outline', 'call-outline', 'mail-outline',
+  'flag-outline', 'star-outline', 'restaurant-outline',
+  'medkit-outline', 'car-outline', 'book-outline'
+];
 
 interface ParsedAction {
   id: string;
@@ -72,19 +82,42 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
   const lang = useEffectiveLanguage();
   const t = translations[lang];
 
+  // Helper to map app language to standard locale for DateTimePicker
+  const getLocaleIdentifier = (l: string) => {
+    switch (l) {
+      case 'zh': return 'zh-Hans';
+      case 'ms': return 'ms-MY';
+      case 'ta': return 'ta-IN';
+      case 'ja': return 'ja-JP';
+      case 'ko': return 'ko-KR';
+      case 'id': return 'id-ID';
+      case 'es': return 'es-ES';
+      case 'fr': return 'fr-FR';
+      case 'de': return 'de-DE';
+      case 'th': return 'th-TH';
+      case 'vi': return 'vi-VN';
+      default: return 'en-US';
+    }
+  };
+  const pickerLocale = getLocaleIdentifier(lang);
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [pickerConfig, setPickerConfig] = useState<{
+    messageId: string;
+    actionId: string;
+    type: 'time' | 'date';
+    value: Date;
+  } | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
   // Welcome message on open
   useEffect(() => {
     if (visible && messages.length === 0) {
-      const welcomeMsg = lang === 'zh'
-        ? '你好！我是智能助手 ✨\n\n🔌 离线模式\n我可以帮你：\n📝 创建任务（说"添加任务..."）\n📅 添加日程（说"创建会议..."）\n💰 记录支出（说"支出50元..."）\n📷 扫描收据\n\n请告诉我你需要什么帮助！'
-        : "Hi! I'm your smart assistant ✨\n\n🔌 Offline Mode\nI can help you:\n📝 Create tasks (say 'add task...')\n📅 Add events (say 'create meeting...')\n💰 Track expenses (say 'spent $50...')\n📷 Scan receipts\n\nWhat can I help you with today?";
+      const welcomeMsg = `${t.chatbotGreeting}\n\n${t.chatbotHelp}\n${t.chatbotTask}\n${t.chatbotEvent}\n${t.chatbotExpense}\n${t.chatbotReceipt}\n\n${t.chatbotAsk}`;
       setMessages([{ id: 'welcome', text: welcomeMsg, isUser: false }]);
     }
   }, [visible, lang]);
@@ -105,8 +138,8 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
       const token = session?.access_token;
 
       const { type, data } = action;
-      if (type === 'task') {
-        const userId = session?.user?.id || 'mock-user-id';
+      if (type === 'task' || type === 'todo') {
+        const userId = session?.user?.id || 'offline-user-device';
         console.log('ExecuteAction: Creating task with userId:', userId);
         const createdTodo = await todoService.createTodo({
           title: data.title as string,
@@ -114,13 +147,14 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
           dueDate: data.dueDate as string | undefined, // Ensure this maps correctly if string
           color: (data.color as any) || 'yellow',
           userId,
+          emoji: (data.emoji as string) || (data.category as string) || 'document-text-outline',
           status: 'active',
           tags: []
         });
 
         return { success: true, todoId: createdTodo.id };
       } else if (type === 'expense') {
-        const userId = session?.user?.id || 'mock-user-id';
+        const userId = session?.user?.id || 'offline-user-device';
         const amount = typeof data.amount === 'string' ? parseFloat(data.amount) : data.amount as number;
 
         await expenseService.createExpense({
@@ -129,11 +163,12 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
           currency: 'CNY',
           category: (data.category as any) || 'other',
           description: data.description as string || '',
+          merchant: data.merchant as string || '',
           expenseDate: (data.date as string) || getLocalDate(),
           tags: []
         });
       } else if (type === 'calendar') {
-        const userId = session?.user?.id || 'mock-user-id';
+        const userId = session?.user?.id || 'offline-user-device';
         console.log('ExecuteAction: Creating calendar event with userId:', userId, 'Date:', data.date);
 
         const eventDate = data.date as string || getLocalDate();
@@ -209,9 +244,9 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
 
     // Show success/error message
     if (result.success) {
-      Alert.alert('✅', lang === 'zh' ? '操作成功！' : 'Action completed successfully!');
+      Alert.alert('✅', t.actionSuccess);
     } else {
-      Alert.alert('❌', `${lang === 'zh' ? '操作失败' : 'Action failed'}: ${result.error}`);
+      Alert.alert('❌', `${t.actionFailed}: ${result.error}`);
     }
   };
 
@@ -235,9 +270,9 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
         m.id === messageId ? { ...m, followUp: undefined } : m
       ));
 
-      Alert.alert('✅', lang === 'zh' ? '颜色已更新！' : 'Color updated!');
+      Alert.alert('✅', t.actionSuccess);
     } catch (error) {
-      Alert.alert('❌', lang === 'zh' ? '更新失败' : 'Update failed');
+      Alert.alert('❌', t.actionFailed);
     }
   };
 
@@ -268,9 +303,9 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
         m.id === messageId ? { ...m, followUp: undefined } : m
       ));
 
-      Alert.alert('✅', lang === 'zh' ? '已添加到日历！' : 'Added to calendar!');
+      Alert.alert('✅', t.actionSuccess);
     } catch (error) {
-      Alert.alert('❌', lang === 'zh' ? '添加失败' : 'Failed to add');
+      Alert.alert('❌', t.actionFailed);
     }
   };
 
@@ -296,6 +331,16 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
     }));
   };
 
+  const handleIconSelection = (messageId: string, actionId: string, icon: string) => {
+    setMessages(prev => prev.map(m => {
+      if (m.id !== messageId || !m.actions) return m;
+      return {
+        ...m,
+        actions: m.actions.map(a => a.id === actionId ? { ...a, data: { ...a.data, emoji: icon, category: icon } } : a)
+      };
+    }));
+  };
+
   // Helper function to add 1 hour to time
   const addHour = (time: string): string => {
     const [hours, minutes] = time.split(':').map(Number);
@@ -317,7 +362,12 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
   const getActionSummary = (action: ParsedAction) => {
     const { type, data } = action;
     if (type === 'task' || type === 'todo') return String(data.title || '');
-    if (type === 'expense') return `¥${data.amount || 0} • ${data.category || 'other'}`;
+    if (type === 'expense') {
+      const currency = lang === 'zh' ? '¥' : '$';
+      const catKey = String(data.category || 'other');
+      const catLabel = expenseCategories.find(c => c.key === catKey)?.label || catKey;
+      return `${currency}${data.amount || 0} • ${catLabel}`;
+    }
     if (type === 'calendar') return `${data.title || ''}${data.startTime ? ' • ' + data.startTime : ''}`;
     return '';
   };
@@ -441,7 +491,7 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
             {/* Priority/Color picker for todos */}
             {isTodo && (
               <View style={styles.colorPicker}>
-                <Text style={styles.colorLabel}>{lang === 'zh' ? '优先级:' : 'Priority:'}</Text>
+                <Text style={styles.colorLabel}>{t.priority}:</Text>
                 <View style={styles.colorOptions}>
                   {priorities.map((p) => (
                     <TouchableOpacity
@@ -470,31 +520,103 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
               </View>
             )}
 
+            {/* Task Icon/Category Picker */}
+            {isTodo && (
+              <View style={{ marginTop: 8 }}>
+                <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>Category:</Text>
+                <FlatList
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  data={TASK_ICONS}
+                  keyExtractor={item => item}
+                  renderItem={({ item: icon }) => (
+                    <TouchableOpacity
+                      onPress={() => handleIconSelection(messageId, action.id, icon)}
+                      style={[
+                        styles.chip,
+                        { width: 36, height: 36, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 0, marginRight: 8, borderRadius: 12, backgroundColor: '#F3F4F6' },
+                        (action.data.emoji === icon || (!action.data.emoji && icon === 'document-text-outline')) && { backgroundColor: '#8B5CF6' }
+                      ]}
+                    >
+                      <Ionicons
+                        name={icon as any}
+                        size={20}
+                        color={(action.data.emoji === icon || (!action.data.emoji && icon === 'document-text-outline')) ? '#FFF' : '#6B7280'}
+                      />
+                    </TouchableOpacity>
+                  )}
+                  style={{ marginBottom: 8 }}
+                />
+              </View>
+            )}
+
+
             {/* Category picker for expenses */}
             {isExpense && (
-              <View style={styles.categoryPicker}>
-                <Text style={styles.pickerLabel}>{lang === 'zh' ? '分类:' : 'Category:'}</Text>
-                <View style={styles.categoryGrid}>
-                  {expenseCategories.map((category) => (
-                    <TouchableOpacity
-                      key={category.key}
-                      style={[
-                        styles.categoryBtn,
-                        action.data.category === category.key && styles.categorySelected
-                      ]}
-                      onPress={() => handleCategorySelection(messageId, action.id, category.key)}
-                    >
-                      <Ionicons name={category.icon as any} size={16} color={action.data.category === category.key ? "#FFF" : "#6B7280"} />
-                      <Text style={[
-                        styles.categoryLabel,
-                        action.data.category === category.key && styles.categoryLabelSelected
-                      ]}>
-                        {category.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+              <>
+                <View style={styles.colorPicker}>
+                  <Text style={styles.pickerLabel}>Date:</Text>
+                  <TouchableOpacity
+                    style={{ flexDirection: 'row', alignItems: 'center' }}
+                    onPress={() => {
+                      const currentDateStr = (action.data.date as string) || getLocalDate();
+                      const d = new Date(currentDateStr);
+                      setPickerConfig({
+                        messageId,
+                        actionId: action.id,
+                        type: 'date',
+                        value: !isNaN(d.getTime()) ? d : new Date(),
+                      });
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, color: '#374151', marginRight: 8 }}>
+                      {action.data.date as string || getLocalDate()}
+                    </Text>
+                    <Ionicons name="calendar-outline" size={16} color="#6B7280" />
+                  </TouchableOpacity>
                 </View>
-              </View>
+                <View style={styles.colorPicker}>
+                  <Text style={styles.pickerLabel}>Shop:</Text>
+                  <TextInput
+                    style={{ flex: 1, height: 28, fontSize: 13, color: '#374151', padding: 0 }}
+                    value={action.data.merchant as string || ''}
+                    placeholder="Enter shop name..."
+                    placeholderTextColor="#9CA3AF"
+                    onChangeText={(text) => {
+                      setMessages(prev => prev.map(m => {
+                        if (m.id !== messageId || !m.actions) return m;
+                        return {
+                          ...m,
+                          actions: m.actions.map(a => a.id === action.id ? { ...a, data: { ...a.data, merchant: text } } : a)
+                        };
+                      }));
+                    }}
+                  />
+                </View>
+                <View style={styles.categoryPicker}>
+                  <Text style={styles.pickerLabel}>{t.category}:</Text>
+                  <View style={styles.categoryGrid}>
+                    {expenseCategories.map((category) => (
+                      <TouchableOpacity
+                        key={category.key}
+                        style={[
+                          styles.categoryBtn,
+                          action.data.category === category.key && styles.categorySelected
+                        ]}
+                        onPress={() => handleCategorySelection(messageId, action.id, category.key)}
+                      >
+                        <Ionicons name={category.icon as any} size={16} color={action.data.category === category.key ? "#FFF" : "#6B7280"} />
+                        <Text style={[
+                          styles.categoryLabel,
+                          action.data.category === category.key && styles.categoryLabelSelected
+                        ]}>
+                          {category.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </>
             )}
 
             {/* Date & Time picker for calendar events */}
@@ -502,7 +624,7 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
               <View>
                 {/* Date Picker */}
                 <View style={styles.timePicker}>
-                  <Text style={styles.pickerLabel}>{lang === 'zh' ? '日期:' : 'Date:'}</Text>
+                  <Text style={styles.pickerLabel}>{t.date}:</Text>
                   <FlatList
                     horizontal
                     showsHorizontalScrollIndicator={false}
@@ -531,33 +653,28 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
                 </View>
 
                 {/* Time Picker */}
+                {/* Time Picker */}
                 <View style={[styles.timePicker, { borderTopWidth: 0, paddingTop: 0 }]}>
-                  <Text style={styles.pickerLabel}>{lang === 'zh' ? '时间:' : 'Time:'}</Text>
-                  <View style={styles.timeGrid}>
-                    {timeSlots.map((time) => (
-                      <TouchableOpacity
-                        key={time}
-                        style={[
-                          styles.timeBtn,
-                          action.data.startTime === time && styles.timeSelected
-                        ]}
-                        onPress={() => handleTimeSelection(messageId, action.id, time)}
-                      >
-                        <Text style={[
-                          styles.timeLabel,
-                          action.data.startTime === time && styles.timeLabelSelected
-                        ]}>
-                          {time}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+                  <Text style={styles.pickerLabel}>{t.time}:</Text>
+                  <TouchableOpacity
+                    style={styles.timeBtn}
+                    onPress={() => {
+                      const startTime = typeof action.data.startTime === 'string' ? action.data.startTime : '09:00';
+                      const [h, m] = startTime.split(':').map(Number);
+                      const date = new Date(); date.setHours(h || 9); date.setMinutes(m || 0);
+                      setPickerConfig({ messageId, actionId: action.id, type: 'time', value: date });
+                    }}
+                  >
+                    <Text style={styles.timeLabel}>{String(action.data.startTime || '09:00')}</Text>
+                    <Ionicons name="time-outline" size={16} color="#666" style={{ marginLeft: 8 }} />
+                  </TouchableOpacity>
                 </View>
               </View>
             )}
           </>
-        )}
-      </View>
+        )
+        }
+      </View >
     );
   };
 
@@ -579,9 +696,34 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
           playsInSilentModeIOS: true,
         });
 
-        const { recording } = await Audio.Recording.createAsync(
-          Audio.RecordingOptionsPresets.LOW_QUALITY
-        );
+        // Explicit recording options for better compatibility (AAC/M4A)
+        const recordingOptions: any = {
+          android: {
+            extension: '.m4a',
+            outputFormat: Audio.AndroidOutputFormat.MPEG_4,
+            audioEncoder: Audio.AndroidAudioEncoder.AAC,
+            sampleRate: 44100,
+            numberOfChannels: 1,
+            bitRate: 128000,
+          },
+          ios: {
+            extension: '.m4a',
+            outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
+            audioQuality: Audio.IOSAudioQuality.MAX,
+            sampleRate: 44100,
+            numberOfChannels: 1,
+            bitRate: 128000,
+            linearPCMBitDepth: 16,
+            linearPCMIsBigEndian: false,
+            linearPCMIsFloat: false,
+          },
+          web: {
+            mimeType: 'audio/webm',
+            bitsPerSecond: 128000,
+          },
+        };
+
+        const { recording } = await Audio.Recording.createAsync(recordingOptions);
 
         setRecording(recording);
         setIsRecording(true);
@@ -605,32 +747,64 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
       const uri = recording.getURI();
       if (!uri) throw new Error('No recording URI');
 
-      // OFFLINE MODE: Show message that voice transcription needs backend
-      Alert.alert(
-        lang === 'zh' ? '语音功能' : 'Voice Feature',
-        lang === 'zh' 
-          ? '语音转文字功能需要后端服务器。请使用文字输入或启动后端服务器。' 
-          : 'Voice transcription requires the backend server. Please use text input or start the backend server.',
-        [{ text: 'OK' }]
-      );
+      // Check for Client-side OpenAI Key first
+      const openAIKey = Constants.expoConfig?.extra?.openaiApiKey || process.env.EXPO_PUBLIC_OPENAI_API_KEY;
 
-      /* ORIGINAL CODE - Requires backend API
+      if (openAIKey) {
+        console.log('Using direct client-side OpenAI transcription');
+        try {
+          // Use m4a for both platforms as we configured it explicitly above
+          const formData = new FormData();
+          formData.append('file', {
+            uri,
+            type: 'audio/m4a',
+            name: 'audio.m4a',
+          } as any);
+          formData.append('model', 'whisper-1');
+          formData.append('language', lang);
+
+          const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${openAIKey}`,
+              'Content-Type': 'multipart/form-data',
+            },
+            body: formData,
+          });
+
+          if (!response.ok) {
+            const errText = await response.text();
+            console.error('OpenAI Transcribe Error:', errText);
+            throw new Error(`OpenAI API Error: ${response.status} ${errText}`);
+          }
+
+
+          const data = await response.json();
+          if (data.text) {
+            sendMessage(data.text);
+          } else {
+            throw new Error('No text in response');
+          }
+          return; // Success!
+        } catch (error) {
+          console.warn('Direct transcription failed:', error);
+          // Fall through to backend/demo
+        }
+      }
+
+      // Fallback: Use Backend API
       console.log('Reading audio file from:', uri);
-      const file = new File(uri);
-      const base64Audio = await file.base64();
-      console.log('Audio file successfully read. Length:', base64Audio.length);
+      const base64Audio = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
 
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
-
-      console.log('Sending audio to API:', `${API_URL}/api/voice/transcribe`);
 
       try {
         const response = await fetch(`${API_URL}/api/voice/transcribe`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            'Authorization': token ? `Bearer ${token}` : 'Bearer guest-user',
           },
           body: JSON.stringify({
             audio: base64Audio,
@@ -639,27 +813,44 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
         });
 
         if (!response.ok) {
-          const errText = await response.text();
-          console.error('Transcription API Error:', response.status, errText);
-          throw new Error(`Transcription failed: ${response.status} ${errText}`);
+          // Try to get the actual error message
+          let errorMessage = 'API request failed';
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          } catch (e) {
+            errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+          }
+
+          console.error('Transcription API error:', errorMessage);
+
+          // Show error to user
+          Alert.alert(
+            lang === 'zh' ? '转录失败' : 'Transcription Failed',
+            lang === 'zh'
+              ? `由于API错误保存为离线草稿。\n错误: ${errorMessage}`
+              : `Saved as offline draft due to API error.\n${errorMessage}`,
+            [{ text: 'OK' }]
+          );
+          return;
         }
 
         const data = await response.json();
-
         if (data.text) {
           sendMessage(data.text);
         } else {
           Alert.alert(lang === 'zh' ? '未能识别语音' : 'Could not recognize speech');
         }
       } catch (fetchError) {
-        console.error('Network request failed details:', fetchError);
-        throw fetchError;
+        console.warn('Network request failed details:', fetchError);
+        Alert.alert(
+          lang === 'zh' ? '网络错误' : 'Network Error',
+          lang === 'zh' ? '无法连接到语音服务' : 'Could not connect to voice service'
+        );
       }
-      */
 
     } catch (error) {
-      console.error('Voice processing error:', error);
-      // Don't show error alert since we're in offline mode
+      console.warn('Voice processing error:', error);
     }
   };
 
@@ -682,21 +873,130 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
     } catch (e) { }
   };
 
-  const processReceipt = (uri: string) => {
+  const processReceipt = async (uri: string) => {
     setMessages(prev => [...prev, { id: `user_${Date.now()}`, text: '📷 Receipt', isUser: true, image: uri }]);
     setIsLoading(true);
-    setTimeout(() => {
-      const amount = Math.floor(Math.random() * 80) + 20;
-      const categories = ['food', 'shopping', 'transport', 'other'];
-      const category = categories[Math.floor(Math.random() * categories.length)];
+
+    const apiKey = Constants.expoConfig?.extra?.googleCloudApiKey || process.env.EXPO_PUBLIC_GOOGLE_CLOUD_API_KEY;
+
+    if (!apiKey) {
+      // Fallback to simulation with alert
+      Alert.alert(
+        lang === 'zh' ? 'Google Cloud API Key 未配置' : 'Google Cloud API Key Missing',
+        lang === 'zh'
+          ? '请在 .env 中设置 EXPO_PUBLIC_GOOGLE_CLOUD_API_KEY 以使用 Google Vision。'
+          : 'Please set EXPO_PUBLIC_GOOGLE_CLOUD_API_KEY in .env to use Google Vision.'
+      );
+
+      setTimeout(() => {
+        const amount = Math.floor(Math.random() * 80) + 20;
+        const categories = ['food', 'shopping', 'transport', 'other'];
+        const category = categories[Math.floor(Math.random() * categories.length)];
+        setMessages(prev => [...prev, {
+          id: `ai_${Date.now()}`,
+          text: lang === 'zh' ? `识别到收据：¥${amount} (${category})\n确认添加这笔支出吗？` : `Receipt detected: $${amount} (${category})\nAdd this expense?`,
+          isUser: false,
+          actions: [{ id: `${Date.now()}_receipt`, type: 'expense', title: 'Receipt', data: { amount, category, date: getLocalDate() }, status: 'pending' }],
+        }]);
+        setIsLoading(false);
+      }, 1500);
+      return;
+    }
+
+    try {
+      const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+      if (!base64Image) throw new Error('Failed to read image');
+
+      // Call Google Cloud Vision API
+      const response = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requests: [{
+            image: { content: base64Image },
+            features: [{ type: 'TEXT_DETECTION', maxResults: 1 }]
+          }]
+        })
+      });
+
+      const data = await response.json();
+      console.log('Google Vision Response:', JSON.stringify(data));
+      if (data.error) throw new Error(data.error.message || 'Google Vision API Error');
+      if (!data.responses || !data.responses[0]) throw new Error('Invalid response from Google Vision');
+
+      const fullText = data.responses[0]?.fullTextAnnotation?.text || '';
+      console.log('Google Vision parsed:', fullText);
+
+      if (!fullText) throw new Error('No text found in receipt');
+
+      // 1. Text Analysis - Extract Amount (Largest number formatting as price)
+      const priceRegex = /\d+\.\d{2}/g;
+      const prices = fullText.match(priceRegex)?.map((p: string) => parseFloat(p)) || [];
+      const amount = prices.length > 0 ? Math.max(...prices) : 0;
+
+      // 2. Text Analysis - Categorize based on keywords
+      const lowerText = fullText.toLowerCase();
+      let category = 'other';
+      if (['food', 'restaurant', 'cafe', 'coffee', 'burger', 'pizza', 'lunch', 'dinner', 'delicious'].some(w => lowerText.includes(w))) category = 'food';
+      else if (['uber', 'grab', 'taxi', 'gas', 'fuel', 'station', 'parking', 'transport', 'train'].some(w => lowerText.includes(w))) category = 'transport';
+      else if (['mart', 'mall', 'store', 'market', 'shop', 'fashion', 'clothes'].some(w => lowerText.includes(w))) category = 'shopping';
+      else if (['cinema', 'movie', 'game', 'entertainment'].some(w => lowerText.includes(w))) category = 'entertainment';
+
+      // 3. Extract Merchant Name/Description (First line usually)
+      const desc = fullText.split('\n')[0].substring(0, 30) || 'Receipt';
+
+      // 4. Extract Date
+      // Matches YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY, YYYY/MM/DD
+      const dateRegex = /(\d{4}[-/]\d{2}[-/]\d{2})|(\d{1,2}[-/]\d{1,2}[-/]\d{4})/;
+      const dateMatch = fullText.match(dateRegex);
+      let detectedDate = getLocalDate();
+
+      if (dateMatch) {
+        try {
+          const dateStr = dateMatch[0];
+          // Determine format
+          let year, month, day;
+
+          if (dateStr.match(/^\d{4}[-/]/)) {
+            // YYYY-MM-DD or YYYY/MM/DD
+            const parts = dateStr.split(/[-/]/);
+            year = parseInt(parts[0]);
+            month = parseInt(parts[1]);
+            day = parseInt(parts[2]);
+          } else {
+            // DD-MM-YYYY or DD/MM/YYYY (Assuming day first if ambiguous like 01/02, but receipt convention is usually DD/MM)
+            const parts = dateStr.split(/[-/]/);
+            day = parseInt(parts[0]);
+            month = parseInt(parts[1]);
+            year = parseInt(parts[2]);
+          }
+
+          if (year && month && day) {
+            const d = new Date(year, month - 1, day);
+            if (!isNaN(d.getTime())) {
+              const y = d.getFullYear();
+              const m = String(d.getMonth() + 1).padStart(2, '0');
+              const dd = String(d.getDate()).padStart(2, '0');
+              detectedDate = `${y}-${m}-${dd}`;
+            }
+          }
+        } catch (e) {
+          console.log('Date parse error', e);
+        }
+      }
+
       setMessages(prev => [...prev, {
         id: `ai_${Date.now()}`,
-        text: lang === 'zh' ? `识别到收据：¥${amount} (${category})\n确认添加这笔支出吗？` : `Receipt detected: $${amount} (${category})\nAdd this expense?`,
+        text: lang === 'zh' ? `识别到收据：¥${amount} (${category})\n${desc}\n确认添加这笔支出吗？` : `Receipt detected: ${amount} (${category})\n${desc}\nAdd this expense?`,
         isUser: false,
-        actions: [{ id: `${Date.now()}_receipt`, type: 'expense', title: 'Receipt', data: { amount, category, date: getLocalDate() }, status: 'pending' }],
+        actions: [{ id: `${Date.now()}_receipt`, type: 'expense', title: desc, data: { amount, category, description: 'Receipt Scan', merchant: desc, date: detectedDate }, status: 'pending' }],
       }]);
-      setIsLoading(false);
-    }, 1500);
+
+    } catch (error) {
+      console.error('Receipt Scan Error:', error);
+      Alert.alert(lang === 'zh' ? '扫描失败' : 'Scan Failed', String(error));
+    }
+    setIsLoading(false);
   };
 
   // Enhanced send message with offline fallback
@@ -724,7 +1024,7 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          'Authorization': token ? `Bearer ${token}` : 'Bearer guest-user',
         },
         body: JSON.stringify({
           message: userMessage,
@@ -764,7 +1064,7 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
       }]);
     } catch (error) {
       console.error('Chat API error:', error);
-      
+
       // OFFLINE FALLBACK: Local intent detection
       const lowerText = userMessage.toLowerCase();
       let responseText = '';
@@ -773,8 +1073,8 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
       // Detect task/todo intent
       if (lowerText.includes('task') || lowerText.includes('todo') || lowerText.includes('待办') || lowerText.includes('任务')) {
         const title = userMessage.replace(/add|create|new|task|todo|待办|任务|添加|创建/gi, '').trim() || 'New Task';
-        responseText = detectedLang === 'zh' 
-          ? `我帮你创建任务："${title}"` 
+        responseText = detectedLang === 'zh'
+          ? `我帮你创建任务："${title}"`
           : `I'll create a task: "${title}"`;
         actions = [{
           id: `${Date.now()}_0`,
@@ -848,7 +1148,7 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
       {/* Follow-up UI for todo calendar integration (like web version) */}
       {item.followUp && item.followUp.type === 'todo-calendar-color' && (
         <View style={styles.followUp}>
-          <Text style={styles.followUpTitle}>{lang === 'zh' ? '选择颜色' : 'Choose Color'}</Text>
+          <Text style={styles.followUpTitle}>{t.chooseColor}</Text>
           <View style={styles.colorOptionsRow}>
             {[
               { value: 'yellow', emoji: '🟡' },
@@ -870,7 +1170,7 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
               style={styles.calendarBtn}
               onPress={() => handleAddToCalendar(item.followUp!.todoId, item.followUp!.todoTitle, item.id)}
             >
-              <Text style={styles.calendarText}>{lang === 'zh' ? '📅 添加到日历' : '📅 Add to Calendar'}</Text>
+              <Text style={styles.calendarText}>📅 {t.addToCalendar}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.skipBtn}
@@ -878,7 +1178,7 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
                 m.id === item.id ? { ...m, followUp: undefined } : m
               ))}
             >
-              <Text style={styles.skipText}>{lang === 'zh' ? '跳过' : 'Skip'}</Text>
+              <Text style={styles.skipText}>{t.skip}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -890,70 +1190,137 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.overlay}>
         <KeyboardAvoidingView
-          style={styles.container}
+          style={{ width: '100%' }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        // Remove offset if minimal, or tune it.
+        // Usually in a modal with flex-end, offset 0 is correct if KAV wraps the content.
         >
-          <View style={styles.header}>
-            <Text style={styles.title}>{t.aiAssistant} ✨</Text>
-            <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-              <Ionicons name="close-outline" size={22} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
-
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            renderItem={renderMessage}
-            keyExtractor={i => i.id}
-            style={{ flex: 1 }}
-            contentContainerStyle={styles.list}
-            keyboardShouldPersistTaps="handled"
-          />
-
-          {isLoading && (
-            <View style={styles.loading}>
-              <ActivityIndicator color="#8B5CF6" />
-              <Text style={styles.loadText}>{t.thinking}</Text>
-            </View>
-          )}
-
-          <View style={styles.inputArea}>
-            <View style={styles.mediaRow}>
-              <TouchableOpacity style={styles.mediaBtn} onPress={takePhoto}>
-                <Ionicons name="camera-outline" size={22} color="#6B7280" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.mediaBtn} onPress={pickImage}>
-                <Ionicons name="image-outline" size={22} color="#6B7280" />
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.mediaBtn, isRecording && styles.recordingBtn]} onPress={handleVoiceInteraction}>
-                <Ionicons name={isRecording ? "stop-circle-outline" : "mic-outline"} size={22} color={isRecording ? "#EF4444" : "#6B7280"} />
+          <View style={styles.container}>
+            <View style={styles.header}>
+              <Text style={styles.title}>{t.aiAssistant} ✨</Text>
+              <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
+                <Ionicons name="close-outline" size={22} color="#6B7280" />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.inputRow}>
-              <TextInput style={styles.input} value={inputText} onChangeText={setInputText} placeholder={lang === 'zh' ? '输入消息...' : 'Type message...'} placeholderTextColor="#9CA3AF" multiline onSubmitEditing={() => sendMessage()} />
-              <TouchableOpacity style={[styles.sendBtn, (!inputText.trim() || isLoading) && styles.sendDisabled]} onPress={() => sendMessage()} disabled={!inputText.trim() || isLoading}>
-                <Ionicons name="send-outline" size={20} color="#FFF" />
-              </TouchableOpacity>
+            <FlatList
+              ref={flatListRef}
+              data={messages}
+              renderItem={renderMessage}
+              keyExtractor={i => i.id}
+              style={{ flex: 1 }}
+              contentContainerStyle={[styles.list, { flexGrow: 1 }]}
+              keyboardShouldPersistTaps="handled"
+            />
+
+            {isLoading && (
+              <View style={styles.loading}>
+                <ActivityIndicator color="#8B5CF6" />
+                <Text style={styles.loadText}>{t.thinking}</Text>
+              </View>
+            )}
+
+            <View style={styles.inputArea}>
+              <View style={styles.mediaRow}>
+                <TouchableOpacity style={styles.mediaBtn} onPress={takePhoto}>
+                  <Ionicons name="camera-outline" size={22} color="#6B7280" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.mediaBtn} onPress={pickImage}>
+                  <Ionicons name="image-outline" size={22} color="#6B7280" />
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.mediaBtn, isRecording && styles.recordingBtn]} onPress={handleVoiceInteraction}>
+                  <Ionicons name={isRecording ? "stop-circle-outline" : "mic-outline"} size={22} color={isRecording ? "#EF4444" : "#6B7280"} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={styles.input}
+                  value={inputText}
+                  onChangeText={setInputText}
+                  placeholder={t.typeMessage}
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                  onSubmitEditing={() => sendMessage()}
+                  inputAccessoryViewID="chatInput"
+                />
+                <InputAccessory id="chatInput" />
+                <TouchableOpacity style={[styles.sendBtn, (!inputText.trim() || isLoading) && styles.sendDisabled]} onPress={() => sendMessage()} disabled={!inputText.trim() || isLoading}>
+                  <Ionicons name="send-outline" size={20} color="#FFF" />
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </KeyboardAvoidingView>
       </View>
+      {pickerConfig && (
+        Platform.OS === 'ios' ? (
+          <Modal transparent animationType="slide" visible={true} onRequestClose={() => setPickerConfig(null)}>
+            <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+              <TouchableOpacity style={{ flex: 1 }} onPress={() => setPickerConfig(null)} />
+              <View style={{ backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 4 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' }}>
+                  <TouchableOpacity onPress={() => setPickerConfig(null)}>
+                    <Text style={{ fontSize: 16, color: '#6B7280' }}>{t.cancel || 'Cancel'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => {
+                    const timeStr = pickerConfig.value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                    if (pickerConfig.type === 'time') {
+                      handleTimeSelection(pickerConfig.messageId, pickerConfig.actionId, timeStr);
+                    }
+                    setPickerConfig(null);
+                  }}>
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: '#3B82F6' }}>{t.done || 'Done'}</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={pickerConfig.value}
+                  mode={pickerConfig.type}
+                  display="spinner"
+                  onChange={(event, selectedDate) => {
+                    if (selectedDate) {
+                      setPickerConfig(prev => prev ? { ...prev, value: selectedDate } : null);
+                    }
+                  }}
+                  style={{ height: 200 }}
+                  textColor="#000000"
+                  locale={pickerLocale}
+                />
+              </View>
+            </View>
+          </Modal>
+        ) : (
+          <DateTimePicker
+            value={pickerConfig.value}
+            mode={pickerConfig.type}
+            is24Hour={true}
+            display="default"
+            locale={pickerLocale}
+            onChange={(event, selectedDate) => {
+              const currentConfig = pickerConfig;
+              setPickerConfig(null);
+              if (selectedDate && event.type !== 'dismissed') {
+                const timeStr = selectedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                handleTimeSelection(currentConfig.messageId, currentConfig.actionId, timeStr);
+              }
+            }}
+          />
+        )
+      )}
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  container: { height: SCREEN_HEIGHT * 0.85, backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  container: { height: SCREEN_HEIGHT * 0.85, backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, width: '100%' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
   title: { fontSize: 18, fontWeight: '600', color: '#1F2937' },
   closeBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
   list: { padding: 16, paddingBottom: 8 },
   msgImage: { width: 180, height: 120, borderRadius: 12, marginBottom: 8, alignSelf: 'flex-end' },
   bubble: { maxWidth: '80%', padding: 12, borderRadius: 16, marginBottom: 8 },
-  userBubble: { backgroundColor: '#8B5CF6', alignSelf: 'flex-end', borderBottomRightRadius: 4 },
+  userBubble: { backgroundColor: '#3B82F6', alignSelf: 'flex-end', borderBottomRightRadius: 4 },
   aiBubble: { backgroundColor: '#F3F4F6', alignSelf: 'flex-start', borderBottomLeftRadius: 4 },
   msgText: { fontSize: 15, lineHeight: 22, color: '#1F2937' },
   userText: { color: '#FFF' },
@@ -1197,8 +1564,14 @@ const styles = StyleSheet.create({
   recordingBtn: { backgroundColor: '#FEE2E2' },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
   input: { flex: 1, backgroundColor: '#F3F4F6', borderRadius: 24, paddingHorizontal: 16, paddingVertical: 12, fontSize: 16, maxHeight: 100, minHeight: 48, color: '#1F2937' },
-  sendBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#8B5CF6', justifyContent: 'center', alignItems: 'center' },
+  sendBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center' },
   sendDisabled: { backgroundColor: '#D1D5DB' },
+
+  // Chip styles for Icon Picker
+  chip: { width: 36, height: 36, justifyContent: 'center', alignItems: 'center', marginRight: 8, borderRadius: 12, backgroundColor: '#F3F4F6' },
+  chipSelected: { backgroundColor: '#8B5CF6' },
+  chipText: { fontSize: 12, color: '#333' },
+  chipTextSelected: { fontSize: 12, color: '#FFF' },
 });
 
 export default FloatingChatbot;

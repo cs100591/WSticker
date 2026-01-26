@@ -14,6 +14,7 @@ import {
   ScrollView,
   Alert,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useForm, Controller } from 'react-hook-form';
@@ -27,12 +28,16 @@ import { authService } from '@/services/authService';
 
 import { colors, spacing, borderRadius, shadows } from '@/theme/colors';
 
+import { useEffectiveLanguage, translations } from '@/store/languageStore';
+
 interface LoginScreenProps {
   navigation?: any;
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const currentLang = useEffectiveLanguage();
+  const t = translations[currentLang];
 
   const {
     control,
@@ -58,8 +63,39 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 
     if (!result.success) {
       Alert.alert('Login Failed', result.error || 'Please try again');
+    } else {
+      handleLoginSuccess();
     }
   };
+
+  const handleLoginSuccess = async () => {
+    // Sync Logic: Check if we need to merge or wipe
+    try {
+      const { data: { session } } = await import('@/services/supabase').then(m => m.supabase.auth.getSession());
+      if (session?.user) {
+        // Perform the smart first sync
+        const { syncManager } = await import('@/services/sync/SyncManager');
+        await syncManager.handleFirstSync(session.user.id);
+      }
+    } catch (e) {
+      console.error('First sync failed:', e);
+    }
+
+    // Login successful
+    // If we are in the AuthenticatedStack (e.g. guest upgrading), we need to manually navigate
+    // Only do this if we were explicitly sent here from an authenticated context (isUpgrade)
+    // Otherwise, let App.tsx handle the auth state change to switch stacks
+    const isUpgrade = (navigation?.getState()?.routes?.find((r: any) => r.name === 'Login')?.params as any)?.isUpgrade;
+
+    if (navigation && isUpgrade) {
+      // Reset navigation stack to ensure we don't go "back" to login
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'MainTabs' }],
+      });
+    }
+  };
+
 
   return (
     <LinearGradient
@@ -76,10 +112,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         >
           {/* Logo/Brand Section */}
           <View style={styles.brandSection}>
-            <View style={styles.logoContainer}>
-              <Text style={styles.logoText}>CLASP</Text>
-            </View>
-            <Text style={styles.brandTagline}>你的虚拟私人助理</Text>
+            <Image
+              source={require('../../assets/icon.png')}
+              style={styles.logoImage}
+            />
+            <Text style={styles.brandTagline}>{t.aiAssistant || 'Your Virtual Personal Assistant'}</Text>
           </View>
 
           {/* Login Card */}
@@ -147,9 +184,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
               </View>
 
               <AppleSignInButton
-                onSuccess={() => {
-                  // Navigation handled by auth state change
-                }}
+                onSuccess={handleLoginSuccess}
                 onError={(error) => {
                   if (!error.includes('cancelled')) {
                     Alert.alert('Sign In Failed', error);
@@ -158,9 +193,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
               />
 
               <GoogleSignInButton
-                onSuccess={() => {
-                  // Navigation handled by auth state change
-                }}
+                onSuccess={handleLoginSuccess}
                 onError={(error) => {
                   // Error handled in component
                 }}
@@ -198,21 +231,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.xl,
   },
-  logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: borderRadius.xl,
-    backgroundColor: colors.primary[500],
-    justifyContent: 'center',
-    alignItems: 'center',
+  logoImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 20,
     marginBottom: spacing.md,
     ...shadows.lg,
-  },
-  logoText: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 1,
   },
   brandTagline: {
     fontSize: 16,

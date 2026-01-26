@@ -11,7 +11,7 @@
  */
 
 import { CalendarEvent } from '@/models';
-import { calendarEventRepository } from '@/services/repositories/CalendarEventRepository';
+import { CalendarEventRepository } from '@/services/repositories/CalendarEventRepository';
 
 export interface GoogleCalendarEvent {
   id: string;
@@ -58,7 +58,7 @@ class GoogleCalendarService {
         offlineAccess: true,
       });
       */
-      
+
       console.log('Google Calendar service initialized (placeholder)');
     } catch (error) {
       console.error('Failed to initialize Google Calendar service:', error);
@@ -84,7 +84,7 @@ class GoogleCalendarService {
       
       return true;
       */
-      
+
       console.log('Google sign-in not implemented - requires @react-native-google-signin/google-signin');
       return false;
     } catch (error) {
@@ -103,7 +103,7 @@ class GoogleCalendarService {
       const { GoogleSignin } = await import('@react-native-google-signin/google-signin');
       await GoogleSignin.signOut();
       */
-      
+
       this.accessToken = null;
       console.log('Google sign-out completed');
     } catch (error) {
@@ -121,7 +121,7 @@ class GoogleCalendarService {
       const { GoogleSignin } = await import('@react-native-google-signin/google-signin');
       return await GoogleSignin.isSignedIn();
       */
-      
+
       return false;
     } catch (error) {
       return false;
@@ -152,18 +152,16 @@ class GoogleCalendarService {
 
       // 1. Pull: Fetch events from Google Calendar
       const googleEvents = await this.fetchGoogleEvents();
-      
+
       // Get local events with source='google'
-      const localGoogleEvents = await calendarEventRepository.getAll({
-        userId,
-        source: 'google',
-      });
+      // Get local events with source='google'
+      const localGoogleEvents = await CalendarEventRepository.findBySource(userId, 'google');
 
       // Create a map of local events by google_event_id
-      const localEventMap = new Map(
+      const localEventMap = new Map<string, CalendarEvent>(
         localGoogleEvents
-          .filter(e => e.googleEventId)
-          .map(e => [e.googleEventId!, e])
+          .filter((e: CalendarEvent) => !!e.googleEventId)
+          .map((e: CalendarEvent) => [e.googleEventId!, e])
       );
 
       // Sync Google events to local database
@@ -174,7 +172,7 @@ class GoogleCalendarService {
           if (localEvent) {
             // Update existing local event if Google event is newer
             const googleUpdated = new Date(googleEvent.updated);
-            const localUpdated = localEvent.updatedAt || localEvent.createdAt;
+            const localUpdated = new Date(localEvent.updatedAt || localEvent.createdAt);
 
             if (googleUpdated > localUpdated) {
               await this.updateLocalEventFromGoogle(localEvent, googleEvent);
@@ -185,7 +183,7 @@ class GoogleCalendarService {
               // For now, we'll keep the Google version (server wins)
               await this.updateLocalEventFromGoogle(localEvent, googleEvent);
             }
-            
+
             // Remove from map (processed)
             localEventMap.delete(googleEvent.id);
           } else {
@@ -200,19 +198,17 @@ class GoogleCalendarService {
       }
 
       // 2. Push: Upload local changes to Google Calendar
-      const localEvents = await calendarEventRepository.getAll({
-        userId,
-        source: 'google',
-      });
+      // 2. Push: Upload local changes to Google Calendar
+      const localEvents = await CalendarEventRepository.findBySource(userId, 'google');
 
       for (const localEvent of localEvents) {
         try {
           if (localEvent.googleEventId) {
             // Event already exists on Google, check if we need to update
             const googleEvent = googleEvents.find(e => e.id === localEvent.googleEventId);
-            
+
             if (googleEvent) {
-              const localUpdated = localEvent.updatedAt || localEvent.createdAt;
+              const localUpdated = new Date(localEvent.updatedAt || localEvent.createdAt);
               const googleUpdated = new Date(googleEvent.updated);
 
               // Update Google event if local is newer
@@ -222,17 +218,17 @@ class GoogleCalendarService {
               }
             } else {
               // Google event was deleted, delete local event
-              await calendarEventRepository.delete(localEvent);
+              await CalendarEventRepository.delete(localEvent.id);
             }
           } else {
             // Create new Google event from local event
             const googleEventId = await this.createGoogleEvent(localEvent);
-            
+
             // Update local event with Google event ID
-            await calendarEventRepository.update(localEvent, {
+            await CalendarEventRepository.update(localEvent.id, {
               googleEventId,
             });
-            
+
             result.pushed++;
           }
         } catch (error) {
@@ -396,17 +392,17 @@ class GoogleCalendarService {
 
     if (localEvent.allDay) {
       // All-day event uses date format (YYYY-MM-DD)
-      const dateStr = localEvent.startTime.toISOString().split('T')[0];
+      const dateStr = new Date(localEvent.startTime).toISOString().split('T')[0];
       event.start = { date: dateStr };
       event.end = { date: dateStr };
     } else {
       // Timed event uses dateTime format
       event.start = {
-        dateTime: localEvent.startTime.toISOString(),
+        dateTime: new Date(localEvent.startTime).toISOString(),
         timeZone: 'UTC',
       };
       event.end = {
-        dateTime: localEvent.endTime.toISOString(),
+        dateTime: new Date(localEvent.endTime).toISOString(),
         timeZone: 'UTC',
       };
     }
@@ -422,16 +418,16 @@ class GoogleCalendarService {
     googleEvent: GoogleCalendarEvent
   ): Promise<CalendarEvent> {
     const startTime = googleEvent.start.dateTime
-      ? new Date(googleEvent.start.dateTime)
-      : new Date(googleEvent.start.date!);
+      ? new Date(googleEvent.start.dateTime).toISOString()
+      : new Date(googleEvent.start.date!).toISOString();
 
     const endTime = googleEvent.end.dateTime
-      ? new Date(googleEvent.end.dateTime)
-      : new Date(googleEvent.end.date!);
+      ? new Date(googleEvent.end.dateTime).toISOString()
+      : new Date(googleEvent.end.date!).toISOString();
 
     const allDay = !googleEvent.start.dateTime;
 
-    return await calendarEventRepository.create({
+    return await CalendarEventRepository.create({
       userId,
       title: googleEvent.summary,
       description: googleEvent.description,
@@ -449,18 +445,18 @@ class GoogleCalendarService {
   private async updateLocalEventFromGoogle(
     localEvent: CalendarEvent,
     googleEvent: GoogleCalendarEvent
-  ): Promise<CalendarEvent> {
+  ): Promise<void> {
     const startTime = googleEvent.start.dateTime
-      ? new Date(googleEvent.start.dateTime)
-      : new Date(googleEvent.start.date!);
+      ? new Date(googleEvent.start.dateTime).toISOString()
+      : new Date(googleEvent.start.date!).toISOString();
 
     const endTime = googleEvent.end.dateTime
-      ? new Date(googleEvent.end.dateTime)
-      : new Date(googleEvent.end.date!);
+      ? new Date(googleEvent.end.dateTime).toISOString()
+      : new Date(googleEvent.end.date!).toISOString();
 
     const allDay = !googleEvent.start.dateTime;
 
-    return await calendarEventRepository.update(localEvent, {
+    await CalendarEventRepository.update(localEvent.id, {
       title: googleEvent.summary,
       description: googleEvent.description,
       startTime,

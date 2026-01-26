@@ -24,11 +24,14 @@ import { weatherService, WeatherData } from '@/services/weatherService';
 import { WeatherHeader } from '@/components/WeatherHeader';
 import { useLanguageStore, translations, useEffectiveLanguage } from '@/store/languageStore';
 import { useCurrencyStore } from '@/store/currencyStore';
+import { useThemeStore } from '@/store/themeStore';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export const DashboardScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const lang = useEffectiveLanguage();
   const t = translations[lang];
+  const { colors: themeColors, mode } = useThemeStore();
   const currencySymbol = useCurrencyStore((state) => state.getSymbol());
 
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -86,7 +89,7 @@ export const DashboardScreen: React.FC = () => {
   const todayEvents = calendarEvents.filter((e) => {
     const eventDate = new Date(e.startTime);
     return eventDate >= today && eventDate < tomorrow;
-  });
+  }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
   // Get this month's expenses
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -136,14 +139,44 @@ export const DashboardScreen: React.FC = () => {
   const displayCompletionRate = todos.length > 0 ? completionRate : 65;
   const displayEventsToday = todayEvents.length > 0 ? todayEvents.length : 3;
 
+  // Sage / Blue Sage theme check
+  const isSage = mode === 'sage';
+  const isBlueSage = mode === 'system';
+  const isGlassy = mode !== 'minimal';
+  const gradientColors = useMemo(() => {
+    switch (mode) {
+      case 'sage': return ['#C3E0D8', '#D6E8E2', '#F9F6F0'];
+      case 'sunset': return ['#FECDD3', '#FFE4E6', '#FFF5F5'];
+      case 'ocean': return ['#BAE6FD', '#E0F2FE', '#F0F9FF'];
+      default: return ['#E0F2FE', '#DBEAFE', '#EFF6FF'];
+    }
+  }, [mode]);
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isGlassy && { backgroundColor: 'transparent' }]}>
+      {/* Weather Header within Global Gradient Context if possible, but Dashboard has custom layout. 
+          Actually, let's wrap Dashboard in a format related to ScreenContainer but custom. 
+          For now, we apply the gradient manually if isSage to match other screens, 
+          OR we assume the user wants the exact layout from HTML. 
+          The user said "apply to all screen". 
+          We should defer to ScreenContainer or apply gradient here. 
+      */}
+      {isGlassy && (
+        <View style={[StyleSheet.absoluteFill, { zIndex: -1 }]}>
+          <LinearGradient
+            colors={gradientColors as any}
+            style={{ flex: 1 }}
+          />
+        </View>
+      )}
+
       {/* Header */}
       {/* Weather Header */}
       <WeatherHeader
         weather={weather}
-        greeting={weatherGreeting}
+        greeting={(t as any)[weatherGreeting] || weatherGreeting}
         emoji={weatherEmoji}
+        style={isGlassy ? { backgroundColor: 'transparent', borderBottomWidth: 0, paddingTop: 60 } : undefined}
       >
         <TouchableOpacity
           style={styles.settingsBtn}
@@ -161,100 +194,18 @@ export const DashboardScreen: React.FC = () => {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Stats Grid */}
-        <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: '#EFF6FF' }]}>
-              <Ionicons name="checkbox-outline" size={22} color="#3B82F6" />
-            </View>
-            <Text style={styles.statLabel}>{t.activeTasks}</Text>
-            <Text style={styles.statValue}>{displayActiveTasks}</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: '#D1FAE5' }]}>
-              <Ionicons name="trending-up-outline" size={22} color="#10B981" />
-            </View>
-            <Text style={styles.statLabel}>{t.completionRate}</Text>
-            <Text style={styles.statValue}>{displayCompletionRate}%</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: '#FEF3C7' }]}>
-              <Ionicons name="wallet-outline" size={22} color="#F59E0B" />
-            </View>
-            <Text style={styles.statLabel}>{t.monthlySpend}</Text>
-            <Text style={styles.statValue}>{currencySymbol}{displayMonthlySpending}</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: '#E0E7FF' }]}>
-              <Ionicons name="calendar-outline" size={22} color="#6366F1" />
-            </View>
-            <Text style={styles.statLabel}>{t.eventsToday}</Text>
-            <Text style={styles.statValue}>{displayEventsToday}</Text>
-          </View>
-        </View>
-
-        {/* Priority Tasks */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{t.priorityTasks}</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Todos' as never)}>
-              <Text style={styles.viewAllLink}>{t.viewAll} →</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.card}>
-            {displayTodos.map((todo, index) => (
-              <View
-                key={todo.id}
-                style={[
-                  styles.todoItem,
-                  index < displayTodos.length - 1 && styles.todoItemBorder,
-                ]}
-              >
-                <View style={styles.todoCheckbox} />
-                <View style={styles.todoContent}>
-                  <Text style={styles.todoTitle} numberOfLines={1}>
-                    {todo.title}
-                  </Text>
-                  <View style={styles.todoMeta}>
-                    {todo.dueDate && (
-                      <Text style={styles.todoMetaText}>
-                        🕐 {new Date(todo.dueDate).toLocaleDateString()}
-                      </Text>
-                    )}
-                    <View
-                      style={[
-                        styles.priorityBadge,
-                        { backgroundColor: getPriorityColor(todo.priority) + '20' },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.priorityText,
-                          { color: getPriorityColor(todo.priority) },
-                        ]}
-                      >
-                        {todo.priority.toUpperCase()}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-            ))}
-          </View>
-        </View>
-
         {/* Today's Schedule */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{t.todaysSchedule}</Text>
+            <Text style={[styles.sectionTitle, { color: themeColors.text.primary.light }]}>{t.todaysSchedule}</Text>
             <TouchableOpacity onPress={() => navigation.navigate('Calendar' as never)}>
-              <Text style={styles.viewAllLink}>{t.openCalendar} →</Text>
+              <Text style={[styles.viewAllLink, { color: themeColors.primary[500] }]}>{t.openCalendar} →</Text>
             </TouchableOpacity>
           </View>
-          <View style={styles.card}>
+          <View style={[
+            styles.card,
+            isGlassy && { borderRadius: 24, borderWidth: 0, shadowColor: 'rgba(0,0,0,0.05)', shadowOpacity: 1, shadowRadius: 30 }
+          ]}>
             {displayEvents.length > 0 ? (
               displayEvents.map((event, index) => (
                 <View
@@ -291,15 +242,70 @@ export const DashboardScreen: React.FC = () => {
           </View>
         </View>
 
+        {/* Priority Tasks */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>{t.priorityTasks}</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Todos' as never)}>
+              <Text style={[styles.viewAllLink, { color: themeColors.primary[500] }]}>{t.viewAll} →</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={[
+            styles.card,
+            isGlassy && { borderRadius: 24, borderWidth: 0, shadowColor: 'rgba(0,0,0,0.05)', shadowOpacity: 1, shadowRadius: 30 }
+          ]}>
+            {displayTodos.map((todo, index) => (
+              <View
+                key={todo.id}
+                style={[
+                  styles.todoItem,
+                  index < displayTodos.length - 1 && styles.todoItemBorder,
+                ]}
+              >
+                <View style={styles.todoCheckbox} />
+                <View style={styles.todoContent}>
+                  <Text style={styles.todoTitle} numberOfLines={1}>
+                    {todo.title}
+                  </Text>
+                  <View style={styles.todoMeta}>
+                    {allCalendarEvents.some(e => e.todoId === todo.id) && (
+                      <Ionicons name="calendar" size={14} color="#3B82F6" style={{ marginRight: 6 }} />
+                    )}
+                    <View
+                      style={[
+                        styles.priorityBadge,
+                        { backgroundColor: getPriorityColor(todo.priority) + '20' },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.priorityText,
+                          { color: getPriorityColor(todo.priority) },
+                        ]}
+                      >
+                        {todo.priority.toUpperCase()}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+
         {/* Expenses Summary */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{t.expensesThisMonth}</Text>
             <TouchableOpacity onPress={() => navigation.navigate('Expenses' as never)}>
-              <Text style={styles.viewAllLink}>{t.viewAll} →</Text>
+              <Text style={[styles.viewAllLink, { color: themeColors.primary[500] }]}>{t.viewAll} →</Text>
             </TouchableOpacity>
           </View>
-          <View style={[styles.card, styles.expenseCard]}>
+          <View style={[
+            styles.card,
+            styles.expenseCard,
+            isGlassy && { borderRadius: 24, borderWidth: 0, shadowColor: 'rgba(0,0,0,0.05)', shadowOpacity: 1, shadowRadius: 30 }
+          ]}>
             <View style={styles.expenseHeader}>
               <Text style={styles.expenseTotal}>{currencySymbol}{displayMonthlySpending.toFixed(2)}</Text>
               <Text style={styles.expenseLabel}>{t.totalSpentMsg}</Text>
@@ -322,6 +328,41 @@ export const DashboardScreen: React.FC = () => {
                 <Text style={styles.categoryName}>{t.entertainment}</Text>
               </View>
             </View>
+          </View>
+        </View>
+
+        {/* Stats Grid */}
+        <View style={styles.statsGrid}>
+          <View style={styles.statCard}>
+            <View style={[styles.statIcon, { backgroundColor: '#EFF6FF' }]}>
+              <Ionicons name="checkbox-outline" size={22} color="#3B82F6" />
+            </View>
+            <Text style={styles.statLabel}>{t.activeTasks}</Text>
+            <Text style={styles.statValue}>{displayActiveTasks}</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <View style={[styles.statIcon, { backgroundColor: '#D1FAE5' }]}>
+              <Ionicons name="trending-up-outline" size={22} color="#10B981" />
+            </View>
+            <Text style={styles.statLabel}>{t.completionRate}</Text>
+            <Text style={styles.statValue}>{displayCompletionRate}%</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <View style={[styles.statIcon, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="wallet-outline" size={22} color="#F59E0B" />
+            </View>
+            <Text style={styles.statLabel}>{t.monthlySpend}</Text>
+            <Text style={styles.statValue}>{currencySymbol}{displayMonthlySpending.toFixed(2)}</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <View style={[styles.statIcon, { backgroundColor: '#E0E7FF' }]}>
+              <Ionicons name="calendar-outline" size={22} color="#6366F1" />
+            </View>
+            <Text style={styles.statLabel}>{t.eventsToday}</Text>
+            <Text style={styles.statValue}>{displayEventsToday}</Text>
           </View>
         </View>
 

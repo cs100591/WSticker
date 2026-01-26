@@ -11,9 +11,10 @@ import { useNavigation, CommonActions } from '@react-navigation/native';
 interface ScreenHeaderProps {
   title: string;
   rightContent?: React.ReactNode;
+  style?: any;
 }
 
-export const ScreenHeader: React.FC<ScreenHeaderProps> = ({ title, rightContent }) => {
+export const ScreenHeader: React.FC<ScreenHeaderProps> = ({ title, rightContent, style }) => {
   const navigation = useNavigation();
 
   const handleSettingsPress = () => {
@@ -29,7 +30,7 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({ title, rightContent 
   };
 
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, style]}>
       <Text style={styles.headerTitle}>{title}</Text>
       <View style={styles.headerRight}>
         {rightContent}

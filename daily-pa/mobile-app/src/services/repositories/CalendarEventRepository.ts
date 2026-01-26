@@ -15,6 +15,9 @@ export interface CreateCalendarEventData {
   source?: EventSource;
   todoId?: string;
   color?: string;
+  appleEventId?: string;
+  googleEventId?: string;
+  externalCalendarId?: string;
 }
 
 export interface UpdateCalendarEventData {
@@ -28,6 +31,7 @@ export interface UpdateCalendarEventData {
   color?: string;
   appleEventId?: string;
   googleEventId?: string;
+  externalCalendarId?: string;
 }
 
 class CalendarEventRepositoryClass {
@@ -43,6 +47,9 @@ class CalendarEventRepositoryClass {
       source: data.source || 'local',
       todoId: data.todoId,
       color: data.color,
+      appleEventId: data.appleEventId,
+      googleEventId: data.googleEventId,
+      externalCalendarId: data.externalCalendarId,
       isDeleted: false,
     });
   }
@@ -90,7 +97,7 @@ class CalendarEventRepositoryClass {
     const targetDate = new Date(date);
     const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
     const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999));
-    
+
     return store.getCalendarEvents().filter((e) => {
       if (e.userId !== userId) return false;
       const eventStart = new Date(e.startTime);

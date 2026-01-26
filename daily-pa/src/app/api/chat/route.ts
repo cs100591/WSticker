@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { isDevMode, getDevCalendarEvents } from '@/lib/dev-store';
+import OpenAI from 'openai';
 
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-const DEEPSEEK_BASE_URL = 'https://api.deepseek.com';
+// Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -164,6 +167,13 @@ If details are missing, USE DEFAULTS and generate the action immediately.
 - Default category: other
 - Default date: today
 
+
+IMPORTANT: You must output your response message in the SAME LANGUAGE as the user's input message.
+- If user speaks English, reply in English.
+- If user speaks Malay (Bahasa Melayu), reply in Malay.
+- If user speaks Chinese, reply in Chinese.
+- Do not translate the user's message in your reply. Just reply naturally in their language.
+
 CRITICAL: You are a JSON API. If you are creating a task/event/expense, you MUST include the "action" or "actions" object. NEVER return a text confirmation without the accompanying action object.
 Today's date is: ${getTodayDate()}`;
 
@@ -197,6 +207,7 @@ const SYSTEM_PROMPT_ZH = `你是一个友好的 AI 助手，帮助用户管理�
 }
 
 重要：在你的回复中始终要求用户确认。用户需要确认后才会执行操作。
+重要：请使用与用户相同的语言回复。如果用户说中文，回中文；用户说英文，回英文；用户说马来文，回马来文。
 
 示例：
 
@@ -235,7 +246,7 @@ const SYSTEM_PROMPT_ZH = `你是一个友好的 AI 助手，帮助用户管理�
 
 export async function POST(request: NextRequest) {
   try {
-    if (!DEEPSEEK_API_KEY) {
+    if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json({ error: 'API not configured' }, { status: 500 });
     }
 
@@ -246,38 +257,32 @@ export async function POST(request: NextRequest) {
     }
 
     const todayDate = date || getTodayDate();
-    const systemPrompt = language === 'zh'
+    let systemPrompt = language === 'zh'
       ? `${SYSTEM_PROMPT_ZH}\n\n当前日期 (Today): ${todayDate} (用户本地时间)\n\nCRITICAL: Only generate actions for the NEW request in the latest user message. Do NOT re-generate actions for previous requests that were already proposed.`
       : `${SYSTEM_PROMPT_EN}\n\nToday's date: ${todayDate} (User's local time)\n\nCRITICAL: Only generate actions for the NEW request in the latest user message. Do NOT re-generate actions for previous requests that were already proposed.`;
 
-    const messages = [
+    // Force English if language is not zh (Chinese), as others defaults to EN system prompt
+    const effectiveLanguage = language === 'zh' ? 'zh' : 'en';
+    if (effectiveLanguage === 'en') {
+      // Append instruction to reinforce English response for non-Chinese inputs that use English system prompt
+      systemPrompt += "\n\nCRITICAL: Reply in English, OR the language the user is speaking if it is NOT Chinese.";
+    }
+
+    const messages: any[] = [
       { role: 'system', content: systemPrompt },
       ...history.map((h: ChatMessage) => ({ role: h.role, content: h.content })),
       { role: 'user', content: message },
     ];
 
-    const response = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages,
-        temperature: 0.8,
-        max_tokens: 800,
-      }),
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: messages,
+      response_format: { type: "json_object" },
+      temperature: 0.8,
+      max_tokens: 800,
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('DeepSeek error:', error);
-      return NextResponse.json({ error: 'AI request failed' }, { status: 500 });
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+    const content = response.choices?.[0]?.message?.content;
 
     if (!content) {
       return NextResponse.json({
@@ -288,72 +293,71 @@ export async function POST(request: NextRequest) {
 
     // Parse JSON response
     try {
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
+      // With JSON mode, content should be valid JSON
+      const parsed = JSON.parse(content);
 
-        // Check for conflicts in calendar actions
-        if (parsed.action?.type === 'calendar') {
-          const conflicts = await checkTimeConflicts(
-            parsed.action.data.date,
-            parsed.action.data.startTime,
-            parsed.action.data.endTime
-          );
+      // Check for conflicts in calendar actions
+      if (parsed.action?.type === 'calendar') {
+        const conflicts = await checkTimeConflicts(
+          parsed.action.data.date,
+          parsed.action.data.startTime,
+          parsed.action.data.endTime
+        );
 
-          if (conflicts.length > 0) {
-            const conflictList = conflicts.map((c: CalendarEvent) => {
-              const startParts = c.startTime.split('T');
-              const endParts = c.endTime.split('T');
-              const start = startParts[1]?.substring(0, 5) || '00:00';
-              const end = endParts[1]?.substring(0, 5) || '00:00';
-              return `${c.title} (${start}-${end})`;
-            }).join(', ');
+        if (conflicts.length > 0) {
+          const conflictList = conflicts.map((c: CalendarEvent) => {
+            const startParts = c.startTime.split('T');
+            const endParts = c.endTime.split('T');
+            const start = startParts[1]?.substring(0, 5) || '00:00';
+            const end = endParts[1]?.substring(0, 5) || '00:00';
+            return `${c.title} (${start}-${end})`;
+          }).join(', ');
 
-            return NextResponse.json({
-              message: language === 'zh'
-                ? `⚠️ 那个时间段你已经有「${conflictList}」了。要不要换个时间？`
-                : `⚠️ You already have '${conflictList}' scheduled at that time. Would you like to choose a different time?`,
-              action: null
-            });
-          }
+          return NextResponse.json({
+            message: language === 'zh'
+              ? `⚠️ 那个时间段你已经有「${conflictList}」了。要不要换个时间？`
+              : `⚠️ You already have '${conflictList}' scheduled at that time. Would you like to choose a different time?`,
+            action: null
+          });
         }
+      }
 
-        // Check for conflicts in multiple calendar actions
-        if (parsed.actions && Array.isArray(parsed.actions)) {
-          for (let i = 0; i < parsed.actions.length; i++) {
-            const action = parsed.actions[i];
-            if (action.type === 'calendar') {
-              const conflicts = await checkTimeConflicts(
-                action.data.date,
-                action.data.startTime,
-                action.data.endTime
-              );
+      // Check for conflicts in multiple calendar actions
+      if (parsed.actions && Array.isArray(parsed.actions)) {
+        for (let i = 0; i < parsed.actions.length; i++) {
+          const action = parsed.actions[i];
+          if (action.type === 'calendar') {
+            const conflicts = await checkTimeConflicts(
+              action.data.date,
+              action.data.startTime,
+              action.data.endTime
+            );
 
-              if (conflicts.length > 0) {
-                const conflictList = conflicts.map((c: CalendarEvent) => {
-                  const startParts = c.startTime.split('T');
-                  const endParts = c.endTime.split('T');
-                  const start = startParts[1]?.substring(0, 5) || '00:00';
-                  const end = endParts[1]?.substring(0, 5) || '00:00';
-                  return `${c.title} (${start}-${end})`;
-                }).join(', ');
+            if (conflicts.length > 0) {
+              const conflictList = conflicts.map((c: CalendarEvent) => {
+                const startParts = c.startTime.split('T');
+                const endParts = c.endTime.split('T');
+                const start = startParts[1]?.substring(0, 5) || '00:00';
+                const end = endParts[1]?.substring(0, 5) || '00:00';
+                return `${c.title} (${start}-${end})`;
+              }).join(', ');
 
-                return NextResponse.json({
-                  message: language === 'zh'
-                    ? `⚠️ ${action.data.startTime} 到 ${action.data.endTime} 这个时间段你已经有「${conflictList}」了。要不要换个时间？`
-                    : `⚠️ You already have '${conflictList}' scheduled from ${action.data.startTime} to ${action.data.endTime}. Would you like to choose a different time?`,
-                  action: null
-                });
-              }
+              return NextResponse.json({
+                message: language === 'zh'
+                  ? `⚠️ ${action.data.startTime} 到 ${action.data.endTime} 这个时间段你已经有「${conflictList}」了。要不要换个时间？`
+                  : `⚠️ You already have '${conflictList}' scheduled from ${action.data.startTime} to ${action.data.endTime}. Would you like to choose a different time?`,
+                action: null
+              });
             }
           }
         }
-
-        return NextResponse.json(parsed);
       }
+
+      return NextResponse.json(parsed);
+
     } catch (error) {
       console.error('Error parsing AI response:', error);
-      // If JSON parsing fails, return as plain message
+      // If JSON parsing fails (unlikely with json mode), return as message
     }
 
     return NextResponse.json({ message: content, action: null });

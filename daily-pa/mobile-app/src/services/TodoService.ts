@@ -39,7 +39,7 @@ class TodoService {
    */
   async getTodos(filters?: TodoServiceFilters): Promise<Todo[]> {
     let todos: Todo[];
-    
+
     if (filters?.userId) {
       todos = await TodoRepository.findByUserId(filters.userId);
     } else {
@@ -109,20 +109,9 @@ class TodoService {
 
     // Automatically create calendar event if todo has due date
     if (todo.dueDate) {
-      try {
-        const event = await calendarService.createEventFromTodo(
-          todo.id,
-          todo.userId,
-          todo.title,
-          new Date(todo.dueDate),
-          this.getColorHex(todo.color)
-        );
-        
-        // Update todo with calendar event ID
-        await TodoRepository.update(todo.id, { calendarEventId: event.id });
-      } catch (error) {
-        console.error('Failed to create calendar event for todo:', error);
-      }
+      // Automatic calendar event creation removed per user preference.
+      // Use the manual "Add to Calendar" option instead.
+
 
       // Schedule notification for due date
       try {
@@ -352,7 +341,7 @@ class TodoService {
     const now = new Date();
     const dueDate = new Date(todo.dueDate);
     const notificationTime = new Date(dueDate.getTime() - 60 * 60 * 1000);
-    
+
     if (notificationTime > now) {
       await notificationService.scheduleNotification(
         'Todo Due Soon',

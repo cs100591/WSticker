@@ -3,7 +3,7 @@
  * With emoji selection, notes, and calendar features
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,36 +20,72 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Todo, TodoPriority, useLocalStore } from '@/models';
 import { useLanguageStore, translations, useEffectiveLanguage } from '@/store/languageStore';
+import { useThemeStore } from '@/store/themeStore';
+import { useUserStore } from '@/store/userStore';
+import { LinearGradient } from 'expo-linear-gradient';
 
-const TASK_EMOJIS = ['📝', '🛒', '💼', '🏃', '📞', '✉️', '🎯', '⭐', '🍽️', '💊', '🚗', '📚'];
+const TASK_ICONS = [
+  'document-text-outline', 'cart-outline', 'briefcase-outline',
+  'walk-outline', 'call-outline', 'mail-outline',
+  'flag-outline', 'star-outline', 'restaurant-outline',
+  'medkit-outline', 'car-outline', 'book-outline'
+];
 
 export const TodosScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const lang = useEffectiveLanguage();
   const t = translations[lang];
 
+  const { mode } = useThemeStore();
+  const isSage = mode === 'sage';
+  const isBlueSage = mode === 'system';
+  const isGlassy = mode !== 'minimal';
+  const gradient = useMemo(() => {
+    switch (mode) {
+      case 'sage': return ['#C3E0D8', '#D6E8E2', '#F9F6F0'];
+      case 'sunset': return ['#FECDD3', '#FFE4E6', '#FFF5F5'];
+      case 'ocean': return ['#BAE6FD', '#E0F2FE', '#F0F9FF'];
+      default: return ['#E0F2FE', '#DBEAFE', '#EFF6FF'];
+    }
+  }, [mode]);
+
+  const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
+
+  // Get current user ID from store
+  const userId = useUserStore(state => state.profile.id) || 'guest_user';
+
   // Read directly from Zustand store for reactive updates
-  const allTodos = useLocalStore((state) => state.getTodos());
+  const todos = useLocalStore((state) => state.todos);
+  // Filter by user ID to show only relevant tasks - TEMPORARILY DISABLED to fix "Missing Tasks" issue in offline mode
+  // const allTodos = useMemo(() => todos.filter(t => !t.isDeleted && t.userId === userId), [todos, userId]);
+  // Show ALL tasks for now
+  const allTodos = useMemo(() => todos.filter(t => !t.isDeleted), [todos]);
+
   const addTodo = useLocalStore((state) => state.addTodo);
   const updateTodo = useLocalStore((state) => state.updateTodo);
   const addCalendarEvent = useLocalStore((state) => state.addCalendarEvent);
   const isHydrated = useLocalStore((state) => state.isHydrated);
-  
+
   const [refreshing, setRefreshing] = useState(false);
 
   // Add Modal
   const [showAddModal, setShowAddModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newPriority, setNewPriority] = useState<TodoPriority>('medium');
-  const [selectedEmoji, setSelectedEmoji] = useState('📝');
+  const [selectedIcon, setSelectedIcon] = useState('document-text-outline');
 
-  // Notes Modal
+  // Notes Modal (now Edit Modal)
   const [notesModal, setNotesModal] = useState<{ id: string; title: string; notes: string } | null>(null);
   const [notesText, setNotesText] = useState('');
+  const [editedTitle, setEditedTitle] = useState('');
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [newDescription, setNewDescription] = useState('');
 
   // Calendar Modal
   const [calendarModal, setCalendarModal] = useState<{ id: string; title: string } | null>(null);
@@ -58,13 +94,9 @@ export const TodosScreen: React.FC = () => {
   const [pickerMode, setPickerMode] = useState<'date' | 'time'>('date');
 
   const [expandedSections, setExpandedSections] = useState({ high: true, medium: true, low: true, completed: false });
-  const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
-
-  const userId = 'mock-user-id';
 
   const handleRefresh = () => {
     setRefreshing(true);
-    // Just trigger a re-render since we're reading from store
     setTimeout(() => setRefreshing(false), 500);
   };
 
@@ -75,29 +107,71 @@ export const TodosScreen: React.FC = () => {
     }
   };
 
-  const handleAdd = () => {
-    if (!newTitle.trim()) return Alert.alert('Error', 'Enter a task title');
-    addTodo({ 
-      title: newTitle.trim(), 
-      priority: newPriority, 
-      userId,
-      emoji: selectedEmoji,
-      status: 'active',
-      tags: [],
-      color: 'blue',
-      isDeleted: false,
-    });
+  const openAddModal = () => {
+    setEditingId(null);
     setNewTitle('');
+    setNewDescription('');
     setNewPriority('medium');
-    setSelectedEmoji('📝');
-    setShowAddModal(false);
+    setSelectedIcon('document-text-outline');
+    setShowAddModal(true);
   };
 
-  const handleSaveNotes = () => {
-    if (!notesModal) return;
-    updateTodo(notesModal.id, { description: notesText });
-    if (notesText.trim()) setExpandedNotes(prev => new Set(prev).add(notesModal.id));
-    setNotesModal(null);
+  const openEditModal = (todo: Todo) => {
+    setEditingId(todo.id);
+    setNewTitle(todo.title);
+    setNewDescription(todo.description || '');
+    setNewPriority(todo.priority);
+    setSelectedIcon(todo.emoji || 'document-text-outline');
+    setShowAddModal(true);
+  };
+
+  const handleSaveTask = () => {
+    if (!newTitle.trim()) return Alert.alert('Error', 'Enter a task title');
+
+    if (editingId) {
+      // Update existing
+      updateTodo(editingId, {
+        title: newTitle.trim(),
+        description: newDescription.trim(),
+        priority: newPriority,
+        emoji: selectedIcon,
+      });
+      // Update expanded notes if they were expanded
+      if (newDescription.trim() && expandedNotes.has(editingId)) {
+        // Keep expanded
+      }
+    } else {
+      // Add new
+      addTodo({
+        title: newTitle.trim(),
+        description: newDescription.trim(),
+        priority: newPriority,
+        userId,
+        emoji: selectedIcon,
+        status: 'active',
+        tags: [],
+        color: 'blue',
+        isDeleted: false,
+      });
+    }
+    setShowAddModal(false);
+    setNewTitle('');
+    setNewDescription('');
+    setNewPriority('medium');
+    setSelectedIcon('document-text-outline');
+    setEditingId(null);
+  };
+
+  const handleDeleteTask = (id: string) => {
+    Alert.alert(t.delete, t.confirmDeleteMsg || 'Delete this task?', [
+      { text: t.cancel, style: 'cancel' },
+      {
+        text: t.delete, style: 'destructive', onPress: () => {
+          updateTodo(id, { isDeleted: true });
+          if (editingId === id) setShowAddModal(false);
+        }
+      }
+    ]);
   };
 
   const handleAddToCalendar = () => {
@@ -105,10 +179,9 @@ export const TodosScreen: React.FC = () => {
     const dateStr = dateValue.toISOString().split('T')[0];
     const timeStr = dateValue.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 
-    // Add to calendar using Zustand store
     const start = new Date(`${dateStr}T${timeStr}:00`).toISOString();
     const end = new Date(new Date(start).getTime() + 3600000).toISOString();
-    
+
     addCalendarEvent({
       userId,
       title: calendarModal.title,
@@ -118,17 +191,15 @@ export const TodosScreen: React.FC = () => {
       source: 'local',
       isDeleted: false,
     });
-    
+
     Alert.alert('Success', `Added "${calendarModal.title}" to calendar at ${dateStr} ${timeStr}`);
     setCalendarModal(null);
   };
 
   const onDateChange = (_event: any, selectedDate?: Date) => {
-    // On Android, dismissing the picker returns event.type === 'dismissed'
     if (Platform.OS === 'android') {
       setShowPicker(false);
     }
-
     if (selectedDate) {
       setDateValue(selectedDate);
     }
@@ -174,58 +245,78 @@ export const TodosScreen: React.FC = () => {
     return <View style={styles.center}><ActivityIndicator size="large" color="#8B5CF6" /></View>;
   }
 
+  const renderRightActions = (_progress: any, _dragX: any, id: string) => {
+    return (
+      <View style={styles.deleteActionContainer}>
+        <TouchableOpacity
+          style={styles.deleteAction}
+          onPress={() => handleDeleteTask(id)}
+        >
+          <Ionicons name="trash-outline" size={24} color="#FFF" />
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   const renderTask = (todo: Todo, config: typeof priorityConfig.high) => {
     const hasNotes = todo.description && todo.description.trim().length > 0;
     const isExpanded = expandedNotes.has(todo.id);
 
     return (
-      <View key={todo.id}>
-        <View style={[styles.taskCard, { backgroundColor: config.bg }]}>
-          {/* Expand button for notes */}
-          {hasNotes && (
-            <TouchableOpacity style={styles.expandBtn} onPress={() => toggleNotes(todo.id)}>
-              <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
+      <View key={todo.id} style={styles.taskWrapper}>
+        <Swipeable renderRightActions={(p, d) => renderRightActions(p, d, todo.id)}>
+          <View style={[
+            styles.taskCard,
+            { backgroundColor: config.bg, marginBottom: 0, marginHorizontal: 0 }, // Reset margins for Swipeable
+            isSage && { borderRadius: 24, borderWidth: 0, shadowColor: 'rgba(0,0,0,0.05)', shadowOpacity: 1, shadowRadius: 15, backgroundColor: '#FFF' }
+          ]}>
+            {/* Expand button for notes */}
+            {hasNotes && (
+              <TouchableOpacity style={styles.expandBtn} onPress={() => toggleNotes(todo.id)}>
+                <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Icon */}
+            <View style={styles.taskEmoji}>
+              {(todo.emoji && todo.emoji.includes('-')) ? (
+                <Ionicons name={todo.emoji as any} size={20} color="#6B7280" />
+              ) : (
+                <Text style={styles.emojiText}>{todo.emoji || '📝'}</Text>
+              )}
+            </View>
+
+            {/* Title */}
+            <Text style={styles.taskTitle} numberOfLines={1}>{todo.title}</Text>
+
+            {/* Notes indicator */}
+            {hasNotes && !isExpanded && <Ionicons name="document-text-outline" size={16} color="#9CA3AF" style={{ marginRight: 4 }} />}
+
+            {/* Action buttons */}
+            <TouchableOpacity
+              style={styles.actionBtn}
+              onPress={() => openEditModal(todo)}
+            >
+              <Ionicons name="create-outline" size={20} color="#9CA3AF" />
             </TouchableOpacity>
-          )}
 
-          {/* Emoji */}
-          <View style={styles.taskEmoji}>
-            <Text style={styles.emojiText}>{todo.emoji || '📝'}</Text>
+            <TouchableOpacity
+              style={styles.actionBtn}
+              onPress={() => {
+                setCalendarModal({ id: todo.id, title: todo.title });
+                setDateValue(new Date());
+                setShowPicker(false);
+              }}
+            >
+              <Ionicons name="calendar-outline" size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+
+            {/* Checkbox */}
+            <TouchableOpacity style={styles.checkbox} onPress={() => handleToggle(todo.id)}>
+              <View style={styles.checkboxInner} />
+            </TouchableOpacity>
           </View>
-
-          {/* Title */}
-          <Text style={styles.taskTitle} numberOfLines={1}>{todo.title}</Text>
-
-          {/* Notes indicator */}
-          {hasNotes && !isExpanded && <Ionicons name="document-text-outline" size={16} color="#9CA3AF" style={{ marginRight: 4 }} />}
-
-          {/* Action buttons */}
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => {
-              setNotesModal({ id: todo.id, title: todo.title, notes: todo.description || '' });
-              setNotesText(todo.description || '');
-            }}
-          >
-            <Ionicons name="create-outline" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => {
-              setCalendarModal({ id: todo.id, title: todo.title });
-              setDateValue(new Date());
-              setShowPicker(false);
-            }}
-          >
-            <Ionicons name="calendar-outline" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-
-          {/* Checkbox */}
-          <TouchableOpacity style={styles.checkbox} onPress={() => handleToggle(todo.id)}>
-            <View style={styles.checkboxInner} />
-          </TouchableOpacity>
-        </View>
+        </Swipeable>
 
         {/* Expanded notes */}
         {isExpanded && hasNotes && (
@@ -238,254 +329,260 @@ export const TodosScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.progressText}>🎯 {completed.length}/{allTodos.length}</Text>
+    <View style={[styles.container, isGlassy && { backgroundColor: 'transparent' }]}>
+      {isGlassy && (
+        <View style={[StyleSheet.absoluteFill, { zIndex: -1 }]}>
+          <LinearGradient
+            colors={gradient as any}
+            style={{ flex: 1 }}
+          />
         </View>
-        <Text style={styles.headerTitle}>{t.tasks}</Text>
-        <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.settingsBtn} onPress={() => navigation.navigate('Settings')}>
-            <Ionicons name="settings-outline" size={20} color="#6B7280" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.addHeaderBtn} onPress={() => setShowAddModal(true)}>
-            <Ionicons name="add-outline" size={24} color="#6B7280" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      )}
 
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
-      >
-        {/* Priority Sections */}
-        {(['high', 'medium', 'low'] as TodoPriority[]).map(priority => {
-          const config = priorityConfig[priority];
-          const items = byPriority[priority];
-          if (items.length === 0) return null;
-
-          return (
-            <View key={priority} style={styles.section}>
-              <TouchableOpacity style={styles.sectionHeader} onPress={() => toggleSection(priority)}>
-                <View style={styles.sectionLeft}>
-                  <Text style={[styles.indicator, { color: config.color }]}>{config.indicator}</Text>
-                  <Text style={[styles.sectionLabel, { color: config.color }]}>
-                    {config.label} ({items.length})
-                  </Text>
-                </View>
-                <Text style={styles.chevron}>{expandedSections[priority] ? '∧' : '∨'}</Text>
-              </TouchableOpacity>
-
-              {expandedSections[priority] && items.map(todo => renderTask(todo, config))}
-            </View>
-          );
-        })}
-
-        {/* Completed Section */}
-        {completed.length > 0 && (
-          <View style={styles.section}>
-            <TouchableOpacity style={styles.sectionHeader} onPress={() => toggleSection('completed')}>
-              <Text style={styles.completedLabel}>{t.completed} ({completed.length})</Text>
-              <Text style={styles.chevron}>{expandedSections.completed ? '∧' : '∨'}</Text>
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        {/* Header */}
+        <View style={[styles.header, isGlassy && { backgroundColor: 'transparent' }]}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.progressText}>🎯 {completed.length}/{allTodos.length}</Text>
+          </View>
+          <Text style={styles.headerTitle}>{t.tasks}</Text>
+          <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.settingsBtn} onPress={() => navigation.navigate('Settings')}>
+              <Ionicons name="settings-outline" size={20} color="#6B7280" />
             </TouchableOpacity>
-
-            {expandedSections.completed && completed.map(todo => (
-              <TouchableOpacity
-                key={todo.id}
-                style={[styles.taskCard, styles.completedCard]}
-                onPress={() => handleToggle(todo.id)}
-              >
-                <View style={[styles.taskEmoji, styles.completedEmoji]}>
-                  <Text style={styles.emojiText}>✓</Text>
-                </View>
-                <Text style={[styles.taskTitle, styles.completedTitle]}>{todo.title}</Text>
-                <View style={[styles.checkbox, styles.checkboxDone]}>
-                  <Text style={styles.checkmark}>✓</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+            <TouchableOpacity style={styles.addHeaderBtn} onPress={openAddModal}>
+              <Ionicons name="add-outline" size={24} color="#6B7280" />
+            </TouchableOpacity>
           </View>
-        )}
+        </View>
 
-        {allTodos.length === 0 && (
-          <View style={styles.empty}>
-            <Ionicons name="clipboard-outline" size={48} color="#9CA3AF" />
-            <Text style={styles.emptyText}>{t.noTasks}</Text>
-            <Text style={styles.emptySubtext}>{t.tapToAdd}</Text>
-          </View>
-        )}
-      </ScrollView>
-
-      {/* FAB */}
-      <TouchableOpacity style={styles.fab} onPress={() => setShowAddModal(true)}>
-        <Ionicons name="add-outline" size={28} color="#FFF" />
-      </TouchableOpacity>
-
-      {/* Add Task Modal */}
-      <Modal visible={showAddModal} transparent animationType="slide" onRequestClose={() => setShowAddModal(false)}>
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
         >
-          <ScrollView
-            contentContainerStyle={styles.modalScrollContent}
-            keyboardShouldPersistTaps="handled"
-            bounces={false}
+          {/* Priority Sections */}
+          {(['high', 'medium', 'low'] as TodoPriority[]).map(priority => {
+            const config = priorityConfig[priority];
+            const items = byPriority[priority];
+            if (items.length === 0) return null;
+
+            return (
+              <View key={priority} style={styles.section}>
+                <TouchableOpacity style={styles.sectionHeader} onPress={() => toggleSection(priority)}>
+                  <View style={styles.sectionLeft}>
+                    <Text style={[styles.indicator, { color: config.color }]}>{config.indicator}</Text>
+                    <Text style={[styles.sectionLabel, { color: config.color }]}>
+                      {config.label} ({items.length})
+                    </Text>
+                  </View>
+                  <Text style={styles.chevron}>{expandedSections[priority] ? '∧' : '∨'}</Text>
+                </TouchableOpacity>
+
+                {expandedSections[priority] && items.map(todo => renderTask(todo, config))}
+              </View>
+            );
+          })}
+
+          {/* Completed Section */}
+          {completed.length > 0 && (
+            <View style={styles.section}>
+              <TouchableOpacity style={styles.sectionHeader} onPress={() => toggleSection('completed')}>
+                <Text style={styles.completedLabel}>{t.completed} ({completed.length})</Text>
+                <Text style={styles.chevron}>{expandedSections.completed ? '∧' : '∨'}</Text>
+              </TouchableOpacity>
+
+              {expandedSections.completed && completed.map(todo => (
+                <TouchableOpacity
+                  key={todo.id}
+                  style={[
+                    styles.taskCard,
+                    styles.completedCard,
+                    isGlassy && { borderRadius: 24, borderWidth: 0, shadowColor: 'rgba(0,0,0,0.03)', shadowOpacity: 1, shadowRadius: 10, backgroundColor: 'rgba(255,255,255,0.6)' }
+                  ]}
+                  onPress={() => handleToggle(todo.id)}
+                >
+                  <View style={[styles.taskEmoji, styles.completedEmoji]}>
+                    <Ionicons name="checkmark" size={20} color="#9CA3AF" />
+                  </View>
+                  <Text style={[styles.taskTitle, styles.completedTitle]}>{todo.title}</Text>
+                  {/* Delete button for completed tasks too */}
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { marginRight: 8 }]}
+                    onPress={() => handleDeleteTask(todo.id)}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#EF4444" style={{ opacity: 0.5 }} />
+                  </TouchableOpacity>
+                  <View style={[styles.checkbox, styles.checkboxDone]}>
+                    <Text style={styles.checkmark}>✓</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {allTodos.length === 0 && (
+            <View style={styles.empty}>
+              <Ionicons name="clipboard-outline" size={48} color="#9CA3AF" />
+              <Text style={styles.emptyText}>{t.noTasks}</Text>
+              <Text style={styles.emptySubtext}>{t.tapToAdd}</Text>
+            </View>
+          )}
+        </ScrollView>
+
+        {/* Unified Task Modal (Add/Edit) */}
+        <Modal visible={showAddModal} transparent animationType="slide" onRequestClose={() => setShowAddModal(false)}>
+          <KeyboardAvoidingView
+            style={styles.modalOverlay}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           >
+            <ScrollView
+              contentContainerStyle={styles.modalScrollContent}
+              keyboardShouldPersistTaps="handled"
+              bounces={false}
+            >
+              <View style={styles.modalContent}>
+                <View style={styles.modalHandle} />
+                <Text style={styles.modalTitle}>{editingId ? t.edit : t.newTask}</Text>
+
+                {/* Emoji Picker */}
+                <Text style={styles.modalLabel}>{t.icon}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.emojiPicker}>
+                  {TASK_ICONS.map((icon, i) => (
+                    <TouchableOpacity
+                      key={i}
+                      style={[styles.emojiOption, selectedIcon === icon && styles.emojiSelected]}
+                      onPress={() => setSelectedIcon(icon)}
+                    >
+                      <Ionicons name={icon as any} size={24} color={selectedIcon === icon ? '#8B5CF6' : '#6B7280'} />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                <Text style={styles.modalLabel}>{t.task}</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={newTitle}
+                  onChangeText={setNewTitle}
+                  placeholder={t.whatToDo}
+                  placeholderTextColor="#9CA3AF"
+                />
+
+                <Text style={styles.modalLabel}>{t.notes || 'Description'}</Text>
+                <TextInput
+                  style={[styles.modalInput, styles.notesInput]}
+                  value={newDescription}
+                  onChangeText={setNewDescription}
+                  placeholder={t.enterNotes}
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                  numberOfLines={3}
+                />
+
+                <Text style={styles.modalLabel}>{t.priority}</Text>
+                <View style={styles.priorityRow}>
+                  {(['high', 'medium', 'low'] as TodoPriority[]).map(p => (
+                    <TouchableOpacity
+                      key={p}
+                      style={[styles.priorityOption, newPriority === p && { backgroundColor: priorityConfig[p].bg, borderColor: priorityConfig[p].color }]}
+                      onPress={() => setNewPriority(p)}
+                    >
+                      <Text style={[styles.priorityIndicator, { color: priorityConfig[p].color }]}>{priorityConfig[p].indicator}</Text>
+                      <Text style={[styles.priorityText, { color: priorityConfig[p].color }]}>{priorityConfig[p].label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <View style={styles.modalActions}>
+                  <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowAddModal(false)}>
+                    <Text style={styles.cancelText}>{t.cancel}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.saveBtn} onPress={handleSaveTask}>
+                    <Text style={styles.saveText}>{editingId ? t.save : t.addTask}</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {editingId && (
+                  <TouchableOpacity
+                    style={[styles.modalActions, { marginTop: 12, backgroundColor: '#FEF2F2', padding: 14, borderRadius: 14, justifyContent: 'center', alignItems: 'center' }]}
+                    onPress={() => handleDeleteTask(editingId)}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#EF4444" style={{ marginRight: 8 }} />
+                    <Text style={{ color: '#EF4444', fontWeight: '600', fontSize: 16 }}>{t.delete}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </Modal>
+
+        {/* Calendar Modal */}
+        <Modal visible={!!calendarModal} transparent animationType="fade" onRequestClose={() => setCalendarModal(null)}>
+          <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <View style={styles.modalHandle} />
-              <Text style={styles.modalTitle}>{t.newTask}</Text>
-
-              {/* Emoji Picker */}
-              <Text style={styles.modalLabel}>{t.icon}</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.emojiPicker}>
-                {TASK_EMOJIS.map((emoji, i) => (
-                  <TouchableOpacity
-                    key={i}
-                    style={[styles.emojiOption, selectedEmoji === emoji && styles.emojiSelected]}
-                    onPress={() => setSelectedEmoji(emoji)}
-                  >
-                    <Text style={styles.emojiOptionText}>{emoji}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              <Text style={styles.modalLabel}>{t.task}</Text>
-              <TextInput
-                style={styles.modalInput}
-                value={newTitle}
-                onChangeText={setNewTitle}
-                placeholder={t.whatToDo}
-                placeholderTextColor="#9CA3AF"
-              />
-
-              <Text style={styles.modalLabel}>{t.priority}</Text>
-              <View style={styles.priorityRow}>
-                {(['high', 'medium', 'low'] as TodoPriority[]).map(p => (
-                  <TouchableOpacity
-                    key={p}
-                    style={[styles.priorityOption, newPriority === p && { backgroundColor: priorityConfig[p].bg, borderColor: priorityConfig[p].color }]}
-                    onPress={() => setNewPriority(p)}
-                  >
-                    <Text style={[styles.priorityIndicator, { color: priorityConfig[p].color }]}>{priorityConfig[p].indicator}</Text>
-                    <Text style={[styles.priorityText, { color: priorityConfig[p].color }]}>{priorityConfig[p].label}</Text>
-                  </TouchableOpacity>
-                ))}
+              <Text style={styles.modalTitle}>{t.addToCalendar}</Text>
+              <View style={styles.taskPreview}>
+                <Text style={styles.taskPreviewText}>{calendarModal?.title}</Text>
               </View>
 
-              <View style={styles.modalActions}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowAddModal(false)}>
-                  <Text style={styles.cancelText}>{t.cancel}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.saveBtn} onPress={handleAdd}>
-                  <Text style={styles.saveText}>{t.addTask}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Notes Modal */}
-      <Modal visible={!!notesModal} transparent animationType="fade" onRequestClose={() => setNotesModal(null)}>
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{t.addNotes}</Text>
-            <View style={styles.taskPreview}>
-              <Text style={styles.taskPreviewText}>{notesModal?.title}</Text>
-            </View>
-            <TextInput
-              style={[styles.modalInput, styles.notesInput]}
-              value={notesText}
-              onChangeText={setNotesText}
-              placeholder={t.enterNotes}
-              placeholderTextColor="#9CA3AF"
-              multiline
-              numberOfLines={4}
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setNotesModal(null)}>
-                <Text style={styles.cancelText}>{t.cancel}</Text>
+              <Text style={styles.modalLabel}>{t.date}</Text>
+              <TouchableOpacity style={styles.modalInput} onPress={showDatePicker}>
+                <Text style={{ fontSize: 16, color: '#1F2937' }}>
+                  {dateValue.toLocaleDateString()}
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.saveBtn} onPress={handleSaveNotes}>
-                <Text style={styles.saveText}>{t.save}</Text>
+
+              <Text style={styles.modalLabel}>{t.time}</Text>
+              <TouchableOpacity style={styles.modalInput} onPress={showTimePicker}>
+                <Text style={{ fontSize: 16, color: '#1F2937' }}>
+                  {dateValue.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </Text>
               </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
 
-      {/* Calendar Modal */}
-      <Modal visible={!!calendarModal} transparent animationType="fade" onRequestClose={() => setCalendarModal(null)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{t.addToCalendar}</Text>
-            <View style={styles.taskPreview}>
-              <Text style={styles.taskPreviewText}>{calendarModal?.title}</Text>
-            </View>
+              {/* Date Picker (Inline for iOS, specific logic for consistency) */}
+              {showPicker && Platform.OS === 'ios' && (
+                <View style={{ alignItems: 'center', marginVertical: 10 }}>
+                  <DateTimePicker
+                    value={dateValue}
+                    mode={pickerMode}
+                    display="spinner"
+                    onChange={onDateChange}
+                    textColor="#000"
+                  />
+                  <TouchableOpacity
+                    style={{ padding: 10, alignSelf: 'flex-end' }}
+                    onPress={() => setShowPicker(false)}
+                  >
+                    <Text style={{ color: '#8B5CF6', fontWeight: '600' }}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
-            <Text style={styles.modalLabel}>{t.date}</Text>
-            <TouchableOpacity style={styles.modalInput} onPress={showDatePicker}>
-              <Text style={{ fontSize: 16, color: '#1F2937' }}>
-                {dateValue.toLocaleDateString()}
-              </Text>
-            </TouchableOpacity>
-
-            <Text style={styles.modalLabel}>{t.time}</Text>
-            <TouchableOpacity style={styles.modalInput} onPress={showTimePicker}>
-              <Text style={{ fontSize: 16, color: '#1F2937' }}>
-                {dateValue.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </Text>
-            </TouchableOpacity>
-
-            {/* Date Picker (Inline for iOS, specific logic for consistency) */}
-            {showPicker && Platform.OS === 'ios' && (
-              <View style={{ alignItems: 'center', marginVertical: 10 }}>
+              {/* Android Picker is imperative, handled by state + conditional render below */}
+              {showPicker && Platform.OS === 'android' && (
                 <DateTimePicker
                   value={dateValue}
                   mode={pickerMode}
-                  display="spinner"
+                  display="default"
                   onChange={onDateChange}
-                  textColor="#000"
                 />
-                <TouchableOpacity
-                  style={{ padding: 10, alignSelf: 'flex-end' }}
-                  onPress={() => setShowPicker(false)}
-                >
-                  <Text style={{ color: '#8B5CF6', fontWeight: '600' }}>Done</Text>
+              )}
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={styles.cancelBtn} onPress={() => setCalendarModal(null)}>
+                  <Text style={styles.cancelText}>{t.cancel}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.saveBtn} onPress={handleAddToCalendar}>
+                  <Text style={styles.saveText}>{t.add}</Text>
                 </TouchableOpacity>
               </View>
-            )}
-
-            {/* Android Picker is imperative, handled by state + conditional render below */}
-            {showPicker && Platform.OS === 'android' && (
-              <DateTimePicker
-                value={dateValue}
-                mode={pickerMode}
-                display="default"
-                onChange={onDateChange}
-              />
-            )}
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setCalendarModal(null)}>
-                <Text style={styles.cancelText}>{t.cancel}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.saveBtn} onPress={handleAddToCalendar}>
-                <Text style={styles.saveText}>{t.add}</Text>
-              </TouchableOpacity>
             </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
 
-      <View style={styles.tabSpacer} />
-    </SafeAreaView>
+        <View style={styles.tabSpacer} />
+      </SafeAreaView>
+    </View>
   );
 };
 
@@ -532,8 +629,6 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 48, marginBottom: 12 },
   emptyText: { fontSize: 18, fontWeight: '600', color: '#6B7280' },
   emptySubtext: { fontSize: 14, color: '#9CA3AF', marginTop: 4 },
-  fab: { position: 'absolute', bottom: 100, right: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#8B5CF6', justifyContent: 'center', alignItems: 'center', shadowColor: '#8B5CF6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 },
-  fabIcon: { fontSize: 28, color: '#FFF', marginTop: -2 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   modalScrollContent: { flexGrow: 1, justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40 },
@@ -558,4 +653,21 @@ const styles = StyleSheet.create({
   saveBtn: { flex: 1, paddingVertical: 16, borderRadius: 14, backgroundColor: '#8B5CF6', alignItems: 'center' },
   saveText: { fontSize: 16, fontWeight: '600', color: '#FFF' },
   tabSpacer: { height: 80 },
+  taskWrapper: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 16,
+    overflow: 'hidden', // Ensures swipe action corners match
+  },
+  deleteActionContainer: {
+    width: 80,
+    backgroundColor: '#EF4444',
+    borderTopRightRadius: 16,
+    borderBottomRightRadius: 16,
+  },
+  deleteAction: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

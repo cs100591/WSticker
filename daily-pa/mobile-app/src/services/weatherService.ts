@@ -29,10 +29,10 @@ export const weatherService = {
 
     getGreetingAndEmoji(weather: WeatherData | null): { greeting: string; emoji: string } {
         const hour = new Date().getHours();
-        let timeGreeting = 'Good day';
-        if (hour < 12) timeGreeting = 'Good morning';
-        else if (hour < 18) timeGreeting = 'Good afternoon';
-        else timeGreeting = 'Good evening';
+        let timeGreeting = 'goodDay';
+        if (hour < 12) timeGreeting = 'goodMorning';
+        else if (hour < 18) timeGreeting = 'goodAfternoon';
+        else timeGreeting = 'goodEvening';
 
         if (!weather) {
             return { greeting: timeGreeting, emoji: '👋' };
@@ -41,26 +41,26 @@ export const weatherService = {
         const { weatherCode, temperature } = weather;
 
         // Very hot?
-        if (temperature > 30) return { greeting: "It's a hot one!", emoji: '🥵' };
+        if (temperature > 30) return { greeting: 'weatherHot', emoji: '🥵' };
 
         // Very cold?
-        if (temperature < 0) return { greeting: "Brrr, it's cold!", emoji: '🥶' };
+        if (temperature < 0) return { greeting: 'weatherCold', emoji: '🥶' };
 
         // Weather codes
         // 0: Clear sky
-        if (weatherCode === 0) return { greeting: "Sunshine today!", emoji: '☀️' };
+        if (weatherCode === 0) return { greeting: 'weatherSunshine', emoji: '☀️' };
 
         // 1-3: Cloudy
-        if (weatherCode >= 1 && weatherCode <= 3) return { greeting: "Nice & cloudy", emoji: '⛅' };
+        if (weatherCode >= 1 && weatherCode <= 3) return { greeting: 'weatherCloudy', emoji: '⛅' };
 
         // 51-67: Rain / Drizzle
-        if (weatherCode >= 51 && weatherCode <= 67) return { greeting: "Don't forget an umbrella!", emoji: '☔️' };
+        if (weatherCode >= 51 && weatherCode <= 67) return { greeting: 'weatherRain', emoji: '☔️' };
 
         // 71-77: Snow
-        if (weatherCode >= 71 && weatherCode <= 77) return { greeting: "Snow day!", emoji: '❄️' };
+        if (weatherCode >= 71 && weatherCode <= 77) return { greeting: 'weatherSnow', emoji: '❄️' };
 
         // 80-99: Showers / Thunderstorm
-        if (weatherCode >= 80) return { greeting: "Stormy weather!", emoji: '⚡️' };
+        if (weatherCode >= 80) return { greeting: 'weatherStorm', emoji: '⚡️' };
 
         return { greeting: timeGreeting, emoji: '👋' };
     }

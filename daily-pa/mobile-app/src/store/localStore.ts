@@ -6,13 +6,14 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { widgetService } from '@/services/widgetService';
 
 // Types
 export type TodoPriority = 'low' | 'medium' | 'high';
 export type TodoStatus = 'active' | 'completed';
 export type TodoColor = 'yellow' | 'blue' | 'pink' | 'green' | 'purple' | 'orange';
 export type ExpenseCategory = 'food' | 'transport' | 'shopping' | 'entertainment' | 'bills' | 'health' | 'education' | 'other';
-export type EventSource = 'local' | 'google' | 'apple';
+export type EventSource = 'local' | 'google' | 'apple' | 'device';
 
 export interface Todo {
   id: string;
@@ -38,6 +39,7 @@ export interface Expense {
   currency: string;
   category: ExpenseCategory;
   description?: string;
+  merchant?: string;
   expenseDate: string;
   receiptUrl?: string;
   tags: string[];
@@ -59,6 +61,7 @@ export interface CalendarEvent {
   color?: string;
   appleEventId?: string;
   googleEventId?: string;
+  externalCalendarId?: string; // ID of the external calendar (e.g. Device Calendar ID)
   createdAt: string;
   updatedAt: string;
   isDeleted: boolean;
@@ -72,21 +75,21 @@ interface LocalStore {
   isHydrated: boolean; // Tracking hydration state
 
   // Todo actions
-  addTodo: (todo: Omit<Todo, 'id' | 'createdAt' | 'updatedAt'>) => Todo;
+  addTodo: (todoData: Omit<Todo, 'id' | 'createdAt' | 'updatedAt'> & { id?: string; createdAt?: string; updatedAt?: string }) => Todo;
   updateTodo: (id: string, updates: Partial<Todo>) => void;
   deleteTodo: (id: string) => void;
   getTodos: () => Todo[];
   setTodos: (todos: Todo[]) => void;
 
   // Expense actions
-  addExpense: (expense: Omit<Expense, 'id' | 'createdAt' | 'updatedAt'>) => Expense;
+  addExpense: (expenseData: Omit<Expense, 'id' | 'createdAt' | 'updatedAt'> & { id?: string; createdAt?: string; updatedAt?: string }) => Expense;
   updateExpense: (id: string, updates: Partial<Expense>) => void;
   deleteExpense: (id: string) => void;
   getExpenses: () => Expense[];
   setExpenses: (expenses: Expense[]) => void;
 
   // Calendar event actions
-  addCalendarEvent: (event: Omit<CalendarEvent, 'id' | 'createdAt' | 'updatedAt'>) => CalendarEvent;
+  addCalendarEvent: (eventData: Omit<CalendarEvent, 'id' | 'createdAt' | 'updatedAt'> & { id?: string; createdAt?: string; updatedAt?: string }) => CalendarEvent;
   updateCalendarEvent: (id: string, updates: Partial<CalendarEvent>) => void;
   deleteCalendarEvent: (id: string) => void;
   getCalendarEvents: () => CalendarEvent[];
@@ -97,7 +100,9 @@ interface LocalStore {
   setHydrated: (state: boolean) => void;
 }
 
-const generateId = () => `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+import * as Crypto from 'expo-crypto';
+
+const generateId = () => Crypto.randomUUID();
 const now = () => new Date().toISOString();
 
 export const useLocalStore = create<LocalStore>()(
@@ -112,97 +117,155 @@ export const useLocalStore = create<LocalStore>()(
       addTodo: (todoData) => {
         const todo: Todo = {
           ...todoData,
-          id: generateId(),
-          createdAt: now(),
-          updatedAt: now(),
+          id: todoData.id || generateId(),
+          createdAt: todoData.createdAt || now(),
+          updatedAt: todoData.updatedAt || now(),
         };
-        set((state) => ({ todos: [...state.todos, todo] }));
+        set((state) => {
+          const newTodos = [...state.todos, todo];
+          widgetService.updateWidgetData({ todos: newTodos.filter(t => !t.isDeleted && t.status === 'active').slice(0, 3) });
+          return { todos: newTodos };
+        });
+        import('@/services/sync/SyncManager').then(({ syncManager }) => syncManager.sync().catch(console.error));
         return todo;
       },
 
       updateTodo: (id, updates) => {
-        set((state) => ({
-          todos: state.todos.map((t) =>
-            t.id === id ? { ...t, ...updates, updatedAt: now() } : t
-          ),
-        }));
+        set((state) => {
+          const updatedTodos = state.todos.map((t) =>
+            t.id === id ? { ...t, ...updates, updatedAt: updates.updatedAt || now() } : t
+          );
+          widgetService.updateWidgetData({ todos: updatedTodos.filter(t => !t.isDeleted && t.status === 'active').slice(0, 3) });
+          return { todos: updatedTodos };
+        });
+        import('@/services/sync/SyncManager').then(({ syncManager }) => syncManager.sync().catch(console.error));
       },
 
       deleteTodo: (id) => {
-        set((state) => ({
-          todos: state.todos.map((t) =>
+        set((state) => {
+          const updatedTodos = state.todos.map((t) =>
             t.id === id ? { ...t, isDeleted: true, updatedAt: now() } : t
-          ),
-        }));
+          );
+          widgetService.updateWidgetData({ todos: updatedTodos.filter(t => !t.isDeleted && t.status === 'active').slice(0, 3) });
+          return { todos: updatedTodos };
+        });
+        import('@/services/sync/SyncManager').then(({ syncManager }) => syncManager.sync().catch(console.error));
       },
 
       getTodos: () => get().todos.filter((t) => !t.isDeleted),
-      setTodos: (todos) => set({ todos }),
+      setTodos: (todos) => {
+        set({ todos });
+        widgetService.updateWidgetData({ todos: todos.filter(t => !t.isDeleted && t.status === 'active').slice(0, 3) });
+      },
 
       // Expense actions
       addExpense: (expenseData) => {
         const expense: Expense = {
           ...expenseData,
-          id: generateId(),
-          createdAt: now(),
-          updatedAt: now(),
+          id: expenseData.id || generateId(),
+          createdAt: expenseData.createdAt || now(),
+          updatedAt: expenseData.updatedAt || now(),
         };
-        set((state) => ({ expenses: [...state.expenses, expense] }));
+        set((state) => {
+          const newExpenses = [...state.expenses, expense];
+          widgetService.updateWidgetData({ expenses: newExpenses.filter(e => !e.isDeleted).slice(0, 3) });
+          return { expenses: newExpenses };
+        });
+        import('@/services/sync/SyncManager').then(({ syncManager }) => syncManager.sync().catch(console.error));
         return expense;
       },
 
       updateExpense: (id, updates) => {
-        set((state) => ({
-          expenses: state.expenses.map((e) =>
-            e.id === id ? { ...e, ...updates, updatedAt: now() } : e
-          ),
-        }));
+        set((state) => {
+          const updatedExpenses = state.expenses.map((e) =>
+            e.id === id ? { ...e, ...updates, updatedAt: updates.updatedAt || now() } : e
+          );
+          widgetService.updateWidgetData({ expenses: updatedExpenses.filter(e => !e.isDeleted).slice(0, 3) });
+          return { expenses: updatedExpenses };
+        });
+        import('@/services/sync/SyncManager').then(({ syncManager }) => syncManager.sync().catch(console.error));
       },
 
       deleteExpense: (id) => {
-        set((state) => ({
-          expenses: state.expenses.map((e) =>
+        set((state) => {
+          const updatedExpenses = state.expenses.map((e) =>
             e.id === id ? { ...e, isDeleted: true, updatedAt: now() } : e
-          ),
-        }));
+          );
+          widgetService.updateWidgetData({ expenses: updatedExpenses.filter(e => !e.isDeleted).slice(0, 3) });
+          return { expenses: updatedExpenses };
+        });
+        import('@/services/sync/SyncManager').then(({ syncManager }) => syncManager.sync().catch(console.error));
       },
 
       getExpenses: () => get().expenses.filter((e) => !e.isDeleted),
-      setExpenses: (expenses) => set({ expenses }),
+      setExpenses: (expenses) => {
+        set({ expenses });
+        widgetService.updateWidgetData({ expenses: expenses.filter(e => !e.isDeleted).slice(0, 3) });
+      },
 
       // Calendar event actions
       addCalendarEvent: (eventData) => {
-        const event: CalendarEvent = {
+        const newEvent: CalendarEvent = {
           ...eventData,
-          id: generateId(),
-          createdAt: now(),
-          updatedAt: now(),
+          id: eventData.id || generateId(),
+          createdAt: eventData.createdAt || now(),
+          updatedAt: eventData.updatedAt || now(),
         };
-        set((state) => ({ calendarEvents: [...state.calendarEvents, event] }));
-        return event;
+        set((state) => {
+          const newEvents = [newEvent, ...state.calendarEvents];
+          // Filter valid events for widget
+
+          const activeEvents = newEvents.filter(e => !e.isDeleted)
+            .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+          widgetService.updateWidgetData({ calendarEvents: activeEvents });
+          return { calendarEvents: newEvents };
+        });
+        import('@/services/sync/SyncManager').then(({ syncManager }) => syncManager.sync().catch(console.error));
+        return newEvent;
       },
 
       updateCalendarEvent: (id, updates) => {
-        set((state) => ({
-          calendarEvents: state.calendarEvents.map((e) =>
-            e.id === id ? { ...e, ...updates, updatedAt: now() } : e
-          ),
-        }));
+        set((state) => {
+          const updatedEvents = state.calendarEvents.map((e) =>
+            e.id === id ? { ...e, ...updates, updatedAt: updates.updatedAt || now() } : e
+          );
+
+
+          const activeEvents = updatedEvents.filter(e => !e.isDeleted)
+            .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+          widgetService.updateWidgetData({ calendarEvents: activeEvents });
+          return { calendarEvents: updatedEvents };
+        });
+        import('@/services/sync/SyncManager').then(({ syncManager }) => syncManager.sync().catch(console.error));
       },
 
       deleteCalendarEvent: (id) => {
-        set((state) => ({
-          calendarEvents: state.calendarEvents.map((e) =>
+        set((state) => {
+          const updatedEvents = state.calendarEvents.map((e) =>
             e.id === id ? { ...e, isDeleted: true, updatedAt: now() } : e
-          ),
-        }));
+          );
+          const activeEvents = updatedEvents.filter(e => !e.isDeleted)
+            .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+          widgetService.updateWidgetData({ calendarEvents: activeEvents });
+          return { calendarEvents: updatedEvents };
+        });
+        import('@/services/sync/SyncManager').then(({ syncManager }) => syncManager.sync().catch(console.error));
       },
 
       getCalendarEvents: () => get().calendarEvents.filter((e) => !e.isDeleted),
-      setCalendarEvents: (events) => set({ calendarEvents: events }),
+      setCalendarEvents: (events) => {
+        set({ calendarEvents: events });
+        widgetService.updateWidgetData({ calendarEvents: events.filter(e => !e.isDeleted) });
+      },
 
       // Utility
-      clearAll: () => set({ todos: [], expenses: [], calendarEvents: [] }),
+      clearAll: () => {
+        set({ todos: [], expenses: [], calendarEvents: [] });
+        widgetService.updateWidgetData({ todos: [], expenses: [], calendarEvents: [] });
+      },
       setHydrated: (state) => set({ isHydrated: state }),
     }),
     {

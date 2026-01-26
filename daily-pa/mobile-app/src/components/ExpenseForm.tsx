@@ -58,6 +58,7 @@ const expenseSchema = z.object({
     'other',
   ]),
   description: z.string().optional(),
+  merchant: z.string().optional(),
   expenseDate: z.date(),
 });
 
@@ -83,6 +84,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
     initialData?.category || 'other'
   );
   const [description, setDescription] = useState(initialData?.description || '');
+  const [merchant, setMerchant] = useState(initialData?.merchant || '');
   const [expenseDate, setExpenseDate] = useState(
     initialData?.expenseDate || new Date()
   );
@@ -113,6 +115,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         currency,
         category,
         description: description.trim() || undefined,
+        merchant: merchant.trim() || undefined,
         expenseDate,
       };
 
@@ -191,6 +194,27 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         )}
       </View>
 
+      {/* Shop Name Input */}
+      <View style={styles.field}>
+        <Text style={styles.label}>Shop Name</Text>
+        <TextInput
+          style={[styles.input, errors.merchant && styles.inputError]}
+          value={merchant}
+          onChangeText={setMerchant}
+          placeholder="e.g. Starbucks, Taxi, etc."
+          editable={!isSubmitting}
+          accessible={true}
+          accessibilityLabel="Shop Name"
+          accessibilityHint="Enter the name of the shop or merchant"
+          accessibilityRole="text"
+        />
+        {errors.merchant && (
+          <Text style={styles.errorText} accessible={true} accessibilityRole="alert">
+            {errors.merchant}
+          </Text>
+        )}
+      </View>
+
       {/* Category Picker */}
       <View style={styles.field}>
         <Text style={styles.label}>Category *</Text>
@@ -245,12 +269,12 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
 
       {/* Description Input */}
       <View style={styles.field}>
-        <Text style={styles.label}>Description</Text>
+        <Text style={styles.label}>Notes (Optional)</Text>
         <TextInput
           style={[styles.input, styles.textArea, errors.description && styles.inputError]}
           value={description}
           onChangeText={setDescription}
-          placeholder="Add a note about this expense..."
+          placeholder="Add extra notes..."
           multiline
           numberOfLines={3}
           textAlignVertical="top"
@@ -291,58 +315,64 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
       </View>
 
       {/* Date Picker Modal for iOS */}
-      {Platform.OS === 'ios' && showDatePicker && (
-        <Modal
-          visible={showDatePicker}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowDatePicker(false)}
-        >
-          <View style={styles.datePickerOverlay}>
-            <View style={styles.datePickerContainer}>
-              <View style={styles.datePickerHeader}>
-                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                  <Text style={styles.datePickerCancel}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => {
-                  setExpenseDate(tempDate);
-                  setShowDatePicker(false);
-                }}>
-                  <Text style={styles.datePickerDone}>Done</Text>
-                </TouchableOpacity>
+      {
+        Platform.OS === 'ios' && showDatePicker && (
+          <Modal
+            visible={showDatePicker}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowDatePicker(false)}
+          >
+            <View style={styles.datePickerOverlay}>
+              <View style={styles.datePickerContainer}>
+                <View style={styles.datePickerHeader}>
+                  <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                    <Text style={styles.datePickerCancel}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => {
+                    setExpenseDate(tempDate);
+                    setShowDatePicker(false);
+                  }}>
+                    <Text style={styles.datePickerDone}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={tempDate}
+                  mode="date"
+                  display="spinner"
+                  onChange={(event, date) => {
+                    if (date) setTempDate(date);
+                  }}
+                />
               </View>
-              <DateTimePicker
-                value={tempDate}
-                mode="date"
-                display="spinner"
-                onChange={(event, date) => {
-                  if (date) setTempDate(date);
-                }}
-              />
             </View>
-          </View>
-        </Modal>
-      )}
+          </Modal>
+        )
+      }
 
       {/* Date Picker for Android */}
-      {Platform.OS === 'android' && showDatePicker && (
-        <DateTimePicker
-          value={expenseDate}
-          mode="date"
-          display="default"
-          onChange={(event, date) => {
-            setShowDatePicker(false);
-            if (date) setExpenseDate(date);
-          }}
-        />
-      )}
+      {
+        Platform.OS === 'android' && showDatePicker && (
+          <DateTimePicker
+            value={expenseDate}
+            mode="date"
+            display="default"
+            onChange={(event, date) => {
+              setShowDatePicker(false);
+              if (date) setExpenseDate(date);
+            }}
+          />
+        )
+      }
 
       {/* Submit Error */}
-      {errors.submit && (
-        <View style={styles.submitError}>
-          <Text style={styles.errorText}>{errors.submit}</Text>
-        </View>
-      )}
+      {
+        errors.submit && (
+          <View style={styles.submitError}>
+            <Text style={styles.errorText}>{errors.submit}</Text>
+          </View>
+        )
+      }
 
       {/* Action Buttons */}
       <View style={styles.actions}>
@@ -372,7 +402,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           </Text>
         </TouchableOpacity>
       </View>
-    </ScrollView>
+    </ScrollView >
   );
 };
 

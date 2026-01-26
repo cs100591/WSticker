@@ -89,10 +89,12 @@ class PullSync {
               color: remoteTodo.color,
               calendarEventId: remoteTodo.calendar_event_id,
               isDeleted: remoteTodo.is_deleted || false,
+              updatedAt: remoteTodo.updated_at,
             });
           } else {
             // Create new
             store.addTodo({
+              id: remoteTodo.id,
               userId: remoteTodo.user_id,
               title: remoteTodo.title,
               description: remoteTodo.description,
@@ -103,6 +105,8 @@ class PullSync {
               color: remoteTodo.color || 'yellow',
               calendarEventId: remoteTodo.calendar_event_id,
               isDeleted: remoteTodo.is_deleted || false,
+              createdAt: remoteTodo.created_at,
+              updatedAt: remoteTodo.updated_at,
             });
           }
           result.pulled++;
@@ -161,9 +165,11 @@ class PullSync {
               receiptUrl: remoteExpense.receipt_url,
               tags: remoteExpense.tags || [],
               isDeleted: remoteExpense.is_deleted || false,
+              updatedAt: remoteExpense.updated_at,
             });
           } else {
             store.addExpense({
+              id: remoteExpense.id,
               userId: remoteExpense.user_id,
               amount: remoteExpense.amount,
               currency: remoteExpense.currency || 'USD',
@@ -173,6 +179,8 @@ class PullSync {
               receiptUrl: remoteExpense.receipt_url,
               tags: remoteExpense.tags || [],
               isDeleted: remoteExpense.is_deleted || false,
+              createdAt: remoteExpense.created_at,
+              updatedAt: remoteExpense.updated_at,
             });
           }
           result.pulled++;
@@ -232,9 +240,11 @@ class PullSync {
               todoId: remoteEvent.todo_id,
               color: remoteEvent.color,
               isDeleted: remoteEvent.is_deleted || false,
+              updatedAt: remoteEvent.updated_at,
             });
           } else {
             store.addCalendarEvent({
+              id: remoteEvent.id,
               userId: remoteEvent.user_id,
               title: remoteEvent.title,
               description: remoteEvent.description,
@@ -245,6 +255,8 @@ class PullSync {
               todoId: remoteEvent.todo_id,
               color: remoteEvent.color,
               isDeleted: remoteEvent.is_deleted || false,
+              createdAt: remoteEvent.created_at,
+              updatedAt: remoteEvent.updated_at,
             });
           }
           result.pulled++;

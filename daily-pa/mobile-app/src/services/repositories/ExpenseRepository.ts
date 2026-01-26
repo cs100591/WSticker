@@ -11,6 +11,7 @@ export interface CreateExpenseData {
   currency?: string;
   category: ExpenseCategory;
   description?: string;
+  merchant?: string;
   expenseDate?: string;
   receiptUrl?: string;
   tags?: string[];
@@ -21,6 +22,7 @@ export interface UpdateExpenseData {
   currency?: string;
   category?: ExpenseCategory;
   description?: string;
+  merchant?: string;
   expenseDate?: string;
   receiptUrl?: string;
   tags?: string[];
@@ -35,6 +37,7 @@ class ExpenseRepositoryClass {
       currency: data.currency || 'USD',
       category: data.category,
       description: data.description,
+      merchant: data.merchant,
       expenseDate: data.expenseDate || new Date().toISOString(),
       receiptUrl: data.receiptUrl,
       tags: data.tags || [],
@@ -85,7 +88,7 @@ class ExpenseRepositoryClass {
   async getTotalByCategory(userId: string): Promise<Record<ExpenseCategory, number>> {
     const store = useLocalStore.getState();
     const expenses = store.getExpenses().filter((e) => e.userId === userId);
-    
+
     const totals: Record<ExpenseCategory, number> = {
       food: 0,
       transport: 0,
@@ -96,11 +99,11 @@ class ExpenseRepositoryClass {
       education: 0,
       other: 0,
     };
-    
+
     expenses.forEach((e) => {
       totals[e.category] += e.amount;
     });
-    
+
     return totals;
   }
 

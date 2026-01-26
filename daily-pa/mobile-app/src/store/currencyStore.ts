@@ -17,6 +17,13 @@ const currencySymbols: Record<string, string> = {
     CAD: 'C$',
     AUD: 'A$',
     MYR: 'RM',
+    SGD: 'S$',
+    IDR: 'Rp',
+    THB: '฿',
+    VND: '₫',
+    PHP: '₱',
+    INR: '₹',
+    KRW: '₩',
 };
 
 export const useCurrencyStore = create<CurrencyStore>()(

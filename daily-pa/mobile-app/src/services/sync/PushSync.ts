@@ -18,34 +18,40 @@ class PushSync {
    * Detect local changes since last sync
    * For now, we push all non-deleted items (simple approach)
    */
-  async detectChanges(lastSyncTime: Date | null): Promise<{
+  async detectChanges(lastSyncTime: Date | null, forceFullSync: boolean = false, userId: string): Promise<{
     todos: any[];
     expenses: any[];
     calendarEvents: any[];
   }> {
     const store = useLocalStore.getState();
-    
+
     // Get all items that have been updated since last sync
     const filterByTime = (item: { updatedAt: string }) => {
+      if (forceFullSync) return true;
       if (!lastSyncTime) return true;
       return new Date(item.updatedAt) > lastSyncTime;
     };
 
     return {
-      todos: store.todos.filter(filterByTime).map((t) => this.serializeTodo(t)),
-      expenses: store.expenses.filter(filterByTime).map((e) => this.serializeExpense(e)),
-      calendarEvents: store.calendarEvents.filter(filterByTime).map((e) => this.serializeCalendarEvent(e)),
+      todos: store.todos.filter(filterByTime).map((t) => this.serializeTodo(t, userId)),
+      expenses: store.expenses.filter(filterByTime).map((e) => this.serializeExpense(e, userId)),
+      calendarEvents: store.calendarEvents.filter(filterByTime).map((e) => this.serializeCalendarEvent(e, userId)),
     };
   }
 
   /**
    * Push all local changes to remote
    */
-  async pushChanges(lastSyncTime: Date | null): Promise<PushSyncResult> {
+  async pushChanges(lastSyncTime: Date | null, forceFullSync: boolean = false): Promise<PushSyncResult> {
     const result: PushSyncResult = { pushed: 0, errors: [] };
 
     try {
-      const changes = await this.detectChanges(lastSyncTime);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      const changes = await this.detectChanges(lastSyncTime, forceFullSync, user.id);
 
       const todosResult = await this.pushTodos(changes.todos);
       result.pushed += todosResult.pushed;
@@ -73,6 +79,9 @@ class PushSync {
   /**
    * Push todos to remote
    */
+  /**
+   * Push todos to remote
+   */
   private async pushTodos(todos: any[]): Promise<PushSyncResult> {
     const result: PushSyncResult = { pushed: 0, errors: [] };
 
@@ -81,7 +90,11 @@ class PushSync {
         if (todo.is_deleted) {
           const { error } = await supabase
             .from('todos')
-            .update({ is_deleted: true, updated_at: new Date().toISOString() })
+            .update({
+              is_deleted: true,
+              updated_at: new Date().toISOString(),
+              user_id: todo.user_id
+            })
             .eq('id', todo.id);
           if (error) throw error;
         } else {
@@ -90,6 +103,7 @@ class PushSync {
         }
         result.pushed++;
       } catch (error) {
+        console.error('Push Todo Error:', error);
         result.errors.push({
           entityType: 'todos',
           entityId: todo.id,
@@ -113,7 +127,11 @@ class PushSync {
         if (expense.is_deleted) {
           const { error } = await supabase
             .from('expenses')
-            .update({ is_deleted: true, updated_at: new Date().toISOString() })
+            .update({
+              is_deleted: true,
+              updated_at: new Date().toISOString(),
+              user_id: expense.user_id
+            })
             .eq('id', expense.id);
           if (error) throw error;
         } else {
@@ -122,6 +140,7 @@ class PushSync {
         }
         result.pushed++;
       } catch (error) {
+        console.error('Push Expense Error:', error);
         result.errors.push({
           entityType: 'expenses',
           entityId: expense.id,
@@ -145,7 +164,11 @@ class PushSync {
         if (event.is_deleted) {
           const { error } = await supabase
             .from('calendar_events')
-            .update({ is_deleted: true, updated_at: new Date().toISOString() })
+            .update({
+              is_deleted: true,
+              updated_at: new Date().toISOString(),
+              user_id: event.user_id
+            })
             .eq('id', event.id);
           if (error) throw error;
         } else {
@@ -154,6 +177,7 @@ class PushSync {
         }
         result.pushed++;
       } catch (error) {
+        console.error('Push Calendar Error:', error);
         result.errors.push({
           entityType: 'calendar_events',
           entityId: event.id,
@@ -169,10 +193,10 @@ class PushSync {
   /**
    * Serialize todo for remote storage
    */
-  private serializeTodo(todo: Todo): any {
+  private serializeTodo(todo: Todo, userId: string): any {
     return {
       id: todo.id,
-      user_id: todo.userId,
+      user_id: userId,
       title: todo.title,
       description: todo.description,
       due_date: todo.dueDate,
@@ -190,10 +214,10 @@ class PushSync {
   /**
    * Serialize expense for remote storage
    */
-  private serializeExpense(expense: Expense): any {
+  private serializeExpense(expense: Expense, userId: string): any {
     return {
       id: expense.id,
-      user_id: expense.userId,
+      user_id: userId,
       amount: expense.amount,
       currency: expense.currency,
       category: expense.category,
@@ -210,16 +234,22 @@ class PushSync {
   /**
    * Serialize calendar event for remote storage
    */
-  private serializeCalendarEvent(event: CalendarEvent): any {
+  private serializeCalendarEvent(event: CalendarEvent, userId: string): any {
+    // Map local source types to database allowed values ('manual', 'todo', 'google')
+    let source = event.source;
+    if (source === 'device' || source === 'local' || !['manual', 'todo', 'google'].includes(source)) {
+      source = 'manual';
+    }
+
     return {
       id: event.id,
-      user_id: event.userId,
+      user_id: userId,
       title: event.title,
       description: event.description,
       start_time: event.startTime,
       end_time: event.endTime,
       all_day: event.allDay,
-      source: event.source,
+      source: source,
       todo_id: event.todoId,
       color: event.color,
       created_at: event.createdAt,

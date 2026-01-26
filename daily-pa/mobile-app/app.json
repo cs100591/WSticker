@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "mobile-app",
-    "slug": "mobile-app",
+    "name": "Clasp",
+    "slug": "clasp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -9,7 +9,10 @@
     "newArchEnabled": false,
     "scheme": "dailypa",
     "extra": {
-      "deepseekApiKey": "${EXPO_PUBLIC_DEEPSEEK_API_KEY}"
+      "deepseekApiKey": "${EXPO_PUBLIC_DEEPSEEK_API_KEY}",
+      "eas": {
+        "projectId": "2bc1d0ad-b4d8-4530-a0ed-7ab3bf42baec"
+      }
     },
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -21,7 +24,9 @@
       "infoPlist": {
         "UIBackgroundModes": [
           "remote-notification"
-        ]
+        ],
+        "NSCalendarsUsageDescription": "This app needs access to your calendar to sync tasks and events.",
+        "NSRemindersUsageDescription": "This app needs access to your reminders to sync tasks."
       },
       "bundleIdentifier": "com.dailypa.app",
       "associatedDomains": [
@@ -38,9 +43,11 @@
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
-        "WAKE_LOCK"
+        "WAKE_LOCK",
+        "READ_CALENDAR",
+        "WRITE_CALENDAR",
+        "com.android.vending.BILLING"
       ],
-      "useNextNotificationsApi": true,
       "package": "com.dailypa.app",
       "intentFilters": [
         {
@@ -72,8 +79,8 @@
           "sounds": []
         }
       ],
-      "expo-web-browser",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-font"
     ]
   }
 }

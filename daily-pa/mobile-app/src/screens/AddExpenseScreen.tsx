@@ -23,6 +23,9 @@ interface AddExpenseScreenProps {
   onSuccess?: () => void;
 }
 
+import { useThemeStore } from '@/store/themeStore';
+import { LinearGradient } from 'expo-linear-gradient';
+
 export const AddExpenseScreen: React.FC<AddExpenseScreenProps> = ({
   onClose,
   onSuccess,
@@ -32,8 +35,19 @@ export const AddExpenseScreen: React.FC<AddExpenseScreenProps> = ({
   const [ocrData, setOcrData] = useState<OCRResult | null>(null);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
 
+  const { mode: themeMode } = useThemeStore();
+  const isGlassy = themeMode !== 'minimal';
+  const gradient = React.useMemo(() => {
+    switch (themeMode) {
+      case 'sage': return ['#C3E0D8', '#D6E8E2', '#F9F6F0'];
+      case 'sunset': return ['#FECDD3', '#FFE4E6', '#FFF5F5'];
+      case 'ocean': return ['#BAE6FD', '#E0F2FE', '#F0F9FF'];
+      default: return ['#E0F2FE', '#DBEAFE', '#EFF6FF'];
+    }
+  }, [themeMode]);
+
   // Mock user ID - in real app, get from auth context
-  const userId = 'mock-user-id';
+  const userId = 'offline-user-device';
 
   const handleScanReceipt = () => {
     setShowScanner(true);
@@ -104,6 +118,7 @@ export const AddExpenseScreen: React.FC<AddExpenseScreenProps> = ({
     try {
       await expenseService.createExpense({
         ...data,
+        expenseDate: data.expenseDate.toISOString(),
         userId,
         receiptUrl: receiptUrl || undefined,
         tags: [],
@@ -127,17 +142,25 @@ export const AddExpenseScreen: React.FC<AddExpenseScreenProps> = ({
   // Prepare initial data from OCR
   const initialData = ocrData
     ? {
-        amount: ocrData.amount,
-        currency: 'CNY',
-        category: (ocrData.category as ExpenseCategory) || 'other',
-        description: ocrData.merchant,
-        expenseDate: ocrData.date || new Date(),
-      }
+      amount: ocrData.amount,
+      currency: 'CNY',
+      category: (ocrData.category as ExpenseCategory) || 'other',
+      merchant: ocrData.merchant,
+      expenseDate: ocrData.date || new Date(),
+    }
     : undefined;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, isGlassy && { backgroundColor: 'transparent' }]}>
+      {isGlassy && (
+        <View style={[StyleSheet.absoluteFill, { zIndex: -1 }]}>
+          <LinearGradient
+            colors={gradient as any}
+            style={{ flex: 1 }}
+          />
+        </View>
+      )}
+      <View style={[styles.header, isGlassy && { backgroundColor: 'transparent', borderBottomColor: 'transparent' }]}>
         <TouchableOpacity onPress={onClose}>
           <Text style={styles.cancelText}>Cancel</Text>
         </TouchableOpacity>

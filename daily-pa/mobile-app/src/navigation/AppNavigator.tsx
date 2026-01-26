@@ -1,26 +1,23 @@
-/**
- * App Navigator
- * Main navigation structure for the app
- */
-
-import React, { useState } from 'react';
-import { Text, View } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useState, useEffect } from 'react';
+import { Text, View, ActivityIndicator } from 'react-native';
+import { NavigationContainer, NavigationState } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { LoginScreen } from '@/screens/LoginScreen';
-import { RegisterScreen } from '@/screens/RegisterScreen';
-import { ForgotPasswordScreen } from '@/screens/ForgotPasswordScreen';
+import { WelcomeScreen } from '@/screens/WelcomeScreen'; // New Import
 import { DashboardScreen } from '@/screens/DashboardScreen';
 import { TodosScreen } from '@/screens/TodosScreen';
 import { ExpensesScreen } from '@/screens/ExpensesScreen';
 import { CalendarScreen } from '@/screens/CalendarScreen';
 import { ChatScreen } from '@/screens/ChatScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
+import { NotesScreen } from '@/screens/NotesScreen';
 import { SkipLoginContext } from '@/contexts/SkipLoginContext';
+import { FloatingAIButton } from '@/components/FloatingAIButton';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+const RootStack = createNativeStackNavigator();
 
 const MainTabs = () => (
   <Tab.Navigator
@@ -42,54 +39,40 @@ const MainTabs = () => (
       lazy: true,
     }}
   >
-    {/* Home/Dashboard is the main screen */}
-    <Tab.Screen 
-      name="Home" 
+    <Tab.Screen
+      name="Home"
       component={DashboardScreen}
       options={{
         tabBarLabel: 'Home',
         tabBarIcon: ({ color }) => <Text style={{ fontSize: 22, color }}>🏠</Text>,
       }}
     />
-    <Tab.Screen 
-      name="Todos" 
+    <Tab.Screen
+      name="Todos"
       component={TodosScreen}
       options={{
-        tabBarLabel: 'Todos',
+        tabBarLabel: 'Tasks',
         tabBarIcon: ({ color }) => <Text style={{ fontSize: 22, color }}>✓</Text>,
       }}
     />
-    <Tab.Screen 
-      name="AIChat" 
-      component={ChatScreen}
-      options={{
-        tabBarLabel: 'AI',
-        tabBarIcon: ({ focused }) => (
-          <View style={{
-            width: 40,
-            height: 40,
-            borderRadius: 12,
-            borderWidth: 2,
-            borderColor: '#3B82F6',
-            backgroundColor: focused ? '#3B82F6' : 'transparent',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}>
-            <Text style={{ fontSize: 18, color: focused ? '#FFF' : '#3B82F6' }}>✨</Text>
-          </View>
-        ),
-      }}
-    />
-    <Tab.Screen 
-      name="Calendar" 
+    <Tab.Screen
+      name="Calendar"
       component={CalendarScreen}
       options={{
         tabBarLabel: 'Calendar',
         tabBarIcon: ({ color }) => <Text style={{ fontSize: 22, color }}>📅</Text>,
       }}
     />
-    <Tab.Screen 
-      name="Expenses" 
+    <Tab.Screen
+      name="Notes"
+      component={NotesScreen}
+      options={{
+        tabBarLabel: 'Notes',
+        tabBarIcon: ({ color }) => <Text style={{ fontSize: 22, color }}>📝</Text>,
+      }}
+    />
+    <Tab.Screen
+      name="Expenses"
       component={ExpensesScreen}
       options={{
         tabBarLabel: 'Expenses',
@@ -99,25 +82,77 @@ const MainTabs = () => (
   </Tab.Navigator>
 );
 
-export const AppNavigator = () => {
-  const [isSkipLogin, setIsSkipLogin] = useState(false);
+const AppStack = ({ initialRouteName }: { initialRouteName: string }) => (
+  <RootStack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRouteName}>
+    {/* Welcome Screen is the first screen if not finished tutorial/setup */}
+    <RootStack.Screen name="Welcome" component={WelcomeScreen} />
+    <RootStack.Screen name="MainTabs" component={MainTabs} />
+    <RootStack.Screen name="Settings" component={SettingsScreen} />
+    <RootStack.Screen
+      name="AIChatModal"
+      component={ChatScreen}
+      options={{
+        presentation: 'modal',
+        animation: 'slide_from_bottom'
+      }}
+    />
+  </RootStack.Navigator>
+);
 
-  const skipToMain = () => {
-    setIsSkipLogin(true);
+export const AppNavigator = () => {
+  const [currentRouteName, setCurrentRouteName] = useState<string | undefined>();
+  const [initialRoute, setInitialRoute] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkFirstLaunch = async () => {
+      try {
+        const hasLaunched = await AsyncStorage.getItem('hasLaunched');
+        // If hasLaunched is set, go to MainTabs, otherwise Welcome
+        if (hasLaunched === 'true') {
+          setInitialRoute('MainTabs');
+        } else {
+          setInitialRoute('Welcome');
+        }
+      } catch (e) {
+        setInitialRoute('Welcome');
+      }
+    };
+    checkFirstLaunch();
+  }, []);
+
+  const getActiveRouteName = (state: NavigationState | undefined): string => {
+    if (!state || !state.routes) return 'Unknown';
+    const route = state.routes[state.index];
+    if (route.state) {
+      return getActiveRouteName(route.state as NavigationState);
+    }
+    return route.name;
   };
 
+  const shouldShowFAB = () => {
+    const hiddenScreens = ['Settings', 'AIChatModal', 'Welcome'];
+    if (!currentRouteName) return false;
+    return !hiddenScreens.includes(currentRouteName);
+  };
+
+  if (!initialRoute) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+      </View>
+    );
+  }
+
   return (
-    <SkipLoginContext.Provider value={{ skipToMain }}>
-      <NavigationContainer>
-        {isSkipLogin ? (
-          <MainTabs />
-        ) : (
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Register" component={RegisterScreen} />
-            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-          </Stack.Navigator>
-        )}
+    <SkipLoginContext.Provider value={{ skipToMain: () => { } }}>
+      <NavigationContainer
+        onStateChange={(state) => {
+          const routeName = getActiveRouteName(state);
+          setCurrentRouteName(routeName);
+        }}
+      >
+        <AppStack initialRouteName={initialRoute} />
+        {shouldShowFAB() && <FloatingAIButton />}
       </NavigationContainer>
     </SkipLoginContext.Provider>
   );

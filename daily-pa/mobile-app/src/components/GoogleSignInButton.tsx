@@ -3,7 +3,10 @@ import { StyleSheet, View, Text, TouchableOpacity, Image, Platform, Alert } from
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import { makeRedirectUri } from 'expo-auth-session';
 import { supabase } from '@/services/supabase';
+
+import Constants from 'expo-constants';
 
 // Handle redirect back to app
 WebBrowser.maybeCompleteAuthSession();
@@ -23,15 +26,37 @@ export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
         try {
             setIsLoading(true);
 
-            // Determine redirect URL
-            const redirectUrl = Linking.createURL('/auth/callback');
-            console.log('Redirect URL:', redirectUrl);
+            // AUTO-DETECTION of environment
+            // Expo Go: Use default 'exp' scheme (undefined)
+            // Native/Dev Build: Use 'dailypa' scheme
+            const isExpoGo = Constants.appOwnership === 'expo';
+            const isStandalone = Constants.executionEnvironment === 'standalone';
+
+            // In standalone builds, always use the custom scheme
+            const redirectUrl = makeRedirectUri({
+                scheme: isStandalone ? 'dailypa' : (isExpoGo ? undefined : 'dailypa'),
+                path: 'auth/callback',
+            });
+
+            console.log('----------------------------------------------------');
+            console.log('Google Sign-In Redirect URL:', redirectUrl);
+            console.log('Environment:', { isExpoGo, isStandalone, appOwnership: Constants.appOwnership, executionEnvironment: Constants.executionEnvironment });
+
+            // Check if running in standard Expo Go (not Dev Client)
+            if (isExpoGo) {
+                console.log('Running in Expo Go. Using standard exp:// scheme.');
+                // Optional: Alert user to add this URL to Supabase if they haven't
+            }
 
             const { data, error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
                     redirectTo: redirectUrl,
                     skipBrowserRedirect: true,
+                    queryParams: {
+                        access_type: 'offline',
+                        prompt: 'consent',
+                    },
                 },
             });
 
@@ -42,16 +67,7 @@ export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
             const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
 
             if (result.type === 'success' && result.url) {
-                // Parse the URL to get the tokens
-                // Supabase returns tokens in the hash parameters: #access_token=...&refresh_token=...
-                // Or sometimes query parameters depending on config. Assuming fragments for implicit or query for PKCE.
-                // Usually Supabase handles the session exchange if we just extract parameters.
-
-                // However, extracting manually is complex. A better way is passing the URL to supabase if supported,
-                // or Parsing manually.
                 const url = result.url;
-
-                // Extract tokens from URL (hash or query)
                 const params = extractParamsFromUrl(url);
 
                 if (params.access_token && params.refresh_token) {
@@ -62,22 +78,25 @@ export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
                     if (sessionError) throw sessionError;
                     onSuccess?.();
                 } else if (params.code) {
-                    // If PKCE flow (not default in simple implicit setup but good to handle)
-                    // But client-side implicit flow usually returns tokens directly.
-                    // If code is returned, we need to exchange it, but Supabase JS usually does this automagically if we use the helper?
-                    // Actually, setSession is for tokens.
-                    // Let's assume tokens for now as it's the standard mobile behavior with Supabase unless PKCE flow is strictly enforced.
-                    console.log('Auth Code returned, but assuming implicit flow for simplicity in this quick fix.');
+                    console.log('Auth Code returned, assuming handled by Supabase or needs exchange.');
+                    // If using PKCE, we might need to exchange code here, but signInWithOAuth usually handles it or returns session tokens in implicit flow
                 } else {
-                    // Sometimes check for errors in URL
                     if (params.error) throw new Error(params.error_description || params.error);
                 }
+            } else if (result.type === 'cancel') {
+                // User cancelled
+                console.log('User cancelled the login');
             }
         } catch (error) {
             console.error('Google Sign In Error:', error);
-            onError?.(error instanceof Error ? error.message : 'Google Sign In failed');
-            if ((error as any).message !== 'User cancelled the login process') { // Basic check
-                Alert.alert('Google Sign In Failed', error instanceof Error ? error.message : 'Unknown error');
+            console.error('Error stack:', (error as any)?.stack);
+
+            const errorMessage = error instanceof Error ? error.message : 'Google Sign In failed';
+            onError?.(errorMessage);
+
+            // Don't show alert for user cancellation
+            if (errorMessage !== 'User cancelled the login process') {
+                Alert.alert('Google Sign In Failed', errorMessage);
             }
         } finally {
             setIsLoading(false);
@@ -93,7 +112,8 @@ export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
         let parts: string[] = [];
 
         if (queryIdx !== -1) {
-            parts = parts.concat(url.substring(queryIdx + 1, fragmentIdx !== -1 ? fragmentIdx : undefined).split('&'));
+            const endIdx = fragmentIdx !== -1 ? fragmentIdx : url.length;
+            parts = parts.concat(url.substring(queryIdx + 1, endIdx).split('&'));
         }
         if (fragmentIdx !== -1) {
             parts = parts.concat(url.substring(fragmentIdx + 1).split('&'));
