@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI, { toFile } from 'openai';
 
 export async function POST(req: NextRequest) {
     try {
@@ -36,7 +35,10 @@ export async function POST(req: NextRequest) {
         const buffer = Buffer.from(audio, 'base64');
         console.log('Audio buffer size:', buffer.length);
 
-        // 5. Initialize OpenAI client
+        // 5. Dynamic import OpenAI (fixes Vercel build issue)
+        const { default: OpenAI, toFile } = await import('openai');
+
+        // 6. Initialize OpenAI client
         const apiKey = process.env.OPENAI_API_KEY;
         console.log('Initializing OpenAI with Key:', apiKey ? `${apiKey.substring(0, 5)}...` : 'MISSING');
 
@@ -44,7 +46,7 @@ export async function POST(req: NextRequest) {
             apiKey: apiKey,
         });
 
-        // 6. Create a File object for the OpenAI SDK
+        // 7. Create a File object for the OpenAI SDK
         // Use toFile helper for better compatibility
         const file = await toFile(buffer, 'audio.m4a', { type: 'audio/m4a' });
 
