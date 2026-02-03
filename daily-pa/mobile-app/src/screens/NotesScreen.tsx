@@ -31,6 +31,7 @@ import { Todo, Note, useLocalStore } from '@/models';
 import { useThemeStore } from '@/store/themeStore';
 import { ENV } from '@/config/env';
 import { LinearGradient } from 'expo-linear-gradient';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
 
 const API_URL = `${ENV.SUPABASE_URL}/functions/v1/api`;
 
@@ -459,64 +460,74 @@ export const NotesScreen = () => {
     // --- Render ---
 
     const renderNoteItem = ({ item }: { item: Note }) => {
+        const renderRightActions = () => {
+            return (
+                <View style={styles.deleteActionContainer}>
+                    <TouchableOpacity
+                        style={styles.deleteAction}
+                        onPress={() => handleDeleteNote(item.id)}
+                    >
+                        <Ionicons name="trash-outline" size={24} color="#FFF" />
+                    </TouchableOpacity>
+                </View>
+            );
+        };
+
         return (
-            <View style={[
-                styles.card,
-                isGlassy && { borderRadius: 24, borderWidth: 0, shadowColor: 'rgba(0,0,0,0.05)', shadowOpacity: 1, shadowRadius: 15, backgroundColor: 'rgba(255,255,255,0.7)' }
-            ]}>
-                <View style={styles.cardContent}>
-                    <View style={styles.cardHeader}>
-                        <Text style={styles.timestamp}>
-                            {new Date(item.createdAt).toLocaleString(lang, {
-                                month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                            })}
-                        </Text>
-                        <View style={styles.tags}>
-                            <View style={styles.tag}><Text style={styles.tagText}>{item.inputLang}</Text></View>
-                            <Ionicons name="arrow-forward" size={12} color="#9CA3AF" />
-                            <View style={styles.tag}><Text style={styles.tagText}>{item.outputLang}</Text></View>
+            <Swipeable renderRightActions={renderRightActions}>
+                <View style={[
+                    styles.card,
+                    isGlassy && { borderRadius: 24, borderWidth: 0, shadowColor: 'rgba(0,0,0,0.05)', shadowOpacity: 1, shadowRadius: 15, backgroundColor: 'rgba(255,255,255,0.7)' }
+                ]}>
+                    <View style={styles.cardContent}>
+                        <View style={styles.cardHeader}>
+                            <Text style={styles.timestamp}>
+                                {new Date(item.createdAt).toLocaleString(lang, {
+                                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                                })}
+                            </Text>
+                            <View style={styles.tags}>
+                                <View style={styles.tag}><Text style={styles.tagText}>{item.inputLang}</Text></View>
+                                <Ionicons name="arrow-forward" size={12} color="#9CA3AF" />
+                                <View style={styles.tag}><Text style={styles.tagText}>{item.outputLang}</Text></View>
+                            </View>
+                        </View>
+
+                        {/* Editable Text Area */}
+                        <TextInput
+                            style={styles.cardTextInput}
+                            multiline
+                            defaultValue={item.text}
+                            onEndEditing={(e) => updateNoteContent(item.id, e.nativeEvent.text)}
+                        />
+
+                        {/* Linked Task Tag */}
+                        {item.linkedTaskId && (
+                            <TouchableOpacity
+                                style={styles.linkedTaskTag}
+                                onPress={() => navigation.navigate('Todos')}
+                            >
+                                <Ionicons name="checkbox-outline" size={14} color="#000" />
+                                <Text style={styles.linkedTaskText}>{t.associated}: {item.linkedTaskTitle}</Text>
+                            </TouchableOpacity>
+                        )}
+
+                        {/* Actions Row - Swipe to Delete (remove button here) */}
+                        <View style={styles.cardActions}>
+                            <TouchableOpacity style={styles.actionBtn} onPress={() => handlePlayback(item.text)}>
+                                <Ionicons name="play-circle-outline" size={20} color="#3B82F6" />
+                                <Text style={styles.actionText}>{t.play}</Text>
+                            </TouchableOpacity>
+
+                            {/* Link Task Button - Moved Here */}
+                            <TouchableOpacity style={styles.actionBtn} onPress={() => openLinkModal(item.id)}>
+                                <Ionicons name="link-outline" size={18} color="#3B82F6" />
+                                <Text style={styles.actionText}>{t.linkTask}</Text>
+                            </TouchableOpacity>
                         </View>
                     </View>
-
-                    {/* Editable Text Area */}
-                    <TextInput
-                        style={styles.cardTextInput}
-                        multiline
-                        defaultValue={item.text}
-                        onEndEditing={(e) => updateNoteContent(item.id, e.nativeEvent.text)}
-                    />
-
-                    {/* Linked Task Tag */}
-                    {item.linkedTaskId && (
-                        <TouchableOpacity
-                            style={styles.linkedTaskTag}
-                            onPress={() => navigation.navigate('Todos')}
-                        >
-                            <Ionicons name="checkbox-outline" size={14} color="#000" />
-                            <Text style={styles.linkedTaskText}>{t.associated}: {item.linkedTaskTitle}</Text>
-                        </TouchableOpacity>
-                    )}
-
-                    {/* Actions Row */}
-                    <View style={styles.cardActions}>
-                        <TouchableOpacity style={styles.actionBtn} onPress={() => handlePlayback(item.text)}>
-                            <Ionicons name="play-circle-outline" size={20} color="#3B82F6" />
-                            <Text style={styles.actionText}>{t.play}</Text>
-                        </TouchableOpacity>
-
-                        {/* Link Task Button - Moved Here */}
-                        <TouchableOpacity style={styles.actionBtn} onPress={() => openLinkModal(item.id)}>
-                            <Ionicons name="link-outline" size={18} color="#3B82F6" />
-                            <Text style={styles.actionText}>{t.linkTask}</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.actionBtn} onPress={() => handleDeleteNote(item.id)}>
-                            <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                            <Text style={[styles.actionText, { color: '#EF4444' }]}>{t.delete}</Text>
-                        </TouchableOpacity>
-                    </View>
                 </View>
-            </View>
+            </Swipeable>
         );
     };
 
@@ -718,6 +729,23 @@ const styles = StyleSheet.create({
     cardActions: { flexDirection: 'row', justifyContent: 'flex-start', gap: 24, marginTop: 4 },
     actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     actionText: { fontSize: 13, color: '#3B82F6', fontWeight: '500' },
+
+    // Swipe Delete
+    deleteActionContainer: {
+        width: 80,
+        backgroundColor: '#EF4444',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 12,
+        borderTopRightRadius: 12,
+        borderBottomRightRadius: 12,
+    },
+    deleteAction: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: '100%',
+    },
 
     // Controls
     controls: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFF', padding: 24, borderTopLeftRadius: 24, borderTopRightRadius: 24, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 10 },
