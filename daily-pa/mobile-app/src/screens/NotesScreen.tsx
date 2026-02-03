@@ -83,6 +83,11 @@ export const NotesScreen = () => {
 
     // Task Linking State
     const [showTaskModal, setShowTaskModal] = useState(false);
+
+    // Voice Waveform Animation
+    const waveformAnim = useRef(new Animated.Value(0)).current;
+    const [waveformBars, setWaveformBars] = useState<number[]>(Array(20).fill(0.3));
+    const waveformInterval = useRef<NodeJS.Timeout | null>(null);
     const [taskList, setTaskList] = useState<Todo[]>([]);
     const [filteredTaskList, setFilteredTaskList] = useState<Todo[]>([]);
     const [taskSearchQuery, setTaskSearchQuery] = useState('');
@@ -154,11 +159,32 @@ export const NotesScreen = () => {
                     return prev + 1;
                 });
             }, 1000);
+            // Start waveform animation
+            startWaveformAnimation();
         } else {
             setDuration(0);
+            stopWaveformAnimation();
         }
-        return () => clearInterval(interval);
+        return () => {
+            clearInterval(interval);
+            stopWaveformAnimation();
+        };
     }, [isRecording]);
+
+    // Waveform animation
+    const startWaveformAnimation = () => {
+        waveformInterval.current = setInterval(() => {
+            setWaveformBars(Array(20).fill(0).map(() => 0.2 + Math.random() * 0.8));
+        }, 100);
+    };
+
+    const stopWaveformAnimation = () => {
+        if (waveformInterval.current) {
+            clearInterval(waveformInterval.current);
+            waveformInterval.current = null;
+        }
+        setWaveformBars(Array(20).fill(0.3));
+    };
 
     // Fetch Tasks when Modal Opens
     useEffect(() => {
@@ -473,6 +499,16 @@ export const NotesScreen = () => {
             );
         };
 
+        // Get flag from language code
+        const getFlag = (langName: string) => {
+            const langMap: Record<string, string> = {
+                'Chinese': '🇨🇳', 'English': '🇺🇸', 'Malay': '🇲🇾', 'Tamil': '🇮🇳',
+                'Japanese': '🇯🇵', 'Korean': '🇰🇷', 'Indonesian': '🇮🇩', 'Spanish': '🇪🇸',
+                'French': '🇫🇷', 'German': '🇩🇪', 'Thai': '🇹🇭', 'Vietnamese': '🇻🇳'
+            };
+            return langMap[langName] || '🌐';
+        };
+
         return (
             <Swipeable renderRightActions={renderRightActions}>
                 <View style={[
@@ -480,17 +516,13 @@ export const NotesScreen = () => {
                     isGlassy && { borderRadius: 24, borderWidth: 0, shadowColor: 'rgba(0,0,0,0.05)', shadowOpacity: 1, shadowRadius: 15, backgroundColor: 'rgba(255,255,255,0.7)' }
                 ]}>
                     <View style={styles.cardContent}>
+                        {/* Header: Time only */}
                         <View style={styles.cardHeader}>
                             <Text style={styles.timestamp}>
                                 {new Date(item.createdAt).toLocaleString(lang, {
                                     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
                                 })}
                             </Text>
-                            <View style={styles.tags}>
-                                <View style={styles.tag}><Text style={styles.tagText}>{item.inputLang}</Text></View>
-                                <Ionicons name="arrow-forward" size={12} color="#9CA3AF" />
-                                <View style={styles.tag}><Text style={styles.tagText}>{item.outputLang}</Text></View>
-                            </View>
                         </View>
 
                         {/* Editable Text Area */}
@@ -512,18 +544,26 @@ export const NotesScreen = () => {
                             </TouchableOpacity>
                         )}
 
-                        {/* Actions Row - Swipe to Delete (remove button here) */}
-                        <View style={styles.cardActions}>
-                            <TouchableOpacity style={styles.actionBtn} onPress={() => handlePlayback(item.text)}>
-                                <Ionicons name="play-circle-outline" size={20} color="#3B82F6" />
-                                <Text style={styles.actionText}>{t.play}</Text>
-                            </TouchableOpacity>
+                        {/* Footer: Actions + Language Pills */}
+                        <View style={styles.cardFooter}>
+                            <View style={styles.cardActions}>
+                                <TouchableOpacity style={styles.actionBtn} onPress={() => handlePlayback(item.text)}>
+                                    <Ionicons name="play-circle-outline" size={20} color="#3B82F6" />
+                                    <Text style={styles.actionText}>{t.play}</Text>
+                                </TouchableOpacity>
 
-                            {/* Link Task Button - Moved Here */}
-                            <TouchableOpacity style={styles.actionBtn} onPress={() => openLinkModal(item.id)}>
-                                <Ionicons name="link-outline" size={18} color="#3B82F6" />
-                                <Text style={styles.actionText}>{t.linkTask}</Text>
-                            </TouchableOpacity>
+                                <TouchableOpacity style={styles.actionBtn} onPress={() => openLinkModal(item.id)}>
+                                    <Ionicons name="link-outline" size={18} color="#3B82F6" />
+                                    <Text style={styles.actionText}>{t.linkTask}</Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Language Pills - Bottom Right */}
+                            <View style={styles.langPills}>
+                                <Text style={styles.langPill}>{getFlag(item.inputLang)}</Text>
+                                <Ionicons name="arrow-forward" size={10} color="#9CA3AF" style={{ marginHorizontal: 2 }} />
+                                <Text style={styles.langPill}>{getFlag(item.outputLang)}</Text>
+                            </View>
                         </View>
                     </View>
                 </View>
@@ -672,6 +712,25 @@ export const NotesScreen = () => {
                     {(isRecording || transcribing) && (
                         <View style={styles.activeCard}>
                             <Text style={styles.activeTitle}>{transcribing ? 'Transcribing...' : 'Listening...'}</Text>
+                            
+                            {/* Voice Waveform */}
+                            {isRecording && (
+                                <View style={styles.waveformContainer}>
+                                    {waveformBars.map((height, index) => (
+                                        <Animated.View
+                                            key={index}
+                                            style={[
+                                                styles.waveformBar,
+                                                {
+                                                    height: `${height * 40}%`,
+                                                    opacity: 0.8 + height * 0.2,
+                                                }
+                                            ]}
+                                        />
+                                    ))}
+                                </View>
+                            )}
+                            
                             {transcribing && <ActivityIndicator color="#3B82F6" style={{ marginTop: 8 }} />}
                         </View>
                     )}
@@ -712,11 +771,8 @@ const styles = StyleSheet.create({
     card: { backgroundColor: '#FFF', borderRadius: 12, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
     cardContent: { flex: 1 },
 
-    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-    timestamp: { fontSize: 12, color: '#9CA3AF' },
-    tags: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    tag: { backgroundColor: '#F3F4F6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-    tagText: { fontSize: 10, color: '#6B7280' },
+    cardHeader: { marginBottom: 8 },
+    timestamp: { fontSize: 12, color: '#9CA3AF', fontWeight: '500' },
 
     // Text Input
     cardTextInput: { fontSize: 16, color: '#374151', lineHeight: 24, marginBottom: 8, padding: 0, textAlignVertical: 'top' },
@@ -725,10 +781,29 @@ const styles = StyleSheet.create({
     linkedTaskTag: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, alignSelf: 'flex-start', marginBottom: 12 },
     linkedTaskText: { fontSize: 12, color: '#000', marginLeft: 6, fontWeight: '500' },
 
+    // Footer
+    cardFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 8,
+    },
     // Actions
-    cardActions: { flexDirection: 'row', justifyContent: 'flex-start', gap: 24, marginTop: 4 },
+    cardActions: { flexDirection: 'row', justifyContent: 'flex-start', gap: 24 },
     actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     actionText: { fontSize: 13, color: '#3B82F6', fontWeight: '500' },
+    // Language Pills
+    langPills: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F1F5F9',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    langPill: {
+        fontSize: 14,
+    },
 
     // Swipe Delete
     deleteActionContainer: {
@@ -755,8 +830,24 @@ const styles = StyleSheet.create({
     hintText: { fontSize: 14, color: '#9CA3AF' },
     timer: { fontSize: 16, fontWeight: '600', color: '#EF4444', marginBottom: 12, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
 
-    activeCard: { position: 'absolute', bottom: 20, left: 16, right: 16, backgroundColor: '#FFF', padding: 16, borderRadius: 12, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 10 },
-    activeTitle: { fontSize: 16, fontWeight: '600', color: '#3B82F6' },
+    activeCard: { position: 'absolute', bottom: 20, left: 16, right: 16, backgroundColor: '#FFF', padding: 16, borderRadius: 16, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 10 },
+    activeTitle: { fontSize: 16, fontWeight: '600', color: '#3B82F6', marginBottom: 12 },
+
+    // Waveform
+    waveformContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: 50,
+        gap: 3,
+        marginVertical: 8,
+    },
+    waveformBar: {
+        width: 4,
+        backgroundColor: '#3B82F6',
+        borderRadius: 2,
+        minHeight: 4,
+    },
     emptyState: { alignItems: 'center', marginTop: 60, opacity: 0.5 },
     emptyText: { marginTop: 16, fontSize: 16, color: '#9CA3AF' },
     toast: { position: 'absolute', top: 50, alignSelf: 'center', backgroundColor: 'rgba(16, 185, 129, 0.95)', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 100, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 6 },
