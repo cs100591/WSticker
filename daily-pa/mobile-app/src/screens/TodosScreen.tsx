@@ -1,4 +1,5 @@
 /**
+import { FONTS } from '@/theme/fonts';
  * Todos Screen - Tiimo-inspired design
  * With emoji selection, notes, and calendar features
  */
@@ -26,7 +27,6 @@ import { useNavigation } from '@react-navigation/native';
 import { Todo, TodoPriority, useLocalStore } from '@/models';
 import { useLanguageStore, translations, useEffectiveLanguage } from '@/store/languageStore';
 import { useThemeStore } from '@/store/themeStore';
-import { FONTS } from '@/theme/fonts';
 import { useUserStore } from '@/store/userStore';
 import { AnimatedCard } from '@/components/ui/AnimatedCard';
 import { Toast } from '@/components/ui/Toast';

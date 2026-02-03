@@ -1,4 +1,5 @@
 /**
+import { FONTS } from '@/theme/fonts';
  * Modern Chat Message Bubble Component
  * Sleek, polished message styling
  */

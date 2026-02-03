@@ -1,4 +1,5 @@
 /**
+import { FONTS } from '@/theme/fonts';
  * Settings Screen
  * User profile and app settings
  */
@@ -30,7 +31,6 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { useLanguageStore, AppLanguage, translations, useEffectiveLanguage, LANGUAGES } from '@/store/languageStore';
 import { useCurrencyStore } from '@/store/currencyStore';
 import { useThemeStore, ThemeMode, themeInfo } from '@/store/themeStore';
-import { FONTS } from '@/theme/fonts';
 import { backupService } from '@/services/BackupService';
 
 import { useUserStore } from '@/store/userStore';

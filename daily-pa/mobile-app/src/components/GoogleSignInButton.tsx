@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { FONTS } from '@/theme/fonts';
 import { StyleSheet, View, Text, TouchableOpacity, Image, Platform, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';

@@ -1,4 +1,5 @@
 /**
+import { FONTS } from '@/theme/fonts';
  * Calendar Screen Pro
  * Advanced calendar with split view, themes, and robust sync
  * Re-designed to match specific visual requirements:
@@ -32,7 +33,6 @@ import { EventForm, EventFormData } from '@/components/EventForm';
 import { CalendarSelector } from '@/components/CalendarSelector'; // Added
 import { useLanguageStore, translations, useEffectiveLanguage } from '@/store/languageStore';
 import { useThemeStore } from '@/store/themeStore';
-import { FONTS } from '@/theme/fonts';
 import { useUserStore } from '@/store/userStore';
 import { LinearGradient } from 'expo-linear-gradient';
 

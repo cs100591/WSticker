@@ -1,4 +1,5 @@
 /**
+import { FONTS } from '@/theme/fonts';
  * Expenses Screen
  * Matches web app layout with monthly spending card, category breakdown, and transaction history
  */
@@ -28,7 +29,6 @@ import { useBudgetStore } from '@/store/budgetStore';
 import { TextInput } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeStore } from '@/store/themeStore';
-import { FONTS } from '@/theme/fonts';
 
 const categoryIconNames: Record<ExpenseCategory, keyof typeof Ionicons.glyphMap> = {
   food: 'fast-food-outline',

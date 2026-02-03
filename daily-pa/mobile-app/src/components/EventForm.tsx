@@ -1,4 +1,5 @@
 /**
+import { FONTS } from '@/theme/fonts';
  * Event Form Component
  * Reusable form for creating and editing calendar events
  * Uses DateTimePicker for date/time selection

@@ -1,4 +1,5 @@
 /**
+import { FONTS } from '@/theme/fonts';
  * Screen Header Component
  * Shared header with settings button for all screens
  */

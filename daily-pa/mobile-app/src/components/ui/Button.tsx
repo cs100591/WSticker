@@ -1,4 +1,5 @@
 /**
+import { FONTS } from '@/theme/fonts';
  * Button Component
  * Matches web mobile view button styling
  */

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { FONTS } from '@/theme/fonts';
 import { useShallow } from 'zustand/react/shallow';
 import {
     View,
@@ -33,7 +34,6 @@ import { useThemeStore } from '@/store/themeStore';
 import { ENV } from '@/config/env';
 import { LinearGradient } from 'expo-linear-gradient';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
-import { FONTS } from '@/theme/fonts';
 
 const API_URL = `${ENV.SUPABASE_URL}/functions/v1/api`;
 

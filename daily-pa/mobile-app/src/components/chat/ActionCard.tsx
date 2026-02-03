@@ -1,4 +1,5 @@
 /**
+import { FONTS } from '@/theme/fonts';
  * Modern Action Card Component
  * Beautiful cards for AI action suggestions with full editing capabilities
  */

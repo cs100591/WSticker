@@ -1,4 +1,5 @@
 /**
+import { FONTS } from '@/theme/fonts';
  * Dashboard Screen (Home)
  * Main overview screen showing:
  * - Todo summary
@@ -27,7 +28,6 @@ import { CompactTimeline } from '@/components/CompactTimeline';
 import { useLanguageStore, translations, useEffectiveLanguage } from '@/store/languageStore';
 import { useCurrencyStore } from '@/store/currencyStore';
 import { useThemeStore } from '@/store/themeStore';
-import { FONTS } from '@/theme/fonts';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export const DashboardScreen: React.FC = () => {

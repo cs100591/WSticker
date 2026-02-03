@@ -1,4 +1,5 @@
 /**
+import { FONTS } from '@/theme/fonts';
  * Chat Screen - AI Assistant
  * Restored full functionality from FloatingChatbot
  */

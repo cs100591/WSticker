@@ -1,4 +1,5 @@
 import React from 'react';
+import { FONTS } from '@/theme/fonts';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 
 interface DayViewProps {

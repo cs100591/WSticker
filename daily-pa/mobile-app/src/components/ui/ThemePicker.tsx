@@ -1,4 +1,5 @@
 /**
+import { FONTS } from '@/theme/fonts';
  * ThemePicker Component
  * Animated theme selector with preview
  */

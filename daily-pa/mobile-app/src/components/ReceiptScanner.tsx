@@ -1,4 +1,5 @@
 /**
+import { FONTS } from '@/theme/fonts';
  * Receipt Scanner Component
  * Camera integration for scanning receipts
  */
