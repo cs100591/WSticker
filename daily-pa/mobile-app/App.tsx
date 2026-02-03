@@ -13,6 +13,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { ToastContainer } from './src/components/ui/Toast';
 import { SkipLoginContext } from './src/contexts/SkipLoginContext';
 import { supabase } from './src/services/supabase';
 // FloatingChatbot and GlassBottomNav removed
@@ -472,6 +473,7 @@ export default function App() {
                 {isAuthenticated && shouldShowFAB() && <FloatingAIButton />}
               </NavigationContainer>
               {isAuthenticated && <FloatingChatbot visible={isChatbotOpen} onClose={() => setIsChatbotOpen(false)} />}
+              <ToastContainer />
             </ErrorBoundary>
           </ChatbotContext.Provider>
         </SkipLoginContext.Provider>

@@ -28,6 +28,7 @@ import { useLanguageStore, translations, useEffectiveLanguage } from '@/store/la
 import { useThemeStore } from '@/store/themeStore';
 import { useUserStore } from '@/store/userStore';
 import { AnimatedCard } from '@/components/ui/AnimatedCard';
+import { Toast } from '@/components/ui/Toast';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const TASK_ICONS = [
@@ -97,7 +98,13 @@ export const TodosScreen: React.FC = () => {
   const handleToggle = (id: string) => {
     const todo = allTodos.find(t => t.id === id);
     if (todo) {
-      updateTodo(id, { status: todo.status === 'completed' ? 'active' : 'completed' });
+      const newStatus = todo.status === 'completed' ? 'active' : 'completed';
+      updateTodo(id, { status: newStatus });
+      if (newStatus === 'completed') {
+        Toast.success(`"${todo.title}" completed! 🎉`);
+      } else {
+        Toast.info(`"${todo.title}" restored`);
+      }
     }
   };
 
@@ -161,6 +168,8 @@ export const TodosScreen: React.FC = () => {
       { text: t.cancel, style: 'cancel' },
       {
         text: t.delete, style: 'destructive', onPress: () => {
+          const todo = allTodos.find(t => t.id === id);
+          Toast.success(todo ? `"${todo.title}" deleted` : 'Task deleted');
           updateTodo(id, { isDeleted: true });
           if (editingId === id) setShowAddModal(false);
         }
@@ -239,14 +248,15 @@ export const TodosScreen: React.FC = () => {
     return <View style={styles.center}><ActivityIndicator size="large" color="#8B5CF6" /></View>;
   }
 
-  const renderRightActions = (progress: any, dragX: any, id: string) => {
+  // Left swipe = Complete/Uncomplete
+  const renderLeftActions = (progress: any, dragX: any, id: string) => {
     const todo = allTodos.find(t => t.id === id);
     const isCompleted = todo?.status === 'completed';
     
     return (
-      <View style={styles.completeActionContainer}>
+      <View style={[styles.actionContainer, { backgroundColor: isCompleted ? '#F59E0B' : '#10B981' }]}>
         <TouchableOpacity
-          style={[styles.completeAction, isCompleted && styles.uncompleteAction]}
+          style={styles.actionButton}
           onPress={() => handleToggle(id)}
         >
           <Ionicons 
@@ -254,9 +264,24 @@ export const TodosScreen: React.FC = () => {
             size={24} 
             color="#FFF" 
           />
-          <Text style={styles.completeActionText}>
+          <Text style={styles.actionText}>
             {isCompleted ? 'Restore' : 'Complete'}
           </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  // Right swipe = Delete
+  const renderRightActions = (_progress: any, _dragX: any, id: string) => {
+    return (
+      <View style={[styles.actionContainer, { backgroundColor: '#EF4444' }]}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => handleDeleteTask(id)}
+        >
+          <Ionicons name="trash-outline" size={24} color="#FFF" />
+          <Text style={styles.actionText}>Delete</Text>
         </TouchableOpacity>
       </View>
     );
@@ -268,7 +293,10 @@ export const TodosScreen: React.FC = () => {
 
     return (
       <View key={todo.id} style={styles.taskWrapper}>
-        <Swipeable renderRightActions={(p, d) => renderRightActions(p, d, todo.id)}>
+        <Swipeable 
+          renderLeftActions={(p, d) => renderLeftActions(p, d, todo.id)}
+          renderRightActions={(p, d) => renderRightActions(p, d, todo.id)}
+        >
           <AnimatedCard
             variant="compact"
             style={[
@@ -667,22 +695,19 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden', // Ensures swipe action corners match
   },
-  completeActionContainer: {
-    width: 100,
-    backgroundColor: '#10B981',
-    borderTopRightRadius: 16,
-    borderBottomRightRadius: 16,
+  // Swipe action styles (shared for left and right)
+  actionContainer: {
+    width: 90,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  completeAction: {
+  actionButton: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    flexDirection: 'column',
+    width: '100%',
   },
-  uncompleteAction: {
-    backgroundColor: '#F59E0B',
-  },
-  completeActionText: {
+  actionText: {
     color: '#FFF',
     fontSize: 12,
     fontWeight: '600',
