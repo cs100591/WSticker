@@ -33,6 +33,7 @@ import { useThemeStore } from '@/store/themeStore';
 import { ENV } from '@/config/env';
 import { LinearGradient } from 'expo-linear-gradient';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
+import { FONTS } from '@/theme/fonts';
 
 const API_URL = `${ENV.SUPABASE_URL}/functions/v1/api`;
 
@@ -922,12 +923,12 @@ export const NotesScreen = () => {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F9FAFB' },
     header: { paddingHorizontal: 20, paddingVertical: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-    headerTitle: { fontSize: 20, fontWeight: '700', color: '#1F2937' },
+    headerTitle: { fontSize: 20, fontFamily: FONTS.bold, color: '#1F2937' },
     languageRow: { flexDirection: 'row', padding: 16, justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFF' },
     langButton: { flex: 1, padding: 8, borderRadius: 8, backgroundColor: '#F3F4F6', marginHorizontal: 8 },
-    langLabel: { fontSize: 10, color: '#6B7280', marginBottom: 2, textTransform: 'uppercase' },
+    langLabel: { fontSize: 10, fontFamily: FONTS.medium, color: '#6B7280', marginBottom: 2, textTransform: 'uppercase' },
     langValue: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    langText: { fontSize: 15, fontWeight: '500', color: '#1F2937' },
+    langText: { fontSize: 15, fontFamily: FONTS.medium, color: '#1F2937' },
     content: { flex: 1, padding: 16 },
     listContent: { paddingBottom: 100 },
 
@@ -941,7 +942,7 @@ const styles = StyleSheet.create({
     },
     sectionTitle: {
         fontSize: 14,
-        fontWeight: '700',
+        fontFamily: FONTS.bold,
         color: '#64748B',
         marginRight: 10,
         textTransform: 'uppercase',
@@ -964,14 +965,14 @@ const styles = StyleSheet.create({
     cardContent: { flex: 1 },
 
     cardHeader: { marginBottom: 8 },
-    timestamp: { fontSize: 12, color: '#9CA3AF', fontWeight: '500' },
+    timestamp: { fontSize: 12, color: '#9CA3AF', fontFamily: FONTS.medium },
 
     // Text Input
-    cardTextInput: { fontSize: 16, color: '#374151', lineHeight: 24, marginBottom: 8, padding: 0, textAlignVertical: 'top' },
+    cardTextInput: { fontSize: 16, color: '#374151', lineHeight: 24, marginBottom: 8, padding: 0, textAlignVertical: 'top', fontFamily: FONTS.regular },
 
     // Linked Task Tag
     linkedTaskTag: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, alignSelf: 'flex-start', marginBottom: 12 },
-    linkedTaskText: { fontSize: 12, color: '#000', marginLeft: 6, fontWeight: '500' },
+    linkedTaskText: { fontSize: 12, color: '#000', marginLeft: 6, fontFamily: FONTS.medium },
 
     // Footer
     cardFooter: {
@@ -984,7 +985,7 @@ const styles = StyleSheet.create({
     cardActions: { flexDirection: 'row', justifyContent: 'flex-start', gap: 24 },
     actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     actionBtnActive: { opacity: 0.9 },
-    actionText: { fontSize: 13, color: '#3B82F6', fontWeight: '500' },
+    actionText: { fontSize: 13, color: '#3B82F6', fontFamily: FONTS.medium },
     actionTextActive: { color: '#EF4444' },
     // Language Pills
     langPills: {
@@ -1021,11 +1022,11 @@ const styles = StyleSheet.create({
     recordBtn: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center', marginBottom: 8, shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
     recording: { backgroundColor: '#EF4444', shadowColor: '#EF4444' },
     disabledBtn: { backgroundColor: '#D1D5DB', shadowOpacity: 0 },
-    hintText: { fontSize: 14, color: '#9CA3AF' },
-    timer: { fontSize: 16, fontWeight: '600', color: '#EF4444', marginBottom: 12, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+    hintText: { fontSize: 14, color: '#9CA3AF', fontFamily: FONTS.regular },
+    timer: { fontSize: 16, fontFamily: FONTS.semiBold, color: '#EF4444', marginBottom: 12 },
 
     activeCard: { position: 'absolute', bottom: 20, left: 16, right: 16, backgroundColor: '#FFF', padding: 16, borderRadius: 16, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 10 },
-    activeTitle: { fontSize: 16, fontWeight: '600', color: '#3B82F6', marginBottom: 12 },
+    activeTitle: { fontSize: 16, fontFamily: FONTS.semiBold, color: '#3B82F6', marginBottom: 12 },
 
     // Waveform
     waveformContainer: {
@@ -1043,27 +1044,27 @@ const styles = StyleSheet.create({
         minHeight: 4,
     },
     emptyState: { alignItems: 'center', marginTop: 60, opacity: 0.5 },
-    emptyText: { marginTop: 16, fontSize: 16, color: '#9CA3AF' },
+    emptyText: { marginTop: 16, fontSize: 16, color: '#9CA3AF', fontFamily: FONTS.regular },
     toast: { position: 'absolute', top: 50, alignSelf: 'center', backgroundColor: 'rgba(16, 185, 129, 0.95)', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 100, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 6 },
-    toastText: { color: '#FFF', fontWeight: '600', fontSize: 14 },
+    toastText: { color: '#FFF', fontFamily: FONTS.semiBold, fontSize: 14 },
 
     // Task Modal
     modalContainer: { flex: 1, backgroundColor: '#F9FAFB' },
     modalHeader: { padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-    modalTitle: { fontSize: 18, fontWeight: '700' },
+    modalTitle: { fontSize: 18, fontFamily: FONTS.bold },
     searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', margin: 16, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB' },
-    searchInput: { flex: 1, height: 40, marginLeft: 8 },
+    searchInput: { flex: 1, height: 40, marginLeft: 8, fontFamily: FONTS.regular },
     taskList: { padding: 16 },
     taskItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 16, marginBottom: 8, borderRadius: 8, borderWidth: 1, borderColor: '#F3F4F6' },
     priorityDot: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },
-    taskTitle: { fontSize: 16, color: '#374151', fontWeight: '500' },
-    taskDesc: { fontSize: 12, color: '#6B7280', marginTop: 2 },
+    taskTitle: { fontSize: 16, color: '#374151', fontFamily: FONTS.medium },
+    taskDesc: { fontSize: 12, color: '#6B7280', marginTop: 2, fontFamily: FONTS.regular },
 
     // Lang Modal
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
     modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 },
     modalItem: { paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-    modalItemText: { fontSize: 16, textAlign: 'center', color: '#374151' },
+    modalItemText: { fontSize: 16, textAlign: 'center', color: '#374151', fontFamily: FONTS.regular },
     closeModalBtn: { marginTop: 16, paddingVertical: 12, alignItems: 'center', backgroundColor: '#F3F4F6', borderRadius: 12 },
-    closeModalText: { color: '#EF4444', fontWeight: '600' }
+    closeModalText: { color: '#EF4444', fontFamily: FONTS.semiBold }
 });
