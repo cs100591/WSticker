@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     marginBottom: 16,
     paddingHorizontal: 4,
   },
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   },
   themeName: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#374151',
   },
   activeIndicator: {
@@ -247,6 +247,6 @@ const styles = StyleSheet.create({
   checkmark: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
 });

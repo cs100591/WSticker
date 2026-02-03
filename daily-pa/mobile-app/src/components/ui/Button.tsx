@@ -93,17 +93,17 @@ const styles = StyleSheet.create({
   primaryText: {
     color: '#FFFFFF',
     fontSize: typography.body.fontSize,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
   },
   outlineText: {
     color: colors.primary,
     fontSize: typography.body.fontSize,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
   },
   textText: {
     color: colors.primary,
     fontSize: typography.body.fontSize,
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
   },
   disabled: {
     opacity: 0.5,

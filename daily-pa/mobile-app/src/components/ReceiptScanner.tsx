@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#fff',
   },
   closeButton: {
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
   },
   retakeButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#fff',
   },
   acceptButton: {
@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
   },
   acceptButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#fff',
   },
   permissionContainer: {
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
   },
   permissionTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: '#333',
     marginBottom: 12,
     textAlign: 'center',
@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
   },
   permissionButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#fff',
   },
   cancelButton: {
@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#666',
   },
 });

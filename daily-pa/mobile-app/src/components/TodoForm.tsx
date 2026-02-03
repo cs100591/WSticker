@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#333',
     marginBottom: 8,
   },
@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
   },
   priorityTextSelected: {
     color: '#fff',
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#666',
   },
   submitButton: {
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#fff',
   },
 });

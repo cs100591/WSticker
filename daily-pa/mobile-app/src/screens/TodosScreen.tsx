@@ -26,6 +26,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Todo, TodoPriority, useLocalStore } from '@/models';
 import { useLanguageStore, translations, useEffectiveLanguage } from '@/store/languageStore';
 import { useThemeStore } from '@/store/themeStore';
+import { FONTS } from '@/theme/fonts';
 import { useUserStore } from '@/store/userStore';
 import { AnimatedCard } from '@/components/ui/AnimatedCard';
 import { Toast } from '@/components/ui/Toast';
@@ -544,7 +545,7 @@ export const TodosScreen: React.FC = () => {
                     onPress={() => handleDeleteTask(editingId)}
                   >
                     <Ionicons name="trash-outline" size={20} color="#EF4444" style={{ marginRight: 8 }} />
-                    <Text style={{ color: '#EF4444', fontWeight: '600', fontSize: 16 }}>{t.delete}</Text>
+                    <Text style={{ color: '#EF4444', fontFamily: FONTS.semiBold, fontSize: 16 }}>{t.delete}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -589,7 +590,7 @@ export const TodosScreen: React.FC = () => {
                     style={{ padding: 10, alignSelf: 'flex-end' }}
                     onPress={() => setShowPicker(false)}
                   >
-                    <Text style={{ color: '#8B5CF6', fontWeight: '600' }}>Done</Text>
+                    <Text style={{ color: '#8B5CF6', fontFamily: FONTS.semiBold }}>Done</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -629,7 +630,7 @@ const styles = StyleSheet.create({
   headerLeft: { width: 70 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   progressText: { fontSize: 13, color: '#6B7280' },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#1F2937' },
+  headerTitle: { fontSize: 20, fontFamily: FONTS.bold, color: '#1F2937' },
   settingsBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
   settingsIcon: { fontSize: 18 },
   addHeaderBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
@@ -640,9 +641,9 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10 },
   sectionLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   indicator: { fontSize: 12, marginRight: 8 },
-  sectionLabel: { fontSize: 14, fontWeight: '600' },
+  sectionLabel: { fontSize: 14, fontFamily: FONTS.semiBold },
   chevron: { fontSize: 14, color: '#9CA3AF' },
-  completedLabel: { fontSize: 14, fontWeight: '600', color: '#9CA3AF', flex: 1 },
+  completedLabel: { fontSize: 14, fontFamily: FONTS.semiBold, color: '#9CA3AF', flex: 1 },
   taskCard: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 8, padding: 12, borderRadius: 16 },
   completedCard: { backgroundColor: '#F9FAFB' },
   expandBtn: { padding: 4, marginRight: 4 },
@@ -650,7 +651,7 @@ const styles = StyleSheet.create({
   taskEmoji: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
   completedEmoji: { backgroundColor: '#E5E7EB' },
   emojiText: { fontSize: 20 },
-  taskTitle: { flex: 1, fontSize: 15, color: '#1F2937', fontWeight: '500' },
+  taskTitle: { flex: 1, fontSize: 15, color: '#1F2937', fontFamily: FONTS.medium },
   completedTitle: { textDecorationLine: 'line-through', color: '#9CA3AF' },
   notesIndicator: { fontSize: 14, marginRight: 4 },
   actionBtn: { padding: 6 },
@@ -658,19 +659,19 @@ const styles = StyleSheet.create({
   checkbox: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: '#D1D5DB', justifyContent: 'center', alignItems: 'center', marginLeft: 4 },
   checkboxInner: {},
   checkboxDone: { backgroundColor: '#10B981', borderColor: '#10B981' },
-  checkmark: { color: '#FFF', fontSize: 14, fontWeight: '700' },
+  checkmark: { color: '#FFF', fontSize: 14, fontFamily: FONTS.bold },
   notesExpanded: { marginHorizontal: 16, marginBottom: 8, marginLeft: 78, padding: 12, backgroundColor: '#FFF', borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB' },
   notesExpandedText: { fontSize: 14, color: '#6B7280', lineHeight: 20 },
   empty: { alignItems: 'center', paddingVertical: 60 },
   emptyIcon: { fontSize: 48, marginBottom: 12 },
-  emptyText: { fontSize: 18, fontWeight: '600', color: '#6B7280' },
+  emptyText: { fontSize: 18, fontFamily: FONTS.semiBold, color: '#6B7280' },
   emptySubtext: { fontSize: 14, color: '#9CA3AF', marginTop: 4 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   modalScrollContent: { flexGrow: 1, justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40 },
   modalHandle: { width: 40, height: 4, backgroundColor: '#E5E7EB', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: '#1F2937', textAlign: 'center', marginBottom: 16 },
-  modalLabel: { fontSize: 14, fontWeight: '600', color: '#6B7280', marginBottom: 8, marginTop: 8 },
+  modalTitle: { fontSize: 20, fontFamily: FONTS.bold, color: '#1F2937', textAlign: 'center', marginBottom: 16 },
+  modalLabel: { fontSize: 14, fontFamily: FONTS.semiBold, color: '#6B7280', marginBottom: 8, marginTop: 8 },
   taskPreview: { backgroundColor: '#F9FAFB', padding: 12, borderRadius: 12, marginBottom: 12 },
   taskPreviewText: { fontSize: 14, color: '#6B7280' },
   emojiPicker: { marginBottom: 8 },
@@ -682,12 +683,12 @@ const styles = StyleSheet.create({
   priorityRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
   priorityOption: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 12, backgroundColor: '#F9FAFB', borderWidth: 2, borderColor: '#E5E7EB' },
   priorityIndicator: { fontSize: 12, marginRight: 6 },
-  priorityText: { fontSize: 13, fontWeight: '600' },
+  priorityText: { fontSize: 13, fontFamily: FONTS.semiBold },
   modalActions: { flexDirection: 'row', gap: 12, marginTop: 16 },
   cancelBtn: { flex: 1, paddingVertical: 16, borderRadius: 14, backgroundColor: '#F3F4F6', alignItems: 'center' },
-  cancelText: { fontSize: 16, fontWeight: '600', color: '#6B7280' },
+  cancelText: { fontSize: 16, fontFamily: FONTS.semiBold, color: '#6B7280' },
   saveBtn: { flex: 1, paddingVertical: 16, borderRadius: 14, backgroundColor: '#8B5CF6', alignItems: 'center' },
-  saveText: { fontSize: 16, fontWeight: '600', color: '#FFF' },
+  saveText: { fontSize: 16, fontFamily: FONTS.semiBold, color: '#FFF' },
   tabSpacer: { height: 80 },
   taskWrapper: {
     marginHorizontal: 16,
@@ -710,7 +711,7 @@ const styles = StyleSheet.create({
   actionText: {
     color: '#FFF',
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     marginTop: 4,
   },
 });

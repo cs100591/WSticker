@@ -28,6 +28,7 @@ import { useBudgetStore } from '@/store/budgetStore';
 import { TextInput } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeStore } from '@/store/themeStore';
+import { FONTS } from '@/theme/fonts';
 
 const categoryIconNames: Record<ExpenseCategory, keyof typeof Ionicons.glyphMap> = {
   food: 'fast-food-outline',
@@ -557,7 +558,7 @@ const styles = StyleSheet.create({
   addButtonText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
   },
   content: {
     flex: 1,
@@ -578,13 +579,13 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
     color: '#64748B',
     marginBottom: 10,
   },
   summaryAmount: {
     fontSize: 56,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: '#0F172A',
     marginBottom: 14,
   },
@@ -596,7 +597,7 @@ const styles = StyleSheet.create({
   },
   summaryBadgeText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#059669',
   },
   section: {
@@ -604,7 +605,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: '#0F172A',
     marginHorizontal: 20,
     marginBottom: 14,
@@ -648,7 +649,7 @@ const styles = StyleSheet.create({
   },
   categoryAmount: {
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: '#0F172A',
   },
   dateGroup: {
@@ -656,7 +657,7 @@ const styles = StyleSheet.create({
   },
   dateLabel: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
     color: '#94A3B8',
     marginHorizontal: 20,
     marginBottom: 10,
@@ -694,7 +695,7 @@ const styles = StyleSheet.create({
   },
   expenseDescription: {
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
     color: '#0F172A',
     marginBottom: 5,
   },
@@ -704,7 +705,7 @@ const styles = StyleSheet.create({
   },
   expenseAmount: {
     fontSize: 19,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: '#EF4444',
     marginRight: 14,
   },
@@ -739,7 +740,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: '#0F172A',
   },
   modalCloseButton: {
@@ -757,7 +758,7 @@ const styles = StyleSheet.create({
   },
   monthTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#0F172A',
   },
   budgetContainer: {
@@ -775,7 +776,7 @@ const styles = StyleSheet.create({
   },
   budgetLabel: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
     color: '#64748B',
   },
   progressBarBg: {
@@ -791,7 +792,7 @@ const styles = StyleSheet.create({
   },
   budgetStatus: {
     fontSize: 12,
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
     color: '#64748B',
     marginTop: 6,
     textAlign: 'right',
@@ -812,7 +813,7 @@ const styles = StyleSheet.create({
   },
   budgetModalTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#0F172A',
     marginBottom: 4,
   },
@@ -852,12 +853,12 @@ const styles = StyleSheet.create({
   },
   budgetBtnTextCancel: {
     color: '#64748B',
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     fontSize: 16,
   },
   budgetBtnTextSave: {
     color: '#fff',
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     fontSize: 16,
   },
 });

@@ -421,14 +421,14 @@ const styles = StyleSheet.create({
   },
   typeLabel: {
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 2,
   },
   title: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#1E293B',
     lineHeight: 22,
   },
@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
   },
   optionLabel: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#64748B',
     marginBottom: 8,
   },
@@ -466,7 +466,7 @@ const styles = StyleSheet.create({
   },
   priorityLabel: {
     fontSize: 13,
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
     color: '#64748B',
   },
   iconRow: {
@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
   },
   timePickerText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#1E293B',
     flex: 1,
     marginLeft: 12,
@@ -544,7 +544,7 @@ const styles = StyleSheet.create({
   },
   categoryLabel: {
     fontSize: 11,
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
     color: '#64748B',
   },
   dateRow: {
@@ -564,13 +564,13 @@ const styles = StyleSheet.create({
   },
   dateWeekday: {
     fontSize: 10,
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
     color: '#94A3B8',
     marginBottom: 2,
   },
   dateNum: {
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: '#1E293B',
   },
   actions: {
@@ -604,17 +604,17 @@ const styles = StyleSheet.create({
   },
   cancelText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#64748B',
   },
   confirmText: {
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: '#FFFFFF',
   },
   confirmedTitle: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#166534',
   },
   confirmedSubtitle: {

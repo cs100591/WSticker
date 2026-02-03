@@ -27,6 +27,7 @@ import { CompactTimeline } from '@/components/CompactTimeline';
 import { useLanguageStore, translations, useEffectiveLanguage } from '@/store/languageStore';
 import { useCurrencyStore } from '@/store/currencyStore';
 import { useThemeStore } from '@/store/themeStore';
+import { FONTS } from '@/theme/fonts';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export const DashboardScreen: React.FC = () => {
@@ -467,12 +468,12 @@ const styles = StyleSheet.create({
   },
   bentoLabel: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#64748B',
   },
   bentoLabelSmall: {
     fontSize: 12,
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
     color: '#94A3B8',
     marginTop: 4,
   },
@@ -484,12 +485,12 @@ const styles = StyleSheet.create({
   },
   bentoValue: {
     fontSize: 28,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: '#0F172A',
   },
   bentoSubtext: {
     fontSize: 13,
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
     color: '#94A3B8',
     marginTop: 4,
   },
@@ -504,12 +505,12 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: '#0F172A',
   },
   viewAllLink: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#3B82F6',
   },
   card: {
@@ -541,7 +542,7 @@ const styles = StyleSheet.create({
   },
   todoTitle: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
     color: '#0F172A',
     marginBottom: 4,
   },
@@ -561,7 +562,7 @@ const styles = StyleSheet.create({
   },
   priorityText: {
     fontSize: 9,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     letterSpacing: 0.5,
   },
   eventItem: {
@@ -578,7 +579,7 @@ const styles = StyleSheet.create({
   },
   eventTimeText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#94A3B8',
     textAlign: 'right',
   },
@@ -603,7 +604,7 @@ const styles = StyleSheet.create({
   },
   eventTitle: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#0F172A',
     marginBottom: 2,
   },
@@ -631,7 +632,7 @@ const styles = StyleSheet.create({
   },
   expenseTotal: {
     fontSize: 32,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: '#fff',
     marginBottom: 4,
   },

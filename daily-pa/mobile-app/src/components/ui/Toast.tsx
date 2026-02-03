@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 10,
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
   },
 });
 

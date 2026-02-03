@@ -528,7 +528,7 @@ export const EventForm: React.FC<EventFormProps> = ({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', padding: 16 },
   field: { marginBottom: 20 },
-  label: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 8 },
+  label: { fontSize: 16, fontFamily: FONTS.semiBold, color: '#333', marginBottom: 8 },
   input: {
     borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 12,
     padding: 14, fontSize: 16, color: '#333', backgroundColor: '#F8FAFC',
@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 12,
     padding: 14, backgroundColor: '#F8FAFC',
   },
-  pickerButtonText: { fontSize: 16, color: '#333', fontWeight: '500' },
+  pickerButtonText: { fontSize: 16, color: '#333', fontFamily: FONTS.medium },
   pickerIcon: { fontSize: 20 },
   pickerContainer: {
     backgroundColor: '#F8FAFC',
@@ -558,7 +558,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 12,
     borderBottomRightRadius: 12,
   },
-  pickerDoneText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  pickerDoneText: { color: '#fff', fontSize: 16, fontFamily: FONTS.semiBold },
   colorPicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   colorOption: {
     width: 48, height: 48, borderRadius: 24,
@@ -566,15 +566,15 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: 'transparent',
   },
   colorOptionSelected: { borderColor: '#333', borderWidth: 3 },
-  colorCheckmark: { fontSize: 24, color: '#fff', fontWeight: '700' },
+  colorCheckmark: { fontSize: 24, color: '#fff', fontFamily: FONTS.bold },
   buttons: { flexDirection: 'row', gap: 12, marginTop: 24, marginBottom: 20 },
   button: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
   cancelButton: { backgroundColor: '#F1F5F9' },
-  cancelButtonText: { fontSize: 16, fontWeight: '600', color: '#64748B' },
+  cancelButtonText: { fontSize: 16, fontFamily: FONTS.semiBold, color: '#64748B' },
   submitButton: { backgroundColor: '#3B82F6' },
-  submitButtonText: { fontSize: 16, fontWeight: '600', color: '#fff' },
+  submitButtonText: { fontSize: 16, fontFamily: FONTS.semiBold, color: '#fff' },
   deleteButton: { backgroundColor: '#FEE2E2', marginTop: 0 },
-  deleteButtonText: { fontSize: 16, fontWeight: '600', color: '#EF4444' },
+  deleteButtonText: { fontSize: 16, fontFamily: FONTS.semiBold, color: '#EF4444' },
 
   // Calendar Chip Styles
   calChip: {
@@ -592,6 +592,6 @@ const styles = StyleSheet.create({
     width: 8, height: 8, borderRadius: 4, marginRight: 6
   },
   calChipText: {
-    fontSize: 14, fontWeight: '500', color: '#1E293B'
+    fontSize: 14, fontFamily: FONTS.medium, color: '#1E293B'
   }
 });

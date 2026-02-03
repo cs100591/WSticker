@@ -32,6 +32,7 @@ import { EventForm, EventFormData } from '@/components/EventForm';
 import { CalendarSelector } from '@/components/CalendarSelector'; // Added
 import { useLanguageStore, translations, useEffectiveLanguage } from '@/store/languageStore';
 import { useThemeStore } from '@/store/themeStore';
+import { FONTS } from '@/theme/fonts';
 import { useUserStore } from '@/store/userStore';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -215,7 +216,7 @@ const BlockMonthView: React.FC<{
                   return (
                     <View key={i} style={containerStyle}>
                       <View style={[barStyle, { overflow: 'hidden' }]}>
-                        <Text numberOfLines={1} style={[styles.miniEventText, { color: '#0F172A', marginLeft: 4, fontSize: 10, fontWeight: '500' }]}>
+                        <Text numberOfLines={1} style={[styles.miniEventText, { color: '#0F172A', marginLeft: 4, fontSize: 10, fontFamily: FONTS.medium }]}>
                           {ev.title}
                         </Text>
                       </View>
@@ -656,7 +657,7 @@ const styles = StyleSheet.create({
   },
   navMonthTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: '#0F172A',
     marginLeft: 8,
     marginRight: 8,
@@ -678,12 +679,12 @@ const styles = StyleSheet.create({
   },
   viewTabText: {
     fontSize: 15,
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
     color: '#64748B',
   },
   viewTabTextActive: {
     color: '#3B82F6',
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
   },
 
   // Week View
@@ -692,7 +693,7 @@ const styles = StyleSheet.create({
   weekHeaderLabel: { width: '14.28%', textAlign: 'center', fontSize: 12, color: '#94A3B8' },
   weekGrid: { flexDirection: 'row', justifyContent: 'space-around' },
   weekDayCell: { width: '14.28%', alignItems: 'center', paddingVertical: 8, borderRadius: 8 },
-  weekDayText: { textAlign: 'center', width: '14.28%', fontSize: 13, fontWeight: '600' },
+  weekDayText: { textAlign: 'center', width: '14.28%', fontSize: 13, fontFamily: FONTS.semiBold },
 
   // Month
   monthContainer: {
@@ -723,7 +724,7 @@ const styles = StyleSheet.create({
   dayNumber: {
     fontSize: 16,
     color: '#334155',
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
     marginBottom: 4,
   },
   mutedText: {
@@ -731,11 +732,11 @@ const styles = StyleSheet.create({
   },
   todayText: {
     color: '#3B82F6',
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
   selectedDayText: {
     color: '#fff',
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
 
   // Events in Month
@@ -767,7 +768,7 @@ const styles = StyleSheet.create({
   },
   listHeaderDate: {
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: '#64748B',
     marginTop: 16,
     marginBottom: 8,
@@ -785,7 +786,7 @@ const styles = StyleSheet.create({
   },
   agendaSectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     paddingHorizontal: 16,
     marginBottom: 12,
     color: '#0F172A',
@@ -806,7 +807,7 @@ const styles = StyleSheet.create({
   },
   newScheduleText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#334155',
     marginLeft: 6,
   },
@@ -824,7 +825,7 @@ const styles = StyleSheet.create({
   agendaTime: {
     fontSize: 13,
     color: '#64748B',
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
   },
   agendaCard: {
     flex: 1,
@@ -835,7 +836,7 @@ const styles = StyleSheet.create({
   },
   agendaTitle: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#0F172A',
     marginBottom: 4,
   },

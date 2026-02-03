@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   },
   weekDayText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#6b7280',
   },
   calendarGrid: {
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
   },
   dayText: {
     fontSize: 12,
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
     color: '#111827',
     marginBottom: 2,
   },
@@ -202,11 +202,11 @@ const styles = StyleSheet.create({
   },
   todayText: {
     color: '#3b82f6',
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
   selectedDayText: {
     color: '#1e40af',
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
   eventBarsContainer: {
     width: '100%',
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   eventBarText: {
     fontSize: 8,
     color: '#fff',
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
   },
   moreEventsText: {
     fontSize: 8,

@@ -624,7 +624,7 @@ export const ChatScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#EEE' },
-  headerTitle: { fontSize: 18, fontWeight: '600' },
+  headerTitle: { fontSize: 18, fontFamily: FONTS.semiBold },
   closeBtn: { padding: 4 },
   content: { flex: 1 },
   list: { padding: 16 },
@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
   confirmedCard: { backgroundColor: '#F0FFF4', borderColor: '#C6F6D5' },
   cancelledCard: { opacity: 0.6 },
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  actionSummary: { flex: 1, fontWeight: '500' },
+  actionSummary: { flex: 1, fontFamily: FONTS.medium },
   actionButtons: { flexDirection: 'row', gap: 12 },
   pickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 8 },
   chip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: '#EEE' },
@@ -654,5 +654,5 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 12, color: '#333' },
   chipTextSelected: { fontSize: 12, color: '#FFF' },
   confirmAllBtn: { marginVertical: 8, backgroundColor: '#10B981', padding: 10, borderRadius: 12, alignItems: 'center', alignSelf: 'flex-start' },
-  confirmAllText: { color: '#FFF', fontWeight: '600', fontSize: 14 }
+  confirmAllText: { color: '#FFF', fontFamily: FONTS.semiBold, fontSize: 14 }
 });

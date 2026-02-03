@@ -131,10 +131,10 @@ const styles = StyleSheet.create({
   },
   userText: {
     color: '#FFFFFF',
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
   },
   aiText: {
     color: '#1E293B',
-    fontWeight: '400',
+    fontFamily: FONTS.regular,
   },
 });

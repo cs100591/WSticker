@@ -30,6 +30,7 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { useLanguageStore, AppLanguage, translations, useEffectiveLanguage, LANGUAGES } from '@/store/languageStore';
 import { useCurrencyStore } from '@/store/currencyStore';
 import { useThemeStore, ThemeMode, themeInfo } from '@/store/themeStore';
+import { FONTS } from '@/theme/fonts';
 import { backupService } from '@/services/BackupService';
 
 import { useUserStore } from '@/store/userStore';
@@ -376,7 +377,7 @@ export const SettingsScreen: React.FC = React.memo(() => {
                   <Text style={styles.settingDescription}>Active Pro Member</Text>
                 </View>
                 <View style={{ backgroundColor: '#DEF7EC', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, marginRight: 8 }}>
-                  <Text style={{ color: '#03543F', fontSize: 12, fontWeight: '700' }}>ACTIVE</Text>
+                  <Text style={{ color: '#03543F', fontSize: 12, fontFamily: FONTS.bold }}>ACTIVE</Text>
                 </View>
                 <Text style={styles.settingButtonIcon}>›</Text>
               </TouchableOpacity>
@@ -387,7 +388,7 @@ export const SettingsScreen: React.FC = React.memo(() => {
                   <Text style={styles.settingDescription}>{remainingGraceDays} days remaining</Text>
                 </View>
                 <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, marginRight: 8 }}>
-                  <Text style={{ color: '#92400E', fontSize: 12, fontWeight: '700' }}>TRIAL</Text>
+                  <Text style={{ color: '#92400E', fontSize: 12, fontFamily: FONTS.bold }}>TRIAL</Text>
                 </View>
                 <Text style={styles.settingButtonIcon}>›</Text>
               </TouchableOpacity>
@@ -398,7 +399,7 @@ export const SettingsScreen: React.FC = React.memo(() => {
                   <Text style={styles.settingDescription}>Unlock all features</Text>
                 </View>
                 <View style={{ backgroundColor: '#EFF6FF', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, marginRight: 8 }}>
-                  <Text style={{ color: '#3B82F6', fontSize: 12, fontWeight: '700' }}>PRO</Text>
+                  <Text style={{ color: '#3B82F6', fontSize: 12, fontFamily: FONTS.bold }}>PRO</Text>
                 </View>
                 <Text style={styles.settingButtonIcon}>›</Text>
               </TouchableOpacity>
@@ -662,17 +663,17 @@ export const SettingsScreen: React.FC = React.memo(() => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   section: { marginTop: 24, paddingHorizontal: 16 },
-  sectionTitle: { fontSize: 14, fontWeight: '600', color: '#666', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
+  sectionTitle: { fontSize: 14, fontFamily: FONTS.semiBold, color: '#666', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
   card: { backgroundColor: '#fff', borderRadius: 12, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
   profileInfo: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   avatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#007AFF', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
-  avatarText: { fontSize: 28, fontWeight: '700', color: '#fff' },
+  avatarText: { fontSize: 28, fontFamily: FONTS.bold, color: '#fff' },
   profileDetails: { flex: 1 },
-  profileName: { fontSize: 20, fontWeight: '700', color: '#333', marginBottom: 4 },
+  profileName: { fontSize: 20, fontFamily: FONTS.bold, color: '#333', marginBottom: 4 },
   profileEmail: { fontSize: 14, color: '#666' },
   settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   settingInfo: { flex: 1, marginRight: 16 },
-  settingLabel: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 4 },
+  settingLabel: { fontSize: 16, fontFamily: FONTS.semiBold, color: '#333', marginBottom: 4 },
   settingDescription: { fontSize: 14, color: '#666' },
   settingButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12 },
   settingButtonText: { fontSize: 16, color: '#333' },
@@ -680,19 +681,19 @@ const styles = StyleSheet.create({
   settingButtonIcon: { fontSize: 24, color: '#999', fontWeight: '300' },
   divider: { height: 1, backgroundColor: '#e0e0e0', marginVertical: 12 },
   signOutButton: { backgroundColor: '#fff', borderRadius: 12, padding: 16, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
-  signOutButtonText: { fontSize: 16, fontWeight: '600', color: '#fff' },
+  signOutButtonText: { fontSize: 16, fontFamily: FONTS.semiBold, color: '#fff' },
   footer: { alignItems: 'center', paddingVertical: 32 },
   footerText: { fontSize: 12, color: '#999' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', padding: 16 },
   modalContent: { backgroundColor: '#fff', borderRadius: 16, padding: 24, width: '100%', maxWidth: 400 },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: '#333', marginBottom: 24 },
+  modalTitle: { fontSize: 20, fontFamily: FONTS.bold, color: '#333', marginBottom: 24 },
   modalField: { marginBottom: 24 },
-  modalLabel: { fontSize: 14, fontWeight: '600', color: '#666', marginBottom: 8 },
+  modalLabel: { fontSize: 14, fontFamily: FONTS.semiBold, color: '#666', marginBottom: 8 },
   modalInput: { borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 8, padding: 12, fontSize: 16, color: '#333' },
   modalButtons: { flexDirection: 'row', gap: 12 },
   modalButton: { flex: 1, padding: 14, borderRadius: 8, alignItems: 'center' },
   modalButtonCancel: { backgroundColor: '#f5f5f5' },
   modalButtonSave: { backgroundColor: '#007AFF' },
-  modalButtonTextCancel: { fontSize: 16, fontWeight: '600', color: '#666' },
-  modalButtonTextSave: { fontSize: 16, fontWeight: '600', color: '#fff' },
+  modalButtonTextCancel: { fontSize: 16, fontFamily: FONTS.semiBold, color: '#666' },
+  modalButtonTextSave: { fontSize: 16, fontFamily: FONTS.semiBold, color: '#fff' },
 });

@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   },
   allDayLabel: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#6b7280',
     marginBottom: 8,
   },
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   },
   allDayEventText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
     color: '#fff',
   },
   scrollView: {
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 12,
     color: '#9ca3af',
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
   },
   hourContent: {
     flex: 1,
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   },
   eventTitle: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: '#fff',
     marginBottom: 2,
   },
