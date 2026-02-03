@@ -6,7 +6,6 @@
 
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeStore } from '@/store/themeStore';
 
 interface TimelineEvent {
@@ -22,10 +21,9 @@ interface CompactTimelineProps {
 }
 
 export const CompactTimeline: React.FC<CompactTimelineProps> = ({ events }) => {
-  const { mode, colors: themeColors } = useThemeStore();
-  const isMinimal = mode === 'minimal';
+  const { colors: themeColors } = useThemeStore();
   
-  // Get theme color for minimal mode
+  // Get theme color for outline style
   const themeColor = themeColors.primary[500] || '#3B82F6';
   
   // Sort events by start time
@@ -35,11 +33,11 @@ export const CompactTimeline: React.FC<CompactTimelineProps> = ({ events }) => {
 
   if (sortedEvents.length === 0) {
     return (
-      <View style={[styles.emptyContainer, isMinimal && { 
+      <View style={[styles.emptyContainer, { 
         borderColor: themeColor,
         backgroundColor: 'transparent' 
       }]}>
-        <Text style={[styles.emptyText, isMinimal && { color: themeColor }]}>
+        <Text style={[styles.emptyText, { color: themeColor }]}>
           No events today
         </Text>
         <Text style={styles.emptySubtext}>Add events to see them here</Text>
@@ -50,8 +48,8 @@ export const CompactTimeline: React.FC<CompactTimelineProps> = ({ events }) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={[styles.title, isMinimal && { color: themeColor }]}>Today's Schedule</Text>
-        <Text style={[styles.count, isMinimal && { color: themeColor, opacity: 0.7 }]}>
+        <Text style={[styles.title, { color: themeColor }]}>Today's Schedule</Text>
+        <Text style={[styles.count, { color: themeColor, opacity: 0.7 }]}>
           {sortedEvents.length} events
         </Text>
       </View>
@@ -71,42 +69,31 @@ export const CompactTimeline: React.FC<CompactTimelineProps> = ({ events }) => {
             return (
               <View key={event.id} style={styles.eventWrapper}>
                 {/* Time label */}
-                <Text style={[styles.timeLabel, isMinimal && { color: themeColor }]}>
+                <Text style={[styles.timeLabel, { color: themeColor }]}>
                   {event.startTime}
                 </Text>
                 
-                {/* Event card - Minimal: outline style, Others: filled gradient */}
+                {/* Event card - Always outline style with theme color */}
                 <View style={[
                   styles.eventCard, 
-                  { width },
-                  isMinimal ? {
+                  { 
+                    width,
                     backgroundColor: 'transparent',
                     borderWidth: 2,
-                    borderColor: themeColor,
+                    borderColor: event.color || themeColor,
                     shadowOpacity: 0,
                     elevation: 0,
-                  } : {
-                    backgroundColor: event.color || '#3B82F6',
                   }
                 ]}>
-                  {!isMinimal && (
-                    <LinearGradient
-                      colors={[event.color || '#3B82F6', `${event.color || '#3B82F6'}DD`]}
-                      style={StyleSheet.absoluteFill}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      borderRadius={14}
-                    />
-                  )}
                   <Text style={[
                     styles.eventTitle, 
-                    isMinimal && { color: themeColor }
+                    { color: event.color || themeColor }
                   ]} numberOfLines={2}>
                     {event.title}
                   </Text>
                   <Text style={[
                     styles.eventTime,
-                    isMinimal && { color: themeColor, opacity: 0.7 }
+                    { color: event.color || themeColor, opacity: 0.7 }
                   ]}>
                     {event.startTime} - {event.endTime}
                   </Text>
@@ -116,7 +103,7 @@ export const CompactTimeline: React.FC<CompactTimelineProps> = ({ events }) => {
                 {index < sortedEvents.length - 1 && (
                   <View style={[
                     styles.connector,
-                    isMinimal && { backgroundColor: themeColor, opacity: 0.3 }
+                    { backgroundColor: themeColor, opacity: 0.3 }
                   ]} />
                 )}
               </View>
