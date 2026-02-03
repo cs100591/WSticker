@@ -251,15 +251,15 @@ class CalendarService {
     return await this.getEvents(filters);
   }
 
+  // SIMPLIFIED: All-day events are now stored with correct end times at sync time
   filterEventsByDate(events: CalendarEvent[], date: Date): CalendarEvent[] {
     const startOfDay = new Date(date); startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(date); endOfDay.setHours(23, 59, 59, 999);
     return events.filter((event) => {
-      const eventStart = new Date(event.startTime).getTime();
-      const eventEnd = new Date(event.endTime).getTime();
-      const dayStart = startOfDay.getTime();
-      const dayEnd = endOfDay.getTime();
-      return eventStart <= dayEnd && eventEnd >= dayStart;
+      const eventStart = new Date(event.startTime);
+      const eventEnd = new Date(event.endTime);
+      // Simple overlap: event starts before day ends AND event ends after day starts
+      return eventStart <= endOfDay && eventEnd >= startOfDay;
     });
   }
 
@@ -300,89 +300,158 @@ class CalendarService {
   }
 
   /**
-   * Sync with Device Calendar (Multi-Calendar Support)
+   * Sync with Device Calendar (De-duplication Master)
+   * This syncs device events to local DB, ensuring NO visual duplicates
+   * by checking Title + StartTime + EndTime signatures.
    */
   async syncWithDevice(userId: string): Promise<void> {
-    // Prevent concurrent syncs
-    if (this.isSyncing) {
-      console.log('Calendar sync already in progress, skipping...');
-      return;
-    }
-
-    // Cooldown check
-    const now = Date.now();
-    if (now - this.lastSyncTime < this.SYNC_COOLDOWN_MS) {
-      console.log(`Sync cooldown active, skipping...`);
-      return;
-    }
-
+    if (this.isSyncing) return;
     this.isSyncing = true;
-    this.lastSyncTime = now;
 
     try {
       const { Platform } = require('react-native');
       const Calendar = require('expo-calendar');
 
       const { status } = await Calendar.requestCalendarPermissionsAsync();
-      if (status !== 'granted') throw new Error('Calendar permission not granted');
+      if (status !== 'granted') return;
 
-      // 1. Determine which calendars to sync
-      const visibleIds = await this.getVisibleCalendarIds();
-      let calendarsToSync = visibleIds;
+      // 1. Get All Calendars
+      const allCalendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+      const calendarIds = allCalendars.map((c: any) => c.id);
+      if (calendarIds.length === 0) return;
 
-      if (visibleIds.length === 0) {
-        const allCals = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-        calendarsToSync = allCals.map((c: any) => c.id);
-        await this.saveVisibleCalendarIds(calendarsToSync);
+      // 2. CLEAN SLATE: Delete ALL existing device-sourced events
+      // This prevents duplicates when switching between guest/authenticated users
+      const dbEvents = await CalendarEventRepository.findAll();
+      const deviceDbEvents = dbEvents.filter(e => e.source === 'device');
+
+      console.log(`Clean Slate Sync: Deleting ${deviceDbEvents.length} existing device events...`);
+      for (const dbEvent of deviceDbEvents) {
+        await CalendarEventRepository.delete(dbEvent.id);
       }
 
-      if (calendarsToSync.length === 0) return;
-
-      // 2. Fetch events from these calendars
+      // 3. Fetch Events from Device (Previous 2 months to Next 4 months)
       const now = new Date();
       const startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
       const endDate = new Date(now.getFullYear(), now.getMonth() + 4, 0);
+      const deviceEvents = await Calendar.getEventsAsync(calendarIds, startDate, endDate);
 
-      const currentCalendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-      const validIds = calendarsToSync.filter(id => currentCalendars.find((c: any) => c.id === id));
+      // 3.5 DEDUP CLEANUP: Build fingerprints of incoming device events
+      // Then delete any local/manual events that match - these are duplicates from previous sync loops
+      // CRITICAL: Must use the SAME time adjustments as event creation (all-day fix)
+      const deviceFingerprints = new Set<string>();
+      for (const dEvent of deviceEvents) {
+        if (!dEvent.title) continue;
 
-      if (validIds.length === 0) return;
+        let startStr = new Date(dEvent.startDate).toISOString();
+        let endStr = new Date(dEvent.endDate).toISOString();
 
-      const deviceEvents = await Calendar.getEventsAsync(validIds, startDate, endDate);
+        // Apply the same all-day time adjustment as event creation (CLEAN SOLUTION)
+        const startD = new Date(dEvent.startDate);
+        const endD = new Date(dEvent.endDate);
+        const durationMs = endD.getTime() - startD.getTime();
+        const durationDays = Math.round(durationMs / 86400000);
 
-      // 3. Sync to Local DB - "Wipe and Replace Strategy" for Device Events
-      // This ensures we don't get duplicates if ID logic fails or varies
-      const localEvents = await this.getEvents({ userId });
-      const deviceEventsToDelete = localEvents.filter(e => e.source === 'device');
+        const startsAtMidnight = startD.getHours() === 0 && startD.getMinutes() === 0;
+        const endsAtMidnight = endD.getHours() === 0 && endD.getMinutes() === 0;
+        const isAllDayEvent = dEvent.allDay || (startsAtMidnight && endsAtMidnight && durationDays >= 1);
 
-      console.log(`Clearing ${deviceEventsToDelete.length} existing device events...`);
-      // Wipe existing device mirrors
-      for (const e of deviceEventsToDelete) {
-        await CalendarEventRepository.delete(e.id);
+        if (isAllDayEvent && durationDays >= 1) {
+          const lastDayOffset = durationDays - 1;
+          endD.setTime(startD.getTime());
+          endD.setDate(endD.getDate() + lastDayOffset);
+          endD.setHours(23, 59, 59, 999);
+          endStr = endD.toISOString();
+        }
+
+        deviceFingerprints.add(`${dEvent.title}_${startStr}_${endStr}`);
       }
 
-      // Import fresh events
-      console.log(`Importing ${deviceEvents.length} fresh device events...`);
+      // Get fresh list after device events deleted
+      const remainingEvents = await CalendarEventRepository.findAll();
+      const duplicatesToDelete = remainingEvents.filter(e => {
+        if (e.source === 'device') return false; // Already handled above
+        const fingerprint = `${e.title}_${e.startTime}_${e.endTime}`;
+        return deviceFingerprints.has(fingerprint);
+      });
+
+      if (duplicatesToDelete.length > 0) {
+        console.log(`Dedup Cleanup: Removing ${duplicatesToDelete.length} duplicate local/manual events...`);
+        for (const dup of duplicatesToDelete) {
+          await CalendarEventRepository.delete(dup.id);
+        }
+      }
+
+      // 4. Import Fresh Events with De-duplication
+      // Use fingerprints to avoid importing the same event multiple times from different calendars
+      const batchFingerprints = new Set<string>();
+      let imported = 0;
+
       for (const dEvent of deviceEvents) {
-        const calendarColor = currentCalendars.find((c: any) => c.id === dEvent.calendarId)?.color || '#3B82F6';
+        if (!dEvent.title) continue;
+
+        let startStr = new Date(dEvent.startDate).toISOString();
+        let endStr = new Date(dEvent.endDate).toISOString();
+
+        // Fix for "Double Day" issue - CLEAN SOLUTION:
+        // Device calendars return all-day events with EXCLUSIVE end times:
+        //   Example: "Jan 1 all-day" -> startDate: Jan 1 00:00, endDate: Jan 2 00:00
+        // This causes events to appear on both Jan 1 AND Jan 2.
+        //
+        // SOLUTION: For all-day events, calculate the actual duration in days,
+        // then set endTime to 23:59:59.999 of the last day (start + (days-1)).
+        // This is timezone-robust because we work with full days, not midnight detection.
+
+        const startD = new Date(dEvent.startDate);
+        const endD = new Date(dEvent.endDate);
+        const durationMs = endD.getTime() - startD.getTime();
+        const durationDays = Math.round(durationMs / 86400000); // Round to handle DST edge cases
+
+        // Detect all-day events: explicit flag OR implicit (duration >= 1 day, times at midnight)
+        const startsAtMidnight = startD.getHours() === 0 && startD.getMinutes() === 0;
+        const endsAtMidnight = endD.getHours() === 0 && endD.getMinutes() === 0;
+        const isAllDayEvent = dEvent.allDay || (startsAtMidnight && endsAtMidnight && durationDays >= 1);
+
+        if (isAllDayEvent && durationDays >= 1) {
+          // Set endD to 23:59:59.999 of the last actual day
+          // For a 1-day event: end = start + 0 days + 23:59:59.999
+          // For a 2-day event: end = start + 1 day + 23:59:59.999
+          const lastDayOffset = durationDays - 1; // Subtract 1 because end is exclusive
+          endD.setTime(startD.getTime());
+          endD.setDate(endD.getDate() + lastDayOffset);
+          endD.setHours(23, 59, 59, 999);
+          endStr = endD.toISOString();
+        }
+
+        const fingerprint = `${dEvent.title}_${startStr}_${endStr}`;
+
+        // Skip if we already processed this fingerprint in this current loop (duplicates in device calendars)
+        if (batchFingerprints.has(fingerprint)) continue;
+
+        // Otherwise, it's new!
+        batchFingerprints.add(fingerprint);
+
+        const calendarColor = allCalendars.find((c: any) => c.id === dEvent.calendarId)?.color || '#3B82F6';
 
         await CalendarEventRepository.create({
-          userId,
+          userId, // Assign to current user
           title: dEvent.title,
-          startTime: new Date(dEvent.startDate).toISOString(),
-          endTime: new Date(dEvent.endDate).toISOString(),
+          startTime: startStr,
+          endTime: endStr,
           allDay: dEvent.allDay,
           description: dEvent.notes,
           source: 'device',
-          appleEventId: dEvent.id, // Store original ID for reference
+          appleEventId: dEvent.id,
           externalCalendarId: dEvent.calendarId,
           color: calendarColor
         });
+        imported++;
       }
 
-      console.log(`Synced ${deviceEvents.length} events from ${validIds.length} calendars.`);
+      console.log(`Clean Slate Sync Complete: Imported ${imported} fresh events.`);
+
     } catch (e: any) {
-      console.warn('Sync failed (likely Expo Go missing native module):', e.message);
+      console.warn('Sync failed:', e);
     } finally {
       this.isSyncing = false;
     }

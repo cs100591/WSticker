@@ -27,6 +27,7 @@ import { Todo, TodoPriority, useLocalStore } from '@/models';
 import { useLanguageStore, translations, useEffectiveLanguage } from '@/store/languageStore';
 import { useThemeStore } from '@/store/themeStore';
 import { useUserStore } from '@/store/userStore';
+import { AnimatedCard } from '@/components/ui/AnimatedCard';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const TASK_ICONS = [
@@ -41,18 +42,11 @@ export const TodosScreen: React.FC = () => {
   const lang = useEffectiveLanguage();
   const t = translations[lang];
 
-  const { mode } = useThemeStore();
-  const isSage = mode === 'sage';
-  const isBlueSage = mode === 'system';
+  const { mode, colors: themeColors } = useThemeStore();
   const isGlassy = mode !== 'minimal';
   const gradient = useMemo(() => {
-    switch (mode) {
-      case 'sage': return ['#C3E0D8', '#D6E8E2', '#F9F6F0'];
-      case 'sunset': return ['#FECDD3', '#FFE4E6', '#FFF5F5'];
-      case 'ocean': return ['#BAE6FD', '#E0F2FE', '#F0F9FF'];
-      default: return ['#E0F2FE', '#DBEAFE', '#EFF6FF'];
-    }
-  }, [mode]);
+    return [themeColors.gradient.start, themeColors.gradient.middle, themeColors.gradient.end];
+  }, [themeColors]);
 
   const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
 
@@ -245,14 +239,24 @@ export const TodosScreen: React.FC = () => {
     return <View style={styles.center}><ActivityIndicator size="large" color="#8B5CF6" /></View>;
   }
 
-  const renderRightActions = (_progress: any, _dragX: any, id: string) => {
+  const renderRightActions = (progress: any, dragX: any, id: string) => {
+    const todo = allTodos.find(t => t.id === id);
+    const isCompleted = todo?.status === 'completed';
+    
     return (
-      <View style={styles.deleteActionContainer}>
+      <View style={styles.completeActionContainer}>
         <TouchableOpacity
-          style={styles.deleteAction}
-          onPress={() => handleDeleteTask(id)}
+          style={[styles.completeAction, isCompleted && styles.uncompleteAction]}
+          onPress={() => handleToggle(id)}
         >
-          <Ionicons name="trash-outline" size={24} color="#FFF" />
+          <Ionicons 
+            name={isCompleted ? "refresh-outline" : "checkmark-done-outline"} 
+            size={24} 
+            color="#FFF" 
+          />
+          <Text style={styles.completeActionText}>
+            {isCompleted ? 'Restore' : 'Complete'}
+          </Text>
         </TouchableOpacity>
       </View>
     );
@@ -265,11 +269,13 @@ export const TodosScreen: React.FC = () => {
     return (
       <View key={todo.id} style={styles.taskWrapper}>
         <Swipeable renderRightActions={(p, d) => renderRightActions(p, d, todo.id)}>
-          <View style={[
-            styles.taskCard,
-            { backgroundColor: config.bg, marginBottom: 0, marginHorizontal: 0 }, // Reset margins for Swipeable
-            isSage && { borderRadius: 24, borderWidth: 0, shadowColor: 'rgba(0,0,0,0.05)', shadowOpacity: 1, shadowRadius: 15, backgroundColor: '#FFF' }
-          ]}>
+          <AnimatedCard
+            variant="compact"
+            style={[
+              styles.taskCard,
+              { backgroundColor: isGlassy ? '#FFF' : config.bg, marginBottom: 0, marginHorizontal: 0 }
+            ]}
+          >
             {/* Expand button for notes */}
             {hasNotes && (
               <TouchableOpacity style={styles.expandBtn} onPress={() => toggleNotes(todo.id)}>
@@ -315,14 +321,14 @@ export const TodosScreen: React.FC = () => {
             <TouchableOpacity style={styles.checkbox} onPress={() => handleToggle(todo.id)}>
               <View style={styles.checkboxInner} />
             </TouchableOpacity>
-          </View>
+          </AnimatedCard>
         </Swipeable>
 
         {/* Expanded notes */}
         {isExpanded && hasNotes && (
-          <View style={styles.notesExpanded}>
+          <AnimatedCard variant="flat" style={styles.notesExpanded}>
             <Text style={styles.notesExpandedText}>{todo.description}</Text>
-          </View>
+          </AnimatedCard>
         )}
       </View>
     );
@@ -393,19 +399,21 @@ export const TodosScreen: React.FC = () => {
               </TouchableOpacity>
 
               {expandedSections.completed && completed.map(todo => (
-                <TouchableOpacity
+                <AnimatedCard
                   key={todo.id}
+                  variant="compact"
                   style={[
                     styles.taskCard,
                     styles.completedCard,
-                    isGlassy && { borderRadius: 24, borderWidth: 0, shadowColor: 'rgba(0,0,0,0.03)', shadowOpacity: 1, shadowRadius: 10, backgroundColor: 'rgba(255,255,255,0.6)' }
+                    { backgroundColor: isGlassy ? 'rgba(255,255,255,0.6)' : '#F9FAFB' }
                   ]}
-                  onPress={() => handleToggle(todo.id)}
                 >
-                  <View style={[styles.taskEmoji, styles.completedEmoji]}>
-                    <Ionicons name="checkmark" size={20} color="#9CA3AF" />
-                  </View>
-                  <Text style={[styles.taskTitle, styles.completedTitle]}>{todo.title}</Text>
+                  <TouchableOpacity onPress={() => handleToggle(todo.id)} style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                    <View style={[styles.taskEmoji, styles.completedEmoji]}>
+                      <Ionicons name="checkmark" size={20} color="#9CA3AF" />
+                    </View>
+                    <Text style={[styles.taskTitle, styles.completedTitle]}>{todo.title}</Text>
+                  </TouchableOpacity>
                   {/* Delete button for completed tasks too */}
                   <TouchableOpacity
                     style={[styles.actionBtn, { marginRight: 8 }]}
@@ -413,10 +421,10 @@ export const TodosScreen: React.FC = () => {
                   >
                     <Ionicons name="trash-outline" size={20} color="#EF4444" style={{ opacity: 0.5 }} />
                   </TouchableOpacity>
-                  <View style={[styles.checkbox, styles.checkboxDone]}>
+                  <TouchableOpacity onPress={() => handleToggle(todo.id)} style={styles.checkboxDone}>
                     <Text style={styles.checkmark}>✓</Text>
-                  </View>
-                </TouchableOpacity>
+                  </TouchableOpacity>
+                </AnimatedCard>
               ))}
             </View>
           )}
@@ -659,15 +667,25 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden', // Ensures swipe action corners match
   },
-  deleteActionContainer: {
-    width: 80,
-    backgroundColor: '#EF4444',
+  completeActionContainer: {
+    width: 100,
+    backgroundColor: '#10B981',
     borderTopRightRadius: 16,
     borderBottomRightRadius: 16,
   },
-  deleteAction: {
+  completeAction: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    flexDirection: 'column',
+  },
+  uncompleteAction: {
+    backgroundColor: '#F59E0B',
+  },
+  completeActionText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
   },
 });

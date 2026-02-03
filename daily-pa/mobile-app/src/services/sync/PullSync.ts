@@ -41,6 +41,11 @@ class PullSync {
       result.pulled += eventsResult.pulled;
       result.conflicts += eventsResult.conflicts;
       result.errors.push(...eventsResult.errors);
+
+      const notesResult = await this.pullNotes(lastSyncTime);
+      result.pulled += notesResult.pulled;
+      result.conflicts += notesResult.conflicts;
+      result.errors.push(...notesResult.errors);
     } catch (error) {
       result.errors.push({
         entityType: 'todos',
@@ -226,10 +231,20 @@ class PullSync {
 
       for (const remoteEvent of remoteEvents) {
         try {
-          const localEvent = localEvents.find((e) => e.id === remoteEvent.id);
+          // Check by ID first
+          let localEvent = localEvents.find((e) => e.id === remoteEvent.id);
+
+          // If not found by ID, check by fingerprint (title + startTime + endTime) to prevent duplicates
+          if (!localEvent) {
+            const fingerprint = `${remoteEvent.title}_${remoteEvent.start_time}_${remoteEvent.end_time}`;
+            localEvent = localEvents.find((e) =>
+              `${e.title}_${e.startTime}_${e.endTime}` === fingerprint
+            );
+          }
 
           if (localEvent) {
-            store.updateCalendarEvent(remoteEvent.id, {
+            // Update existing event (matched by ID or fingerprint)
+            store.updateCalendarEvent(localEvent.id, {
               userId: remoteEvent.user_id,
               title: remoteEvent.title,
               description: remoteEvent.description,
@@ -272,6 +287,78 @@ class PullSync {
     } catch (error) {
       result.errors.push({
         entityType: 'calendar_events',
+        entityId: '',
+        operation: 'update',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Pull notes from remote
+   */
+  private async pullNotes(lastSyncTime: Date | null): Promise<PullSyncResult> {
+    const result: PullSyncResult = { pulled: 0, conflicts: 0, errors: [] };
+
+    try {
+      let query = supabase.from('notes').select('*');
+      if (lastSyncTime) {
+        query = query.gt('updated_at', lastSyncTime.toISOString());
+      }
+
+      const { data: remoteNotes, error } = await query;
+      if (error) throw error;
+      if (!remoteNotes || remoteNotes.length === 0) return result;
+
+      const store = useLocalStore.getState();
+      const localNotes = store.notes;
+
+      for (const remoteNote of remoteNotes) {
+        try {
+          const localNote = localNotes.find((n) => n.id === remoteNote.id);
+
+          if (localNote) {
+            store.updateNote(remoteNote.id, {
+              userId: remoteNote.user_id,
+              text: remoteNote.text,
+              inputLang: remoteNote.input_lang,
+              outputLang: remoteNote.output_lang,
+              linkedTaskId: remoteNote.linked_task_id,
+              linkedTaskTitle: remoteNote.linked_task_title,
+              extraNotes: remoteNote.extra_notes,
+              updatedAt: remoteNote.updated_at,
+              isDeleted: remoteNote.is_deleted || false,
+            });
+          } else {
+            store.addNote({
+              id: remoteNote.id,
+              userId: remoteNote.user_id,
+              text: remoteNote.text,
+              inputLang: remoteNote.input_lang,
+              outputLang: remoteNote.output_lang,
+              linkedTaskId: remoteNote.linked_task_id,
+              linkedTaskTitle: remoteNote.linked_task_title,
+              extraNotes: remoteNote.extra_notes,
+              isDeleted: remoteNote.is_deleted || false,
+              createdAt: remoteNote.created_at,
+              updatedAt: remoteNote.updated_at,
+            });
+          }
+          result.pulled++;
+        } catch (error) {
+          result.errors.push({
+            entityType: 'notes',
+            entityId: remoteNote.id,
+            operation: 'update',
+            message: error instanceof Error ? error.message : 'Unknown error',
+          });
+        }
+      }
+    } catch (error) {
+      result.errors.push({
+        entityType: 'notes',
         entityId: '',
         operation: 'update',
         message: error instanceof Error ? error.message : 'Unknown error',

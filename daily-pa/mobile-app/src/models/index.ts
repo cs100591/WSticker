@@ -13,6 +13,7 @@ export {
   type TodoColor,
   type ExpenseCategory,
   type EventSource,
+  type Note,
 } from '../store/localStore';
 
 // Legacy exports for compatibility

@@ -4,7 +4,7 @@
  */
 
 export type SyncOperation = 'create' | 'update' | 'delete';
-export type SyncEntityType = 'todos' | 'expenses' | 'calendar_events';
+export type SyncEntityType = 'todos' | 'expenses' | 'calendar_events' | 'notes';
 export type SyncStatus = 'pending' | 'syncing' | 'synced' | 'failed';
 
 export interface SyncQueueItem {

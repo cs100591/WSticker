@@ -49,3 +49,8 @@ next-env.d.ts
 # Supabase
 /supabase/.branches
 /supabase/.temp
+
+# Capacitor
+/android/
+/ios/
+/.capacitor/

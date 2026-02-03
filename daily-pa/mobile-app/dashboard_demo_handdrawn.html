@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Expenses - Hand-drawn</title>
+    <!-- Importing a handwritten font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        /* DESIGN SYSTEM (Hand-drawn / Notebook Theme) */
+        :root {
+            --bg-color: #FDFBF7;
+            --text-primary: #333333;
+            --text-secondary: #555555;
+            --border-color: #333333;
+            --accent-red: #E63946;
+            /* Ink red */
+            --accent-blue: #457B9D;
+            /* Faded blue */
+            --accent-yellow: #FFD60A;
+            /* Highlighter yellow */
+            --card-bg: #FFFFFF;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Kalam', 'Comic Sans MS', cursive;
+            /* Handwritten font stack */
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            padding-bottom: 80px;
+            max-width: 480px;
+            margin: 0 auto;
+            min-height: 100vh;
+
+            /* Paper texture effect (grid lines) */
+            background-image:
+                linear-gradient(#e5e5e5 1px, transparent 1px),
+                linear-gradient(90deg, #e5e5e5 1px, transparent 1px);
+            background-size: 20px 20px;
+            border-left: 2px solid #ddd;
+            border-right: 2px solid #ddd;
+        }
+
+        /* 1. Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px 20px;
+            /* Sticky header with paper background */
+            background-color: var(--bg-color);
+            background-image: inherit;
+            /* Keep grid */
+            border-bottom: 2px dashed var(--text-primary);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            transform: rotate(-1deg);
+            /* Slight rotation */
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 16px;
+        }
+
+        .icon-btn {
+            background: none;
+            border: 2px solid var(--text-primary);
+            border-radius: 50% 40% 60% 50% / 50% 50% 60% 40%;
+            /* Sketchy circle */
+            cursor: pointer;
+            font-size: 1.2rem;
+            color: var(--text-primary);
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+
+        .icon-btn:hover {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        /* 2. Overview Cards */
+        .overview-section {
+            padding: 30px 20px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 2px solid var(--text-primary);
+            /* Irregular sketchy box */
+            border-radius: 5px 255px 5px 25px / 255px 5px 225px 5px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            text-align: center;
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.1);
+            /* Soft pencil shadow */
+            transform: rotate(0.5deg);
+        }
+
+        .card:nth-child(2) {
+            transform: rotate(-1deg);
+        }
+
+        .card:nth-child(3) {
+            transform: rotate(1.5deg);
+        }
+
+        .card-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .card-value {
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+
+        /* Ink highlighter effects */
+        .highlight-blue {
+            background: linear-gradient(120deg, rgba(69, 123, 157, 0) 0%, rgba(69, 123, 157, 0.2) 100%);
+            border-radius: 4px;
+        }
+
+        .highlight-red {
+            color: var(--accent-red);
+            text-decoration: underline wavy;
+        }
+
+        /* 3. Chart Section */
+        .chart-section {
+            padding: 0 20px 30px 20px;
+        }
+
+        .chart-container {
+            border: 2px solid var(--text-primary);
+            border-radius: 10px;
+            /* Simple rounded for container */
+            padding: 20px;
+            height: 220px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 8px;
+            background-color: #fff;
+            position: relative;
+        }
+
+        /* Grid lines for chart */
+        .chart-container::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: linear-gradient(#eee 1px, transparent 1px);
+            background-size: 100% 40px;
+            z-index: 0;
+        }
+
+        .bar-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            flex: 1;
+            z-index: 1;
+        }
+
+        .bar {
+            width: 80%;
+            background-color: var(--text-primary);
+            border-radius: 4px 4px 0 0;
+            /* Scribble effect */
+            background-image: repeating-linear-gradient(45deg,
+                    var(--text-primary),
+                    var(--text-primary) 2px,
+                    #555 2px,
+                    #555 4px);
+            border: 2px solid var(--text-primary);
+            border-bottom: none;
+            transition: height 0.3s ease;
+        }
+
+        .bar-label {
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        /* 4. Recent Transactions */
+        .transactions-section {
+            padding: 0 20px;
+        }
+
+        h2.section-title {
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            display: inline-block;
+            background-image: linear-gradient(120deg, #FFD60A 0%, #FFD60A 100%);
+            background-repeat: no-repeat;
+            background-size: 100% 40%;
+            background-position: 0 88%;
+            padding: 0 4px;
+        }
+
+        .transaction-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .transaction-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: none;
+            border-bottom: 1px dotted var(--text-primary);
+            /* Dotted line */
+            padding-bottom: 12px;
+        }
+
+        .t-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .t-icon {
+            width: 44px;
+            height: 44px;
+            border: 2px solid var(--text-primary);
+            border-radius: 50%;
+            /* Imperfect circle via transform */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            background: #fff;
+            box-shadow: 2px 2px 0 var(--text-primary);
+        }
+
+        .t-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .t-category {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .t-date {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .t-amount {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .amt-neg {
+            color: var(--accent-red);
+        }
+
+        .amt-pos {
+            color: var(--accent-blue);
+        }
+
+        /* 5. Floating Action Button */
+        .fab {
+            position: fixed;
+            bottom: 30px;
+            right: 24px;
+            width: 60px;
+            height: 60px;
+            background-color: var(--accent-red);
+            color: white;
+            /* Sketchy circle */
+            border-radius: 60% 40% 50% 70% / 60% 50% 60% 50%;
+            border: 2px solid var(--text-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            cursor: pointer;
+            box-shadow: 3px 5px 0 rgba(0, 0, 0, 0.8);
+            transition: all 0.2s;
+            font-family: inherit;
+            padding-bottom: 6px;
+            /* Visual center fix due to font */
+        }
+
+        .fab:hover {
+            transform: scale(1.05) rotate(5deg);
+        }
+
+        @media (min-width: 768px) {
+            .fab {
+                right: calc(50% - 240px + 24px);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- 1. Header -->
+    <header>
+        <h1>My Expenses</h1>
+        <div class="header-actions">
+            <button class="icon-btn">🔔</button>
+            <button class="icon-btn">👤</button>
+        </div>
+    </header>
+
+    <!-- 2. Overview Cards -->
+    <section class="overview-section">
+        <div class="card">
+            <span class="card-label">Balance</span>
+            <span class="card-value highlight-blue">$2,450</span>
+        </div>
+        <div class="card">
+            <span class="card-label">Income</span>
+            <span class="card-value">$4,200</span>
+        </div>
+        <div class="card">
+            <span class="card-label">Expenses</span>
+            <span class="card-value highlight-red">$1,750</span>
+        </div>
+    </section>
+
+    <!-- 3. Chart Section -->
+    <section class="chart-section">
+        <div class="chart-container">
+            <div class="bar-group">
+                <div class="bar" style="height: 40%;"></div><span class="bar-label">M</span>
+            </div>
+            <div class="bar-group">
+                <div class="bar" style="height: 70%;"></div><span class="bar-label">T</span>
+            </div>
+            <div class="bar-group">
+                <div class="bar" style="height: 30%;"></div><span class="bar-label">W</span>
+            </div>
+            <div class="bar-group">
+                <div class="bar" style="height: 90%;"></div><span class="bar-label">T</span>
+            </div>
+            <div class="bar-group">
+                <div class="bar" style="height: 50%;"></div><span class="bar-label">F</span>
+            </div>
+            <div class="bar-group">
+                <div class="bar" style="height: 60%;"></div><span class="bar-label">S</span>
+            </div>
+            <div class="bar-group">
+                <div class="bar" style="height: 20%;"></div><span class="bar-label">S</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- 4. Recent Transactions -->
+    <section class="transactions-section">
+        <h2 class="section-title">Log Book</h2>
+        <div class="transaction-list">
+            <div class="transaction-item">
+                <div class="t-left">
+                    <div class="t-icon" style="border-color: #6c757d; color: #6c757d">🛒</div>
+                    <div class="t-details">
+                        <span class="t-category">Groceries</span>
+                        <span class="t-date">Today, 10:23 am</span>
+                    </div>
+                </div>
+                <span class="t-amount amt-neg">-$124.50</span>
+            </div>
+
+            <div class="transaction-item">
+                <div class="t-left">
+                    <div class="t-icon" style="border-color: #e63946; color: #e63946">🎬</div>
+                    <div class="t-details">
+                        <span class="t-category">Movies</span>
+                        <span class="t-date">Yesterday</span>
+                    </div>
+                </div>
+                <span class="t-amount amt-neg">-$32.00</span>
+            </div>
+
+            <div class="transaction-item">
+                <div class="t-left">
+                    <div class="t-icon" style="border-color: #457b9d; color: #457b9d">💸</div>
+                    <div class="t-details">
+                        <span class="t-category">Freelance</span>
+                        <span class="t-date">Jan 28</span>
+                    </div>
+                </div>
+                <span class="t-amount amt-pos">+$850.00</span>
+            </div>
+            <div class="transaction-item">
+                <div class="t-left">
+                    <div class="t-icon" style="border-color: #6a4c93; color: #6a4c93">☕</div>
+                    <div class="t-details">
+                        <span class="t-category">Coffee</span>
+                        <span class="t-date">Jan 28</span>
+                    </div>
+                </div>
+                <span class="t-amount amt-neg">-$5.50</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- 5. Floating Action Button -->
+    <button class="fab">+</button>
+
+</body>
+
+</html>

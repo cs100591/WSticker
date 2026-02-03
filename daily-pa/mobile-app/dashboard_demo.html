@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Expenses - Dashboard</title>
+    <style>
+        /* DESIGN SYSTEM (Derived from Enhanced Prompt) */
+        :root {
+            --bg-color: #f8f9fa;
+            --primary-accent: #007bff;
+            --secondary-accent: #dc3545;
+            --text-primary: #343a40;
+            --text-secondary: #6c757d;
+            --card-bg: #ffffff;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            --radius: 12px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            padding-bottom: 80px; /* Space for FAB */
+            max-width: 480px; 
+            margin: 0 auto; 
+            border-left: 1px solid #eee; 
+            border-right: 1px solid #eee; 
+            min-height: 100vh;
+        }
+
+        /* 1. Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background-color: var(--card-bg);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 16px;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+        }
+
+        /* 2. Overview Cards */
+        .overview-section {
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            overflow-x: auto;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 16px;
+            box-shadow: var(--shadow);
+            min-width: 100px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .card-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .card-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .text-blue { color: var(--primary-accent); }
+        .text-red { color: var(--secondary-accent); }
+
+        /* 3. Chart Section */
+        .chart-section {
+            padding: 0 20px 20px 20px;
+        }
+
+        .chart-container {
+            background-color: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            height: 200px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .bar-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            flex: 1;
+        }
+
+        .bar {
+            width: 100%;
+            background-color: var(--primary-accent);
+            border-radius: 4px;
+            opacity: 0.8;
+            transition: height 0.3s ease;
+        }
+
+        .bar-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        /* 4. Recent Transactions */
+        .transactions-section {
+            padding: 0 20px;
+        }
+
+        h2.section-title {
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+        }
+
+        .transaction-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .transaction-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: var(--card-bg);
+            padding: 16px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        .t-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .t-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .t-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .t-category {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .t-date {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .t-amount {
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        /* 5. Floating Action Button */
+        .fab {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 56px;
+            height: 56px;
+            background-color: var(--primary-accent);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
+            border: none;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .fab:active {
+            transform: scale(0.95);
+        }
+        
+         /* Center FAB in desktop view wrapper */
+        @media (min-width: 768px) {
+             .fab { right: calc(50% - 240px + 24px); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1. Header -->
+    <header>
+        <h1>My Expenses</h1>
+        <div class="header-actions">
+            <button class="icon-btn">🔔</button>
+            <button class="icon-btn">👤</button>
+        </div>
+    </header>
+
+    <!-- 2. Overview Cards -->
+    <section class="overview-section">
+        <div class="card">
+            <span class="card-label">Balance</span>
+            <span class="card-value text-blue">$2,450</span>
+        </div>
+        <div class="card">
+            <span class="card-label">Income</span>
+            <span class="card-value">$4,200</span>
+        </div>
+        <div class="card">
+            <span class="card-label">Expenses</span>
+            <span class="card-value text-red">$1,750</span>
+        </div>
+    </section>
+
+    <!-- 3. Chart Section -->
+    <section class="chart-section">
+        <div class="chart-container">
+            <div class="bar-group"><div class="bar" style="height: 40%;"></div><span class="bar-label">M</span></div>
+            <div class="bar-group"><div class="bar" style="height: 70%;"></div><span class="bar-label">T</span></div>
+            <div class="bar-group"><div class="bar" style="height: 30%;"></div><span class="bar-label">W</span></div>
+            <div class="bar-group"><div class="bar" style="height: 50%;"></div><span class="bar-label">T</span></div>
+            <div class="bar-group"><div class="bar" style="height: 80%;"></div><span class="bar-label">F</span></div>
+            <div class="bar-group"><div class="bar" style="height: 60%;"></div><span class="bar-label">S</span></div>
+            <div class="bar-group"><div class="bar" style="height: 20%;"></div><span class="bar-label">S</span></div>
+        </div>
+    </section>
+
+    <!-- 4. Recent Transactions -->
+    <section class="transactions-section">
+        <h2 class="section-title">Recent Activity</h2>
+        <div class="transaction-list">
+             <div class="transaction-item">
+                <div class="t-left">
+                    <div class="t-icon">🛒</div>
+                    <div class="t-details">
+                        <span class="t-category">Groceries</span>
+                        <span class="t-date">Today, 10:23 AM</span>
+                    </div>
+                </div>
+                <span class="t-amount text-red">-$124.50</span>
+            </div>
+            
+            <div class="transaction-item">
+                <div class="t-left">
+                    <div class="t-icon">🎬</div>
+                    <div class="t-details">
+                        <span class="t-category">Movies</span>
+                        <span class="t-date">Yesterday</span>
+                    </div>
+                </div>
+                <span class="t-amount text-red">-$32.00</span>
+            </div>
+
+            <div class="transaction-item">
+                <div class="t-left">
+                    <div class="t-icon">💸</div>
+                    <div class="t-details">
+                        <span class="t-category">Freelance</span>
+                        <span class="t-date">Jan 28</span>
+                    </div>
+                </div>
+                <span class="t-amount text-blue">+$850.00</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- 5. Floating Action Button -->
+    <button class="fab">+</button>
+
+</body>
+</html>

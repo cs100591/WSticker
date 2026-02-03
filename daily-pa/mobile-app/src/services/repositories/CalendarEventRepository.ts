@@ -80,6 +80,7 @@ class CalendarEventRepositoryClass {
     store.deleteCalendarEvent(id);
   }
 
+  // SIMPLIFIED: All-day events are now stored with correct end times at sync time
   async findByDateRange(userId: string, startDate: string, endDate: string): Promise<CalendarEvent[]> {
     const store = useLocalStore.getState();
     return store.getCalendarEvents().filter((e) => {
@@ -88,20 +89,25 @@ class CalendarEventRepositoryClass {
       const eventEnd = new Date(e.endTime);
       const rangeStart = new Date(startDate);
       const rangeEnd = new Date(endDate);
+      // Simple overlap: event starts before range ends AND event ends after range starts
       return eventStart <= rangeEnd && eventEnd >= rangeStart;
     });
   }
 
+  // SIMPLIFIED: All-day events are now stored with correct end times at sync time
   async findByDate(userId: string, date: string): Promise<CalendarEvent[]> {
     const store = useLocalStore.getState();
     const targetDate = new Date(date);
-    const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999));
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
 
     return store.getCalendarEvents().filter((e) => {
       if (e.userId !== userId) return false;
       const eventStart = new Date(e.startTime);
       const eventEnd = new Date(e.endTime);
+      // Simple overlap: event starts before day ends AND event ends after day starts
       return eventStart <= endOfDay && eventEnd >= startOfDay;
     });
   }

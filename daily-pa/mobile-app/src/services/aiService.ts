@@ -1,11 +1,13 @@
 /**
  * AI Assistant service
  * Handles chat interactions and AI-powered action suggestions
+ * Updated to use Supabase Edge Functions
  */
 
 import { supabase } from './supabase';
+import { ENV } from '@/config/env';
 
-export type IntentType = 'create_todo' | 'create_expense' | 'unknown';
+export type IntentType = 'task' | 'expense' | 'calendar' | 'unknown';
 
 export interface AIMessage {
   id: string;
@@ -26,6 +28,11 @@ export interface AIAction {
     amount?: number;
     category?: string;
     description?: string;
+    date?: string;
+    startTime?: string;
+    endTime?: string;
+    allDay?: boolean;
+    merchant?: string;
   };
 }
 
@@ -35,204 +42,97 @@ export interface AIResponse {
 }
 
 export interface VoiceParseResult {
-  type: IntentType;
-  confidence: number;
-  data: {
-    title?: string;
-    priority?: 'low' | 'medium' | 'high';
-    dueDate?: string;
-    amount?: number;
-    category?: string;
-    description?: string;
+  message: string;
+  action?: {
+    type: IntentType;
+    data: any;
   };
-  originalText: string;
 }
 
 class AIService {
-  private apiBaseUrl: string;
+  private functionUrl: string;
 
   constructor() {
-    // Use the Next.js API endpoint
-    this.apiBaseUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+    this.functionUrl = `${ENV.SUPABASE_URL}/functions/v1/api`;
   }
 
   /**
    * Send a text message to the AI assistant
    */
-  async sendMessage(message: string, language: 'en' | 'zh' = 'en'): Promise<AIResponse> {
+  async sendMessage(message: string, history: any[] = []): Promise<AIResponse> {
     try {
-      // Get current session for authentication
       const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session) {
-        throw new Error('Not authenticated');
-      }
-
-      // Call the voice parse API to extract intent
-      const response = await fetch(`${this.apiBaseUrl}/api/voice/parse`, {
+      
+      const response = await fetch(`${this.functionUrl}?route=/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${session?.access_token || ENV.SUPABASE_ANON_KEY}`,
+          'apikey': ENV.SUPABASE_ANON_KEY,
         },
         body: JSON.stringify({
-          text: message,
-          language,
+          message,
+          history: history.map(m => ({
+            role: m.isUser ? 'user' : 'assistant',
+            content: m.text
+          })),
+          date: new Date().toISOString().split('T')[0]
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to parse message');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to communicate with AI');
       }
 
-      const result: VoiceParseResult = await response.json();
+      const result = await response.json();
 
-      // Generate response message based on intent
-      const responseMessage = this.generateResponseMessage(result, language);
-
-      // Create action if intent is recognized
-      let action: AIAction | undefined;
-      if (result.type !== 'unknown' && result.confidence > 0.5) {
-        action = {
-          id: this.generateActionId(),
-          type: result.type,
-          confidence: result.confidence,
-          data: result.data,
-        };
-      }
-
+      // Map Supabase response to AIResponse format
       return {
-        message: responseMessage,
-        action,
+        message: result.message || "I'm not sure how to respond to that.",
+        action: result.action ? {
+          id: this.generateActionId(),
+          type: result.action.type,
+          confidence: 1.0, // Edge function returns definitive actions
+          data: result.action.data
+        } : undefined
       };
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error('AIService.sendMessage error:', error);
       throw error;
     }
   }
 
   /**
-   * Send a voice message to the AI assistant
-   * This would integrate with speech-to-text, then call sendMessage
+   * Transcribe audio using the Edge Function
    */
-  async sendVoiceMessage(audioUri: string, language: 'en' | 'zh' = 'en'): Promise<AIResponse> {
+  async transcribeAudio(base64Audio: string, language: string = 'en'): Promise<string> {
     try {
-      // TODO: Implement speech-to-text conversion
-      // For now, this is a placeholder that would:
-      // 1. Convert audio to text using Expo Speech or cloud service
-      // 2. Call sendMessage with the transcribed text
+      const { data: { session } } = await supabase.auth.getSession();
 
-      throw new Error('Voice message not yet implemented');
-    } catch (error) {
-      console.error('Failed to send voice message:', error);
-      throw error;
-    }
-  }
+      const response = await fetch(`${this.functionUrl}?route=/transcribe`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || ENV.SUPABASE_ANON_KEY}`,
+          'apikey': ENV.SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({
+          audio: base64Audio,
+          language: language === 'zh' ? 'zh' : 'en',
+          targetLanguage: language === 'zh' ? 'zh' : 'en',
+        })
+      });
 
-  /**
-   * Confirm an AI-suggested action
-   * This will create the actual todo or expense
-   */
-  async confirmAction(action: AIAction): Promise<void> {
-    try {
-      if (action.type === 'create_todo') {
-        await this.createTodoFromAction(action);
-      } else if (action.type === 'create_expense') {
-        await this.createExpenseFromAction(action);
+      if (!response.ok) {
+        throw new Error('Transcription failed');
       }
+
+      const result = await response.json();
+      return result.text || '';
     } catch (error) {
-      console.error('Failed to confirm action:', error);
+      console.error('AIService.transcribeAudio error:', error);
       throw error;
-    }
-  }
-
-  /**
-   * Create a todo from an AI action
-   */
-  private async createTodoFromAction(action: AIAction): Promise<void> {
-    const { todoService } = await import('./TodoService');
-
-    // Get current user ID
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      throw new Error('Not authenticated');
-    }
-
-    await todoService.createTodo({
-      userId: session.user.id,
-      title: action.data.title || 'Untitled',
-      color: this.priorityToColor(action.data.priority),
-      dueDate: action.data.dueDate ? new Date(action.data.dueDate).toISOString() : undefined,
-    });
-  }
-
-  /**
-   * Create an expense from an AI action
-   */
-  private async createExpenseFromAction(action: AIAction): Promise<void> {
-    const { expenseService } = await import('./ExpenseService');
-
-    // Get current user ID
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      throw new Error('Not authenticated');
-    }
-
-    await expenseService.createExpense({
-      userId: session.user.id,
-      amount: action.data.amount || 0,
-      currency: 'CNY',
-      category: (action.data.category as 'food' | 'transport' | 'shopping' | 'entertainment' | 'bills' | 'health' | 'education' | 'other') || 'other',
-      description: action.data.description || action.data.title || '',
-      expenseDate: new Date().toISOString(),
-    });
-  }
-
-  /**
-   * Generate a response message based on the parsed intent
-   */
-  private generateResponseMessage(result: VoiceParseResult, language: 'en' | 'zh'): string {
-    if (result.type === 'unknown' || result.confidence < 0.5) {
-      return language === 'zh'
-        ? '抱歉，我没有理解您的意思。您可以说"提醒我买牛奶"或"午饭花了50块"。'
-        : "I'm sorry, I didn't understand that. You can say things like 'remind me to buy milk' or 'spent $50 on lunch'.";
-    }
-
-    if (result.type === 'create_todo') {
-      const title = result.data.title || 'task';
-      const dueDate = result.data.dueDate ? ` for ${result.data.dueDate}` : '';
-
-      return language === 'zh'
-        ? `好的，我可以帮您创建待办事项"${title}"${dueDate ? `，截止日期${dueDate}` : ''}。请确认？`
-        : `I can create a todo "${title}"${dueDate} for you. Would you like me to proceed?`;
-    }
-
-    if (result.type === 'create_expense') {
-      const amount = result.data.amount || 0;
-      const category = result.data.category || 'other';
-      const description = result.data.description || '';
-
-      return language === 'zh'
-        ? `好的，我可以帮您记录一笔${amount}元的${category}消费${description ? `（${description}）` : ''}。请确认？`
-        : `I can record an expense of $${amount} for ${category}${description ? ` (${description})` : ''}. Would you like me to proceed?`;
-    }
-
-    return language === 'zh' ? '我能帮您什么？' : 'How can I help you?';
-  }
-
-  /**
-   * Convert priority to color for todos
-   */
-  private priorityToColor(priority?: 'low' | 'medium' | 'high'): 'yellow' | 'blue' | 'pink' | 'green' | 'purple' | 'orange' {
-    switch (priority) {
-      case 'high':
-        return 'orange';
-      case 'medium':
-        return 'yellow';
-      case 'low':
-        return 'green';
-      default:
-        return 'blue';
     }
   }
 

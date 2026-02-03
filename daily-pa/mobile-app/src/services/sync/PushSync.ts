@@ -4,7 +4,7 @@
  * Uses Zustand instead of WatermelonDB
  */
 
-import { useLocalStore, Todo, Expense, CalendarEvent } from '@/models';
+import { useLocalStore, Todo, Expense, CalendarEvent, Note } from '@/models';
 import { supabase } from '../supabase';
 import { SyncEntityType, SyncError } from './types';
 
@@ -22,6 +22,7 @@ class PushSync {
     todos: any[];
     expenses: any[];
     calendarEvents: any[];
+    notes: any[];
   }> {
     const store = useLocalStore.getState();
 
@@ -35,7 +36,16 @@ class PushSync {
     return {
       todos: store.todos.filter(filterByTime).map((t) => this.serializeTodo(t, userId)),
       expenses: store.expenses.filter(filterByTime).map((e) => this.serializeExpense(e, userId)),
-      calendarEvents: store.calendarEvents.filter(filterByTime).map((e) => this.serializeCalendarEvent(e, userId)),
+      // CRITICAL: Exclude 'device' source events from push sync
+      // Device calendar events should stay local only. Pushing them creates duplicates when:
+      // 1. Device event (source: 'device') → pushed to Supabase as 'manual'
+      // 2. Pull sync → creates new local event (source: 'manual')
+      // 3. syncWithDevice "clean slate" only deletes 'device' events, leaving 'manual' duplicates
+      calendarEvents: store.calendarEvents
+        .filter(filterByTime)
+        .filter((e) => e.source !== 'device') // Don't push device events to cloud
+        .map((e) => this.serializeCalendarEvent(e, userId)),
+      notes: store.notes.filter(filterByTime).map((n) => this.serializeNote(n, userId)),
     };
   }
 
@@ -64,6 +74,10 @@ class PushSync {
       const eventsResult = await this.pushCalendarEvents(changes.calendarEvents);
       result.pushed += eventsResult.pushed;
       result.errors.push(...eventsResult.errors);
+
+      const notesResult = await this.pushNotes(changes.notes);
+      result.pushed += notesResult.pushed;
+      result.errors.push(...notesResult.errors);
     } catch (error) {
       result.errors.push({
         entityType: 'todos',
@@ -191,6 +205,43 @@ class PushSync {
   }
 
   /**
+   * Push notes to remote
+   */
+  private async pushNotes(notes: any[]): Promise<PushSyncResult> {
+    const result: PushSyncResult = { pushed: 0, errors: [] };
+
+    for (const note of notes) {
+      try {
+        if (note.is_deleted) {
+          const { error } = await supabase
+            .from('notes')
+            .update({
+              is_deleted: true,
+              updated_at: new Date().toISOString(),
+              user_id: note.user_id
+            })
+            .eq('id', note.id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from('notes').upsert(note, { onConflict: 'id' });
+          if (error) throw error;
+        }
+        result.pushed++;
+      } catch (error) {
+        console.error('Push Note Error:', error);
+        result.errors.push({
+          entityType: 'notes',
+          entityId: note.id,
+          operation: note.is_deleted ? 'delete' : 'update',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    return result;
+  }
+
+  /**
    * Serialize todo for remote storage
    */
   private serializeTodo(todo: Todo, userId: string): any {
@@ -236,7 +287,7 @@ class PushSync {
    */
   private serializeCalendarEvent(event: CalendarEvent, userId: string): any {
     // Map local source types to database allowed values ('manual', 'todo', 'google')
-    let source = event.source;
+    let source: string = event.source;
     if (source === 'device' || source === 'local' || !['manual', 'todo', 'google'].includes(source)) {
       source = 'manual';
     }
@@ -255,6 +306,25 @@ class PushSync {
       created_at: event.createdAt,
       updated_at: event.updatedAt,
       is_deleted: event.isDeleted,
+    };
+  }
+
+  /**
+   * Serialize note for remote storage
+   */
+  private serializeNote(note: Note, userId: string): any {
+    return {
+      id: note.id,
+      user_id: userId,
+      text: note.text,
+      input_lang: note.inputLang,
+      output_lang: note.outputLang,
+      linked_task_id: note.linkedTaskId || null,
+      linked_task_title: note.linkedTaskTitle || null,
+      extra_notes: note.extraNotes || null,
+      created_at: note.createdAt,
+      updated_at: note.updatedAt,
+      is_deleted: note.isDeleted,
     };
   }
 }

@@ -55,6 +55,7 @@ let authService: any = null;
 let securityService: any = null;
 let syncManager: any = null;
 let subscriptionService: any = null;
+let autoNotificationScheduler: any = null;
 
 // Load services asynchronously
 const loadServices = async () => {
@@ -78,7 +79,11 @@ const loadServices = async () => {
     const subs = await import('./src/services/SubscriptionService');
     subscriptionService = subs.subscriptionService;
   }
-  return { authService, securityService, notificationService, syncManager, subscriptionService };
+  if (!autoNotificationScheduler) {
+    const autoNotif = await import('./src/services/AutoNotificationScheduler');
+    autoNotificationScheduler = autoNotif.autoNotificationScheduler;
+  }
+  return { authService, securityService, notificationService, syncManager, subscriptionService, autoNotificationScheduler };
 };
 
 // ... (keep context and services)
@@ -118,9 +123,9 @@ const MainTabs = () => {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: themeColors.primary[500],
-        tabBarInactiveTintColor: themeColors.text.muted.light,
+        tabBarInactiveTintColor: themeColors.text.muted,
         tabBarStyle: {
-          backgroundColor: themeColors.card.light,
+          backgroundColor: themeColors.background.card,
           borderTopWidth: 0,
           height: 80,
           paddingBottom: 20,
@@ -191,6 +196,7 @@ const MainTabs = () => {
 // The user said: "change it to Floating and movable Icon every page besides setting pages"
 // Moving Settings to a Stack screen makes it easier to hide content from the "MainTabs" view.
 import { PaywallScreen } from './src/screens/PaywallScreen';
+import { CustomerCenterScreen } from './src/screens/CustomerCenterScreen';
 
 // ... other imports
 
@@ -199,6 +205,7 @@ const AuthenticatedNavigation = () => (
     <RootStack.Screen name="MainTabs" component={MainTabs} />
     <RootStack.Screen name="Settings" component={SettingsScreen} />
     <RootStack.Screen name="Paywall" component={PaywallScreen} options={{ presentation: 'modal' }} />
+    <RootStack.Screen name="CustomerCenter" component={CustomerCenterScreen} options={{ presentation: 'modal' }} />
     {/* Auth screens accessible when authenticated (e.g. for guest to login conversion) */}
     <RootStack.Screen name="Login" component={LoginScreen} />
     <RootStack.Screen name="Register" component={RegisterScreen} />
@@ -236,6 +243,10 @@ export default function App() {
           // Initialize sync manager and subscriptions
           services.syncManager.initialize().catch(console.error);
           services.subscriptionService.initialize().catch(console.error);
+
+          // Initialize Zustand subscription store
+          const { useSubscriptionStore } = await import('@/store/subscriptionStore');
+          useSubscriptionStore.getState().initialize().catch(console.error);
 
           let session = null;
           try {
@@ -382,6 +393,15 @@ export default function App() {
     const setupNotifications = async () => {
       if (!notificationService) return;
       await notificationService.registerForPushNotifications();
+
+      // Setup auto notifications (daily reminders, inactive reminders)
+      if (autoNotificationScheduler) {
+        // Get user ID from session or use offline user
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id || 'offline-user-device';
+        await autoNotificationScheduler.setupAutoNotifications(userId);
+      }
+
       const subscription = notificationService.addNotificationResponseListener(
         (response: any) => {
           const data = response.notification.request.content.data;
@@ -389,6 +409,12 @@ export default function App() {
             navigationRef.current?.navigate('MainTabs', { screen: 'Todos', params: { todoId: data.todoId } });
           } else if (data?.type === 'calendar_event' && data?.eventId) {
             navigationRef.current?.navigate('MainTabs', { screen: 'Calendar', params: { eventId: data.eventId } });
+          } else if (data?.type === 'daily_reminder') {
+            // Navigate to Calendar when tapping daily reminder
+            navigationRef.current?.navigate('MainTabs', { screen: 'Calendar' });
+          } else if (data?.type === 'inactive_reminder') {
+            // Navigate to Home when tapping inactive reminder
+            navigationRef.current?.navigate('MainTabs', { screen: 'Home' });
           }
         }
       );
