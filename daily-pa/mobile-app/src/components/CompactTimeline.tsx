@@ -80,20 +80,20 @@ export const CompactTimeline: React.FC<CompactTimelineProps> = ({ events }) => {
                     width,
                     backgroundColor: 'transparent',
                     borderWidth: 2,
-                    borderColor: event.color || themeColor,
+                    borderColor: themeColor,
                     shadowOpacity: 0,
                     elevation: 0,
                   }
                 ]}>
                   <Text style={[
                     styles.eventTitle, 
-                    { color: event.color || themeColor }
+                    { color: themeColor }
                   ]} numberOfLines={2}>
                     {event.title}
                   </Text>
                   <Text style={[
                     styles.eventTime,
-                    { color: event.color || themeColor, opacity: 0.7 }
+                    { color: themeColor, opacity: 0.7 }
                   ]}>
                     {event.startTime} - {event.endTime}
                   </Text>
@@ -129,12 +129,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontFamily: 'Poppins_700Bold',
-    color: '#1E293B',
   },
   count: {
     fontSize: 14,
     fontFamily: 'Poppins_600SemiBold',
-    color: '#64748B',
   },
   scrollContent: {
     paddingHorizontal: 4,
@@ -179,7 +177,6 @@ const styles = StyleSheet.create({
   connector: {
     width: 20,
     height: 2,
-    backgroundColor: '#E2E8F0',
     marginTop: 35,
   },
   emptyContainer: {
