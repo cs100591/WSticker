@@ -23,7 +23,7 @@ import * as Location from 'expo-location';
 import { weatherService, WeatherData } from '@/services/weatherService';
 import { WeatherHeader } from '@/components/WeatherHeader';
 import { AnimatedCard } from '@/components/ui/AnimatedCard';
-import { Timeline } from '@/components/Timeline';
+import { CompactTimeline } from '@/components/CompactTimeline';
 import { useLanguageStore, translations, useEffectiveLanguage } from '@/store/languageStore';
 import { useCurrencyStore } from '@/store/currencyStore';
 import { useThemeStore } from '@/store/themeStore';
@@ -188,16 +188,15 @@ export const DashboardScreen: React.FC = () => {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Timeline - Tiimo Style */}
-        <Timeline 
-          events={displayEvents.map(e => ({
+        {/* Compact Timeline - Shows events only */}
+        <CompactTimeline 
+          events={todayEvents.map(e => ({
             id: e.id,
             title: e.title,
             startTime: formatTime(e.startTime),
             endTime: formatTime(e.endTime),
             color: '#3B82F6',
           }))}
-          currentTime={new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false})}
         />
 
         {/* Today's Schedule */}
