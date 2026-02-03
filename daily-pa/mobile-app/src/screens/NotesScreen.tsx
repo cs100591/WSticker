@@ -82,6 +82,9 @@ export const NotesScreen = () => {
     const [showToast, setShowToast] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
     const fadeAnim = useRef(new Animated.Value(0)).current;
 
+    // Collapsible sections state
+    const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+
     // Task Linking State
     const [showTaskModal, setShowTaskModal] = useState(false);
 
@@ -521,6 +524,25 @@ export const NotesScreen = () => {
 
     const groupedNotes = groupNotesByDate(notes);
 
+    // Toggle section collapse
+    const toggleSection = (title: string) => {
+        setCollapsedSections(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(title)) {
+                newSet.delete(title);
+            } else {
+                newSet.add(title);
+            }
+            return newSet;
+        });
+    };
+
+    // Filter out collapsed sections' data
+    const visibleGroupedNotes = groupedNotes.map(section => ({
+        ...section,
+        data: collapsedSections.has(section.title) ? [] : section.data
+    }));
+
     // --- Render ---
 
     const renderNoteItem = ({ item }: { item: Note }) => {
@@ -732,14 +754,34 @@ export const NotesScreen = () => {
                 {/* Main List */}
                 <View style={styles.content}>
                     <SectionList
-                        sections={groupedNotes}
+                        sections={visibleGroupedNotes}
                         renderItem={renderNoteItem}
-                        renderSectionHeader={({ section: { title } }) => (
-                            <View style={styles.sectionHeader}>
-                                <Text style={styles.sectionTitle}>{title}</Text>
-                                <View style={styles.sectionLine} />
-                            </View>
-                        )}
+                        renderSectionHeader={({ section: { title } }) => {
+                            const isCollapsed = collapsedSections.has(title);
+                            return (
+                                <TouchableOpacity 
+                                    style={styles.sectionHeader}
+                                    onPress={() => toggleSection(title)}
+                                    activeOpacity={0.7}
+                                >
+                                    <Text style={styles.sectionTitle}>{title}</Text>
+                                    <View style={styles.sectionRight}>
+                                        <View style={styles.sectionLine} />
+                                        <Animated.View style={{
+                                            transform: [{ 
+                                                rotate: isCollapsed ? '0deg' : '180deg' 
+                                            }]
+                                        }}>
+                                            <Ionicons 
+                                                name="chevron-down" 
+                                                size={18} 
+                                                color="#64748B" 
+                                            />
+                                        </Animated.View>
+                                    </View>
+                                </TouchableOpacity>
+                            );
+                        }}
                         keyExtractor={item => item.id}
                         contentContainerStyle={[styles.listContent, { paddingBottom: 150 }]}
                         showsVerticalScrollIndicator={false}
@@ -827,6 +869,12 @@ const styles = StyleSheet.create({
         marginRight: 10,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
+    },
+    sectionRight: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
     },
     sectionLine: {
         flex: 1,
