@@ -40,9 +40,43 @@ const typeConfig = {
 
 // Priority options for tasks
 const priorities = [
-  { key: 'high', color: '#EF4444', label: 'High', emoji: '🔴' },
-  { key: 'medium', color: '#3B82F6', label: 'Medium', emoji: '🔵' },
-  { key: 'low', color: '#9CA3B8', label: 'Low', emoji: '⚪' },
+  { key: 'high', color: '#EF4444', label: 'High', icon: 'arrow-up' },
+  { key: 'medium', color: '#F59E0B', label: 'Medium', icon: 'ellipse' },
+  { key: 'low', color: '#3B82F6', label: 'Low', icon: 'arrow-down' },
+];
+
+// Task colors
+const taskColors = [
+  { key: 'yellow', color: '#F59E0B', label: 'Yellow' },
+  { key: 'blue', color: '#3B82F6', label: 'Blue' },
+  { key: 'pink', color: '#EC4899', label: 'Pink' },
+  { key: 'green', color: '#10B981', label: 'Green' },
+  { key: 'purple', color: '#8B5CF6', label: 'Purple' },
+  { key: 'orange', color: '#F97316', label: 'Orange' },
+];
+
+// Task icons
+const taskIcons = [
+  { key: 'document-text-outline', label: 'Task' },
+  { key: 'cart-outline', label: 'Shopping' },
+  { key: 'briefcase-outline', label: 'Work' },
+  { key: 'walk-outline', label: 'Walk' },
+  { key: 'call-outline', label: 'Call' },
+  { key: 'mail-outline', label: 'Email' },
+  { key: 'flag-outline', label: 'Flag' },
+  { key: 'star-outline', label: 'Star' },
+];
+
+// Calendar colors
+const calendarColors = [
+  { key: '#3B82F6', label: 'Blue' },
+  { key: '#10B981', label: 'Green' },
+  { key: '#F59E0B', label: 'Orange' },
+  { key: '#EF4444', label: 'Red' },
+  { key: '#8B5CF6', label: 'Purple' },
+  { key: '#EC4899', label: 'Pink' },
+  { key: '#06B6D4', label: 'Cyan' },
+  { key: '#84CC16', label: 'Lime' },
 ];
 
 // Expense categories
@@ -132,29 +166,68 @@ export const ActionCard: React.FC<ActionCardProps> = ({
 
       {/* Editing options based on type */}
       {type === 'task' && (
-        <View style={styles.optionsSection}>
-          <Text style={styles.optionLabel}>Priority</Text>
-          <View style={styles.priorityRow}>
-            {priorities.map(p => (
-              <TouchableOpacity
-                key={p.key}
-                style={[
-                  styles.priorityBtn,
-                  data.priority === p.key && { backgroundColor: p.color + '20', borderColor: p.color }
-                ]}
-                onPress={() => setData({ ...data, priority: p.key })}
-              >
-                <Text style={{ fontSize: 16 }}>{p.emoji}</Text>
-                <Text style={[
-                  styles.priorityLabel,
-                  data.priority === p.key && { color: p.color }
-                ]}>
-                  {p.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+        <>
+          {/* Priority */}
+          <View style={styles.optionsSection}>
+            <Text style={styles.optionLabel}>Priority</Text>
+            <View style={styles.priorityRow}>
+              {priorities.map(p => (
+                <TouchableOpacity
+                  key={p.key}
+                  style={[
+                    styles.priorityBtn,
+                    data.priority === p.key && { 
+                      backgroundColor: p.color + '15',
+                      borderColor: p.color 
+                    }
+                  ]}
+                  onPress={() => setData({ ...data, priority: p.key })}
+                >
+                  <Ionicons 
+                    name={p.icon as any} 
+                    size={14} 
+                    color={data.priority === p.key ? p.color : '#64748B'}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text style={[
+                    styles.priorityLabel,
+                    data.priority === p.key && { color: p.color }
+                  ]}>
+                    {p.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
-        </View>
+
+          {/* Icon */}
+          <View style={styles.optionsSection}>
+            <Text style={styles.optionLabel}>Icon</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.iconRow}>
+                {taskIcons.map(icon => (
+                  <TouchableOpacity
+                    key={icon.key}
+                    style={[
+                      styles.iconBtn,
+                      data.emoji === icon.key && { 
+                        backgroundColor: '#3B82F6' + '15',
+                        borderColor: '#3B82F6' 
+                      }
+                    ]}
+                    onPress={() => setData({ ...data, emoji: icon.key })}
+                  >
+                    <Ionicons 
+                      name={icon.key as any} 
+                      size={22} 
+                      color={data.emoji === icon.key ? '#3B82F6' : '#64748B'} 
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        </>
       )}
 
       {type === 'expense' && (
@@ -194,6 +267,31 @@ export const ActionCard: React.FC<ActionCardProps> = ({
 
       {type === 'calendar' && (
         <>
+          {/* Color */}
+          <View style={styles.optionsSection}>
+            <Text style={styles.optionLabel}>Color</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.colorRow}>
+                {calendarColors.map(c => (
+                  <TouchableOpacity
+                    key={c.key}
+                    style={[
+                      styles.colorCircle,
+                      { backgroundColor: c.key },
+                      data.color === c.key && styles.colorCircleSelected
+                    ]}
+                    onPress={() => setData({ ...data, color: c.key })}
+                  >
+                    {data.color === c.key && (
+                      <Ionicons name="checkmark" size={18} color="#FFF" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+
+          {/* Date */}
           <View style={styles.optionsSection}>
             <Text style={styles.optionLabel}>Date</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -225,37 +323,33 @@ export const ActionCard: React.FC<ActionCardProps> = ({
             </ScrollView>
           </View>
 
+          {/* Time - Picker Box Style */}
           <View style={styles.optionsSection}>
             <Text style={styles.optionLabel}>Time</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={styles.timeRow}>
-                {timeOptions.map(t => (
-                  <TouchableOpacity
-                    key={t}
-                    style={[
-                      styles.timeBtn,
-                      data.startTime === t && { backgroundColor: '#3B82F6', borderColor: '#3B82F6' }
-                    ]}
-                    onPress={() => {
-                      const [h, m] = t.split(':').map(Number);
-                      const endH = (h + 1) % 24;
-                      setData({ 
-                        ...data, 
-                        startTime: t,
-                        endTime: `${endH.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
-                      });
-                    }}
-                  >
-                    <Text style={[
-                      styles.timeText,
-                      data.startTime === t && { color: '#FFF' }
-                    ]}>
-                      {t}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
+            <View style={styles.timePickerBox}>
+              <TouchableOpacity 
+                style={styles.timePickerField}
+                onPress={() => {
+                  // Show time picker modal or native picker
+                  const currentIndex = timeOptions.indexOf(data.startTime || '09:00');
+                  const nextIndex = (currentIndex + 1) % timeOptions.length;
+                  const newTime = timeOptions[nextIndex];
+                  const [h, m] = newTime.split(':').map(Number);
+                  const endH = (h + 1) % 24;
+                  setData({ 
+                    ...data, 
+                    startTime: newTime,
+                    endTime: `${endH.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+                  });
+                }}
+              >
+                <Ionicons name="time-outline" size={20} color="#64748B" />
+                <Text style={styles.timePickerText}>
+                  {data.startTime || '09:00'} - {data.endTime || '10:00'}
+                </Text>
+                <Ionicons name="chevron-down" size={18} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
           </View>
         </>
       )}
@@ -375,6 +469,63 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#64748B',
   },
+  iconRow: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingRight: 8,
+  },
+  iconBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  colorRow: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingRight: 8,
+  },
+  colorCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  colorCircleSelected: {
+    borderWidth: 3,
+    borderColor: '#1E293B',
+    transform: [{ scale: 1.1 }],
+  },
+  timePickerBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  timePickerField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  timePickerText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1E293B',
+    flex: 1,
+    marginLeft: 12,
+  },
   categoryRow: {
     flexDirection: 'row',
     gap: 8,
@@ -421,24 +572,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#1E293B',
-  },
-  timeRow: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingRight: 8,
-  },
-  timeBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  timeText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#64748B',
   },
   actions: {
     flexDirection: 'row',
