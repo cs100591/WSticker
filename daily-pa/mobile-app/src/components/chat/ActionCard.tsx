@@ -1,19 +1,18 @@
 /**
  * Modern Action Card Component
- * Beautiful cards for AI action suggestions
+ * Beautiful cards for AI action suggestions with full editing capabilities
  */
 
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 interface ActionCardProps {
   type: 'task' | 'calendar' | 'expense';
   title: string;
   subtitle?: string;
-  icon?: string;
-  color?: string;
-  onConfirm: () => void;
+  data: Record<string, any>;
+  onConfirm: (data: Record<string, any>) => void;
   onCancel: () => void;
   status?: 'pending' | 'confirmed' | 'cancelled';
 }
@@ -39,15 +38,61 @@ const typeConfig = {
   },
 };
 
+// Priority options for tasks
+const priorities = [
+  { key: 'high', color: '#EF4444', label: 'High', emoji: '🔴' },
+  { key: 'medium', color: '#3B82F6', label: 'Medium', emoji: '🔵' },
+  { key: 'low', color: '#9CA3B8', label: 'Low', emoji: '⚪' },
+];
+
+// Expense categories
+const expenseCategories = [
+  { key: 'food', icon: 'fast-food-outline', label: 'Food', color: '#F97316' },
+  { key: 'transport', icon: 'car-outline', label: 'Transport', color: '#3B82F6' },
+  { key: 'shopping', icon: 'bag-outline', label: 'Shopping', color: '#EC4899' },
+  { key: 'entertainment', icon: 'game-controller-outline', label: 'Fun', color: '#8B5CF6' },
+  { key: 'bills', icon: 'document-text-outline', label: 'Bills', color: '#F59E0B' },
+  { key: 'other', icon: 'cube-outline', label: 'Other', color: '#6B7280' },
+];
+
+// Time options
+const timeOptions = [
+  '09:00', '10:00', '11:00', '12:00',
+  '13:00', '14:00', '15:00', '16:00',
+  '17:00', '18:00', '19:00', '20:00',
+];
+
 export const ActionCard: React.FC<ActionCardProps> = ({
   type,
   title,
   subtitle,
+  data: initialData,
   onConfirm,
   onCancel,
   status = 'pending',
 }) => {
   const config = typeConfig[type];
+  const [data, setData] = useState(initialData);
+  
+  // Get upcoming dates
+  const getUpcomingDates = () => {
+    const dates = [];
+    const today = new Date();
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      dates.push({
+        full: `${year}-${month}-${day}`,
+        day: d.getDate(),
+        weekday: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()]
+      });
+    }
+    return dates;
+  };
+  const upcomingDates = getUpcomingDates();
   
   if (status === 'confirmed') {
     return (
@@ -73,44 +118,164 @@ export const ActionCard: React.FC<ActionCardProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Icon */}
-      <View style={[styles.iconContainer, { backgroundColor: config.bgColor }]}>
-        <Ionicons name={config.icon as any} size={24} color={config.color} />
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={[styles.iconContainer, { backgroundColor: config.bgColor }]}>
+          <Ionicons name={config.icon as any} size={24} color={config.color} />
+        </View>
+        <View style={styles.headerText}>
+          <Text style={[styles.typeLabel, { color: config.color }]}>{config.label}</Text>
+          <Text style={styles.title} numberOfLines={2}>{title}</Text>
+          {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+        </View>
       </View>
-      
-      {/* Content */}
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Text style={[styles.typeLabel, { color: config.color }]}>
-            {config.label}
-          </Text>
+
+      {/* Editing options based on type */}
+      {type === 'task' && (
+        <View style={styles.optionsSection}>
+          <Text style={styles.optionLabel}>Priority</Text>
+          <View style={styles.priorityRow}>
+            {priorities.map(p => (
+              <TouchableOpacity
+                key={p.key}
+                style={[
+                  styles.priorityBtn,
+                  data.priority === p.key && { backgroundColor: p.color + '20', borderColor: p.color }
+                ]}
+                onPress={() => setData({ ...data, priority: p.key })}
+              >
+                <Text style={{ fontSize: 16 }}>{p.emoji}</Text>
+                <Text style={[
+                  styles.priorityLabel,
+                  data.priority === p.key && { color: p.color }
+                ]}>
+                  {p.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
-        
-        <Text style={styles.title} numberOfLines={2}>{title}</Text>
-        
-        {subtitle && (
-          <Text style={styles.subtitle} numberOfLines={1}>
-            {subtitle}
-          </Text>
-        )}
-        
-        {/* Actions */}
-        <View style={styles.actions}>
-          <TouchableOpacity 
-            style={[styles.button, styles.cancelButton]}
-            onPress={onCancel}
-          >
-            <Text style={styles.cancelText}>Cancel</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.button, styles.confirmButton, { backgroundColor: config.color }]}
-            onPress={onConfirm}
-          >
-            <Ionicons name="checkmark" size={18} color="#FFF" style={styles.buttonIcon} />
-            <Text style={styles.confirmText}>Add</Text>
-          </TouchableOpacity>
+      )}
+
+      {type === 'expense' && (
+        <View style={styles.optionsSection}>
+          <Text style={styles.optionLabel}>Category</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.categoryRow}>
+              {expenseCategories.map(cat => (
+                <TouchableOpacity
+                  key={cat.key}
+                  style={[
+                    styles.categoryBtn,
+                    data.category === cat.key && { 
+                      backgroundColor: cat.color + '15',
+                      borderColor: cat.color 
+                    }
+                  ]}
+                  onPress={() => setData({ ...data, category: cat.key })}
+                >
+                  <Ionicons 
+                    name={cat.icon as any} 
+                    size={18} 
+                    color={data.category === cat.key ? cat.color : '#64748B'} 
+                  />
+                  <Text style={[
+                    styles.categoryLabel,
+                    data.category === cat.key && { color: cat.color }
+                  ]}>
+                    {cat.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
         </View>
+      )}
+
+      {type === 'calendar' && (
+        <>
+          <View style={styles.optionsSection}>
+            <Text style={styles.optionLabel}>Date</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.dateRow}>
+                {upcomingDates.map((d, i) => (
+                  <TouchableOpacity
+                    key={d.full}
+                    style={[
+                      styles.dateBtn,
+                      data.date === d.full && { backgroundColor: '#3B82F6', borderColor: '#3B82F6' }
+                    ]}
+                    onPress={() => setData({ ...data, date: d.full })}
+                  >
+                    <Text style={[
+                      styles.dateWeekday,
+                      data.date === d.full && { color: '#FFF' }
+                    ]}>
+                      {i === 0 ? 'Today' : d.weekday}
+                    </Text>
+                    <Text style={[
+                      styles.dateNum,
+                      data.date === d.full && { color: '#FFF' }
+                    ]}>
+                      {d.day}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+
+          <View style={styles.optionsSection}>
+            <Text style={styles.optionLabel}>Time</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.timeRow}>
+                {timeOptions.map(t => (
+                  <TouchableOpacity
+                    key={t}
+                    style={[
+                      styles.timeBtn,
+                      data.startTime === t && { backgroundColor: '#3B82F6', borderColor: '#3B82F6' }
+                    ]}
+                    onPress={() => {
+                      const [h, m] = t.split(':').map(Number);
+                      const endH = (h + 1) % 24;
+                      setData({ 
+                        ...data, 
+                        startTime: t,
+                        endTime: `${endH.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+                      });
+                    }}
+                  >
+                    <Text style={[
+                      styles.timeText,
+                      data.startTime === t && { color: '#FFF' }
+                    ]}>
+                      {t}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        </>
+      )}
+
+      {/* Actions */}
+      <View style={styles.actions}>
+        <TouchableOpacity 
+          style={[styles.button, styles.cancelButton]}
+          onPress={onCancel}
+        >
+          <Text style={styles.cancelText}>Cancel</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.button, styles.confirmButton, { backgroundColor: config.color }]}
+          onPress={() => onConfirm(data)}
+        >
+          <Ionicons name="checkmark" size={18} color="#FFF" style={styles.buttonIcon} />
+          <Text style={styles.confirmText}>Add</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -118,7 +283,6 @@ export const ActionCard: React.FC<ActionCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
@@ -135,6 +299,8 @@ const styles = StyleSheet.create({
   confirmedContainer: {
     backgroundColor: '#F0FDF4',
     borderColor: '#BBF7D0',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   cancelledContainer: {
     backgroundColor: '#F9FAFB',
@@ -142,6 +308,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 20,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
   },
   iconContainer: {
     width: 48,
@@ -151,43 +322,138 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 14,
   },
-  content: {
+  headerText: {
     flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
   },
   typeLabel: {
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    marginBottom: 2,
   },
   title: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1E293B',
-    marginBottom: 4,
     lineHeight: 22,
   },
   subtitle: {
     fontSize: 13,
     color: '#64748B',
-    marginBottom: 12,
+    marginTop: 2,
+  },
+  optionsSection: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  optionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+    marginBottom: 8,
+  },
+  priorityRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  priorityBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  priorityLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#64748B',
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingRight: 8,
+  },
+  categoryBtn: {
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    minWidth: 60,
+  },
+  categoryLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#64748B',
+  },
+  dateRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingRight: 8,
+  },
+  dateBtn: {
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    minWidth: 50,
+  },
+  dateWeekday: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: '#94A3B8',
+    marginBottom: 2,
+  },
+  dateNum: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  timeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingRight: 8,
+  },
+  timeBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  timeText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#64748B',
   },
   actions: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 8,
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
   },
   button: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderRadius: 10,
   },
   cancelButton: {
@@ -227,5 +493,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#9CA3AF',
     fontStyle: 'italic',
+  },
+  content: {
+    flex: 1,
   },
 });

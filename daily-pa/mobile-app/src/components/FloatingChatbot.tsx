@@ -280,6 +280,19 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
     }
   };
 
+  // Wrapper functions for new ActionCard component
+  const handleConfirmAction = async (action: ParsedAction, messageId: string, updatedData?: Record<string, any>) => {
+    // Update action data if user made changes
+    if (updatedData) {
+      action.data = { ...action.data, ...updatedData };
+    }
+    await handleAction(messageId, action.id, true);
+  };
+
+  const handleCancelAction = async (actionId: string, messageId: string) => {
+    await handleAction(messageId, actionId, false);
+  };
+
   // Handle add to calendar for todos
   const handleAddToCalendar = async (todoId: string, todoTitle: string, messageId: string) => {
     try {
@@ -1283,14 +1296,15 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
           isLast={isLast}
         />
 
-        {/* Modern Action Cards */}
+        {/* Modern Action Cards with editing */}
         {item.actions && item.actions.map((action) => (
           <ActionCard
             key={action.id}
             type={action.type}
             title={action.title}
             subtitle={action.data.description as string || action.data.date as string}
-            onConfirm={() => handleConfirmAction(action, item.id)}
+            data={action.data}
+            onConfirm={(updatedData) => handleConfirmAction(action, item.id, updatedData)}
             onCancel={() => handleCancelAction(action.id, item.id)}
             status={action.status}
           />
