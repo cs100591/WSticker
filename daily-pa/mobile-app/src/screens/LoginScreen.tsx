@@ -113,7 +113,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           {/* Logo/Brand Section */}
           <View style={styles.brandSection}>
             <Image
-              source={require('../../assets/icon.jpg')}
+              source={require('../../assets/icon.png')}
               style={styles.logoImage}
             />
             <Text style={styles.brandTagline}>{t.aiAssistant || 'Your Virtual Personal Assistant'}</Text>
