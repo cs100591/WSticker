@@ -1082,51 +1082,166 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
       console.error('Chat API error:', error);
       alert(`API Error: ${error.message}\nURL: ${API_URL}`);
 
-      // OFFLINE FALLBACK: Local intent detection
+      // OFFLINE FALLBACK: Smart local intent detection with MULTI-EVENT support
       const lowerText = userMessage.toLowerCase();
       let responseText = '';
       let actions: ParsedAction[] | undefined;
 
-      // Detect task/todo intent
-      if (lowerText.includes('task') || lowerText.includes('todo') || lowerText.includes('待办') || lowerText.includes('任务')) {
-        const title = userMessage.replace(/add|create|new|task|todo|待办|任务|添加|创建/gi, '').trim() || 'New Task';
-        responseText = detectedLang === 'zh'
-          ? `我帮你创建任务："${title}"`
-          : `I'll create a task: "${title}"`;
-        actions = [{
-          id: `${Date.now()}_0`,
-          type: 'task',
-          title: 'Create Task',
-          data: { title, priority: 'medium' },
-          status: 'pending',
-        }];
+      // Helper: Parse time from text (e.g., "3pm" -> "15:00", "6:30am" -> "06:30")
+      const parseTime = (timeStr: string): string | null => {
+        const match = timeStr.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)/i);
+        if (!match) return null;
+        let hour = parseInt(match[1]);
+        const min = match[2] || '00';
+        const period = match[3].toLowerCase();
+        if (period.startsWith('p') && hour !== 12) hour += 12;
+        if (period.startsWith('a') && hour === 12) hour = 0;
+        return `${hour.toString().padStart(2, '0')}:${min}`;
+      };
+
+      // Helper: Extract multiple times from text
+      const extractTimes = (text: string): Array<{time: string, label?: string}> => {
+        const timeRegex = /(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)/gi;
+        const matches = [];
+        let match;
+        while ((match = timeRegex.exec(text)) !== null) {
+          const timeStr = match[0];
+          const parsed = parseTime(timeStr);
+          if (parsed) {
+            // Look for nearby text (e.g., "meeting at 3pm")
+            const beforeText = text.substring(Math.max(0, match.index - 30), match.index);
+            const label = beforeText.match(/\b(meeting|call|appointment|lunch|dinner|event|会议|电话|约会|午餐|晚餐)\b/i)?.[0];
+            matches.push({ time: parsed, label: label || 'Event' });
+          }
+        }
+        return matches;
+      };
+
+      // Helper: Parse tomorrow's date
+      const getTomorrow = () => {
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        return d.toISOString().split('T')[0];
+      };
+
+      const isTomorrow = lowerText.includes('tomorrow') || lowerText.includes('明天') || lowerText.includes('明日');
+      const targetDate = isTomorrow ? getTomorrow() : localDate;
+
+      // 🎯 SMART CALENDAR: Handle multiple time mentions
+      if (lowerText.includes('meeting') || lowerText.includes('event') || lowerText.includes('calendar') || 
+          lowerText.includes('会议') || lowerText.includes('日程') || lowerText.includes('活动') ||
+          lowerText.includes('have') || lowerText.includes('有')) {
+        
+        const times = extractTimes(userMessage);
+        
+        if (times.length >= 2) {
+          // Multiple times detected - create multiple events!
+          const eventTitle = userMessage.replace(/\d{1,2}(?::\d{2})?\s*(am|pm|a\.m\.|p\.m\.)/gi, '').
+            replace(/tomorrow|明天|at|on|在/gi, '').
+            replace(/have|有|meeting|会议|and|和/gi, ' ').
+            trim() || 'Meeting';
+          
+          actions = times.map((t, index) => {
+            const [hour, min] = t.time.split(':').map(Number);
+            const endHour = (hour + 1) % 24;
+            const endTime = `${endHour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
+            
+            return {
+              id: `${Date.now()}_${index}`,
+              type: 'calendar' as const,
+              title: `${t.label || eventTitle} ${index + 1}`,
+              data: { 
+                title: `${t.label || eventTitle} ${index + 1}`, 
+                date: targetDate, 
+                startTime: t.time, 
+                endTime: endTime,
+                allDay: false 
+              },
+              status: 'pending' as const,
+            };
+          });
+          
+          responseText = detectedLang === 'zh'
+            ? `我帮您创建了 ${times.length} 个日程！`
+            : `I've created ${times.length} events for you!`;
+        } else if (times.length === 1) {
+          // Single time
+          const title = userMessage.replace(/add|create|new|meeting|event|calendar|会议|日程|活动|添加|创建|at|\d{1,2}(?::\d{2})?\s*(am|pm)/gi, '').trim() || 'New Event';
+          const [hour, min] = times[0].time.split(':').map(Number);
+          const endHour = (hour + 1) % 24;
+          const endTime = `${endHour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
+          
+          responseText = detectedLang === 'zh'
+            ? `我帮您创建日程："${title}" 在 ${times[0].time}`
+            : `I'll create an event: "${title}" at ${times[0].time}`;
+          actions = [{
+            id: `${Date.now()}_0`,
+            type: 'calendar',
+            title: 'Create Event',
+            data: { title, date: targetDate, startTime: times[0].time, endTime },
+            status: 'pending',
+          }];
+        } else {
+          // No time detected
+          const title = userMessage.replace(/add|create|new|meeting|event|calendar|会议|日程|活动|添加|创建/gi, '').trim() || 'New Event';
+          responseText = detectedLang === 'zh'
+            ? `我帮您创建日程："${title}"`
+            : `I'll create an event: "${title}"`;
+          actions = [{
+            id: `${Date.now()}_0`,
+            type: 'calendar',
+            title: 'Create Event',
+            data: { title, date: targetDate, startTime: '09:00', endTime: '10:00' },
+            status: 'pending',
+          }];
+        }
+      }
+      // Detect multiple tasks (comma or "and" separated)
+      else if (lowerText.includes('task') || lowerText.includes('todo') || lowerText.includes('待办') || lowerText.includes('任务')) {
+        // Split by comma, "and", "和", or "以及"
+        const taskList = userMessage
+          .replace(/add|create|new|task|todo|待办|任务|添加|创建/gi, '')
+          .split(/[,，]|\band\b|\b和\b|\b以及\b/)
+          .map(t => t.trim())
+          .filter(t => t.length > 0);
+        
+        if (taskList.length >= 2) {
+          actions = taskList.map((task, index) => ({
+            id: `${Date.now()}_${index}`,
+            type: 'task' as const,
+            title: task,
+            data: { title: task, priority: 'medium' },
+            status: 'pending' as const,
+          }));
+          responseText = detectedLang === 'zh'
+            ? `我帮您创建了 ${taskList.length} 个任务！`
+            : `I've created ${taskList.length} tasks for you!`;
+        } else {
+          const title = taskList[0] || 'New Task';
+          responseText = detectedLang === 'zh'
+            ? `我帮您创建任务："${title}"`
+            : `I'll create a task: "${title}"`;
+          actions = [{
+            id: `${Date.now()}_0`,
+            type: 'task',
+            title: 'Create Task',
+            data: { title, priority: 'medium' },
+            status: 'pending',
+          }];
+        }
       }
       // Detect expense intent
       else if (lowerText.includes('expense') || lowerText.includes('spent') || lowerText.includes('支出') || lowerText.includes('花费') || lowerText.includes('¥') || lowerText.includes('$')) {
         const amountMatch = userMessage.match(/(\d+\.?\d*)/);
         const amount = amountMatch ? parseFloat(amountMatch[1]) : 0;
         responseText = detectedLang === 'zh'
-          ? `我帮你记录支出：¥${amount}`
+          ? `我帮您记录支出：¥${amount}`
           : `I'll record an expense: $${amount}`;
         actions = [{
           id: `${Date.now()}_0`,
           type: 'expense',
           title: 'Add Expense',
           data: { amount, category: 'other', date: localDate },
-          status: 'pending',
-        }];
-      }
-      // Detect calendar/meeting intent
-      else if (lowerText.includes('meeting') || lowerText.includes('event') || lowerText.includes('calendar') || lowerText.includes('会议') || lowerText.includes('日程') || lowerText.includes('活动')) {
-        const title = userMessage.replace(/add|create|new|meeting|event|calendar|会议|日程|活动|添加|创建/gi, '').trim() || 'New Event';
-        responseText = detectedLang === 'zh'
-          ? `我帮你创建日程："${title}"`
-          : `I'll create an event: "${title}"`;
-        actions = [{
-          id: `${Date.now()}_0`,
-          type: 'calendar',
-          title: 'Create Event',
-          data: { title, date: localDate, startTime: '09:00', endTime: '10:00' },
           status: 'pending',
         }];
       }

@@ -23,6 +23,7 @@ import * as Location from 'expo-location';
 import { weatherService, WeatherData } from '@/services/weatherService';
 import { WeatherHeader } from '@/components/WeatherHeader';
 import { AnimatedCard } from '@/components/ui/AnimatedCard';
+import { Timeline } from '@/components/Timeline';
 import { useLanguageStore, translations, useEffectiveLanguage } from '@/store/languageStore';
 import { useCurrencyStore } from '@/store/currencyStore';
 import { useThemeStore } from '@/store/themeStore';
@@ -165,7 +166,6 @@ export const DashboardScreen: React.FC = () => {
       )}
 
       {/* Header */}
-      {/* Weather Header */}
       <WeatherHeader
         weather={weather}
         greeting={(t as any)[weatherGreeting] || weatherGreeting}
@@ -188,6 +188,18 @@ export const DashboardScreen: React.FC = () => {
         }
         showsVerticalScrollIndicator={false}
       >
+        {/* Timeline - Tiimo Style */}
+        <Timeline 
+          events={displayEvents.map(e => ({
+            id: e.id,
+            title: e.title,
+            startTime: formatTime(e.startTime),
+            endTime: formatTime(e.endTime),
+            color: '#3B82F6',
+          }))}
+          currentTime={new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false})}
+        />
+
         {/* Today's Schedule */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -315,39 +327,49 @@ export const DashboardScreen: React.FC = () => {
           </AnimatedCard>
         </View>
 
-        {/* Stats Grid */}
-        <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: '#EFF6FF' }]}>
-              <Ionicons name="checkbox-outline" size={22} color="#3B82F6" />
+        {/* Stats Grid - Bento Style */}
+        <View style={styles.bentoGrid}>
+          {/* Large card - Tasks */}
+          <AnimatedCard variant="default" style={[styles.bentoCard, styles.bentoLarge]}>
+            <View style={styles.bentoHeader}>
+              <View style={[styles.bentoIcon, { backgroundColor: '#3B82F6' }]}>
+                <Ionicons name="checkbox" size={20} color="#FFF" />
+              </View>
+              <Text style={styles.bentoLabel}>{t.activeTasks}</Text>
             </View>
-            <Text style={styles.statLabel}>{t.activeTasks}</Text>
-            <Text style={styles.statValue}>{displayActiveTasks}</Text>
-          </View>
+            <Text style={styles.bentoValueLarge}>{displayActiveTasks}</Text>
+            <Text style={styles.bentoSubtext}>{t.completionRate}: {displayCompletionRate}%</Text>
+          </AnimatedCard>
 
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: '#D1FAE5' }]}>
-              <Ionicons name="trending-up-outline" size={22} color="#10B981" />
+          {/* Small card - Completion */}
+          <AnimatedCard variant="default" style={[styles.bentoCard, styles.bentoSmall]}>
+            <View style={[styles.bentoIconSmall, { backgroundColor: '#10B981' }]}>
+              <Ionicons name="trending-up" size={18} color="#FFF" />
             </View>
-            <Text style={styles.statLabel}>{t.completionRate}</Text>
-            <Text style={styles.statValue}>{displayCompletionRate}%</Text>
-          </View>
+            <Text style={styles.bentoValue}>{displayCompletionRate}%</Text>
+            <Text style={styles.bentoLabelSmall}>Done</Text>
+          </AnimatedCard>
 
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: '#FEF3C7' }]}>
-              <Ionicons name="wallet-outline" size={22} color="#F59E0B" />
+          {/* Small card - Expenses */}
+          <AnimatedCard variant="default" style={[styles.bentoCard, styles.bentoSmall]}>
+            <View style={[styles.bentoIconSmall, { backgroundColor: '#F59E0B' }]}>
+              <Ionicons name="wallet" size={18} color="#FFF" />
             </View>
-            <Text style={styles.statLabel}>{t.monthlySpend}</Text>
-            <Text style={styles.statValue}>{currencySymbol}{displayMonthlySpending.toFixed(2)}</Text>
-          </View>
+            <Text style={styles.bentoValue}>{currencySymbol}{displayMonthlySpending.toFixed(0)}</Text>
+            <Text style={styles.bentoLabelSmall}>This Month</Text>
+          </AnimatedCard>
 
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: '#E0E7FF' }]}>
-              <Ionicons name="calendar-outline" size={22} color="#6366F1" />
+          {/* Large card - Events */}
+          <AnimatedCard variant="default" style={[styles.bentoCard, styles.bentoLarge]}>
+            <View style={styles.bentoHeader}>
+              <View style={[styles.bentoIcon, { backgroundColor: '#6366F1' }]}>
+                <Ionicons name="calendar" size={20} color="#FFF" />
+              </View>
+              <Text style={styles.bentoLabel}>{t.eventsToday}</Text>
             </View>
-            <Text style={styles.statLabel}>{t.eventsToday}</Text>
-            <Text style={styles.statValue}>{displayEventsToday}</Text>
-          </View>
+            <Text style={styles.bentoValueLarge}>{displayEventsToday}</Text>
+            <Text style={styles.bentoSubtext}>Events today</Text>
+          </AnimatedCard>
         </View>
 
         {/* Bottom spacing */}
@@ -362,19 +384,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  header: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  headerContent: {
+  scrollView: {
     flex: 1,
+  },
+  content: {
+    padding: 16,
   },
   settingsBtn: {
     width: 40,
@@ -384,64 +398,94 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  settingsIcon: {
-    fontSize: 20,
-  },
-  greeting: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#64748B',
-    lineHeight: 20,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    padding: 20,
-  },
-  statsGrid: {
+  
+  // Bento Grid
+  bentoGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -6,
+    gap: 12,
     marginBottom: 24,
   },
-  statCard: {
-    width: '48%',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginHorizontal: '1%',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+  bentoCard: {
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  statIcon: {
+  bentoLarge: {
+    width: '100%',
+  },
+  bentoSmall: {
+    width: '48%',
+    minHeight: 120,
+  },
+  bentoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  bentoIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  bentoIconSmall: {
     width: 40,
     height: 40,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  statIconText: {
-    fontSize: 20,
+  bentoLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748B',
   },
-  statLabel: {
+  bentoLabelSmall: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#64748B',
-    marginBottom: 4,
+    color: '#94A3B8',
+    marginTop: 4,
   },
-  statValue: {
-    fontSize: 24,
+  bentoValueLarge: {
+    fontSize: 42,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: -1,
+  },
+  bentoValue: {
+    fontSize: 28,
     fontWeight: '700',
     color: '#0F172A',
+  },
+  bentoSubtext: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#94A3B8',
+    marginTop: 4,
   },
   section: {
     marginBottom: 24,
