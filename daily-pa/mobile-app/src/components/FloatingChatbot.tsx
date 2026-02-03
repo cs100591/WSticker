@@ -39,6 +39,8 @@ import { todoService } from '@/services/TodoService';
 import { expenseService } from '@/services/ExpenseService';
 import { calendarService } from '@/services/CalendarService';
 import { InputAccessory } from './InputAccessory';
+import { ChatBubble } from './chat/ChatBubble';
+import { ActionCard } from './chat/ActionCard';
 
 import { ENV } from '@/config/env';
 
@@ -1150,39 +1152,59 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
   }, [messages]);
 
-  const renderMessage = ({ item }: { item: Message }) => (
-    <View>
-      {item.image && <Image source={{ uri: item.image }} style={styles.msgImage} />}
-      <View style={[styles.bubble, item.isUser ? styles.userBubble : styles.aiBubble]}>
-        <Text style={[styles.msgText, item.isUser && styles.userText]}>{item.text}</Text>
-      </View>
+  const renderMessage = ({ item, index }: { item: Message; index: number }) => {
+    const isFirst = index === 0 || messages[index - 1]?.isUser !== item.isUser;
+    const isLast = index === messages.length - 1 || messages[index + 1]?.isUser !== item.isUser;
+    
+    return (
+      <View>
+        {item.image && <Image source={{ uri: item.image }} style={styles.msgImage} />}
+        
+        {/* Modern Chat Bubble */}
+        <ChatBubble 
+          text={item.text} 
+          isUser={item.isUser}
+          isFirst={isFirst}
+          isLast={isLast}
+        />
 
-      {/* Action cards - EXACTLY like web version */}
-      {item.actions && item.actions.map((action) => renderActionCard(action, item.id))}
+        {/* Modern Action Cards */}
+        {item.actions && item.actions.map((action) => (
+          <ActionCard
+            key={action.id}
+            type={action.type}
+            title={action.title}
+            subtitle={action.data.description as string || action.data.date as string}
+            onConfirm={() => handleConfirmAction(action, item.id)}
+            onCancel={() => handleCancelAction(action.id, item.id)}
+            status={action.status}
+          />
+        ))}
 
-      {/* Follow-up UI for todo calendar integration - Simplified, no color picker */}
-      {item.followUp && item.followUp.type === 'todo-calendar-color' && (
-        <View style={styles.followUp}>
-          <View style={styles.calendarOptions}>
-            <TouchableOpacity
-              style={styles.calendarBtn}
-              onPress={() => handleAddToCalendar(item.followUp!.todoId, item.followUp!.todoTitle, item.id)}
-            >
-              <Text style={styles.calendarText}>📅 {t.addToCalendar}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.skipBtn}
-              onPress={() => setMessages(prev => prev.map(m =>
-                m.id === item.id ? { ...m, followUp: undefined } : m
-              ))}
-            >
-              <Text style={styles.skipText}>{t.skip}</Text>
-            </TouchableOpacity>
+        {/* Follow-up UI for todo calendar integration */}
+        {item.followUp && item.followUp.type === 'todo-calendar-color' && (
+          <View style={styles.followUp}>
+            <View style={styles.calendarOptions}>
+              <TouchableOpacity
+                style={styles.calendarBtn}
+                onPress={() => handleAddToCalendar(item.followUp!.todoId, item.followUp!.todoTitle, item.id)}
+              >
+                <Text style={styles.calendarText}>📅 {t.addToCalendar}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.skipBtn}
+                onPress={() => setMessages(prev => prev.map(m =>
+                  m.id === item.id ? { ...m, followUp: undefined } : m
+                ))}
+              >
+                <Text style={styles.skipText}>{t.skip}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      )}
-    </View>
-  );
+        )}
+      </View>
+    );
+  };
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -1303,20 +1325,73 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ visible, onClo
 };
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  container: { height: SCREEN_HEIGHT * 0.7, backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, width: '100%' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
-  title: { fontSize: 18, fontWeight: '600', color: '#1F2937' },
-  closeBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
-  list: { padding: 16, paddingBottom: 8 },
-  msgImage: { width: 180, height: 120, borderRadius: 12, marginBottom: 8, alignSelf: 'flex-end' },
-  bubble: { maxWidth: '80%', padding: 12, borderRadius: 16, marginBottom: 8 },
-  userBubble: { backgroundColor: '#3B82F6', alignSelf: 'flex-end', borderBottomRightRadius: 4 },
-  aiBubble: { backgroundColor: '#F3F4F6', alignSelf: 'flex-start', borderBottomLeftRadius: 4 },
-  msgText: { fontSize: 15, lineHeight: 22, color: '#1F2937' },
-  userText: { color: '#FFF' },
+  overlay: { 
+    flex: 1, 
+    backgroundColor: 'rgba(0,0,0,0.4)', 
+    justifyContent: 'flex-end' 
+  },
+  container: { 
+    height: SCREEN_HEIGHT * 0.75, 
+    backgroundColor: '#F8FAFC', 
+    borderTopLeftRadius: 28, 
+    borderTopRightRadius: 28, 
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  header: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28, 
+    borderTopRightRadius: 28,
+    borderBottomWidth: 1, 
+    borderBottomColor: '#E2E8F0' 
+  },
+  title: { 
+    fontSize: 20, 
+    fontWeight: '700', 
+    color: '#1E293B',
+    letterSpacing: -0.5,
+  },
+  closeBtn: { 
+    width: 36, 
+    height: 36, 
+    borderRadius: 18, 
+    backgroundColor: '#F1F5F9', 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  list: { 
+    paddingHorizontal: 8,
+    paddingVertical: 12,
+    paddingBottom: 16,
+  },
+  msgImage: { 
+    width: 200, 
+    height: 140, 
+    borderRadius: 16, 
+    marginBottom: 12, 
+    alignSelf: 'flex-end',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
 
-  // Action cards - EXACTLY like web version
+  // Action cards - Modern styling
   actionCard: {
     borderRadius: 12,
     overflow: 'hidden',
@@ -1549,14 +1624,75 @@ const styles = StyleSheet.create({
 
   loading: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 8, paddingBottom: 8 },
   loadText: { color: '#6B7280', fontSize: 14 },
-  inputArea: { borderTopWidth: 1, borderTopColor: '#E5E7EB', padding: 12, paddingBottom: 28 },
-  mediaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  mediaBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
-  recordingBtn: { backgroundColor: '#FEE2E2' },
-  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
-  input: { flex: 1, backgroundColor: '#F3F4F6', borderRadius: 24, paddingHorizontal: 16, paddingVertical: 12, fontSize: 16, maxHeight: 100, minHeight: 48, color: '#1F2937' },
-  sendBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center' },
-  sendDisabled: { backgroundColor: '#D1D5DB' },
+  inputArea: { 
+    borderTopWidth: 1, 
+    borderTopColor: '#E2E8F0', 
+    padding: 14, 
+    paddingBottom: 32,
+    backgroundColor: '#FFFFFF',
+  },
+  mediaRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 10, 
+    marginBottom: 10,
+    paddingHorizontal: 4,
+  },
+  mediaBtn: { 
+    width: 46, 
+    height: 46, 
+    borderRadius: 23, 
+    backgroundColor: '#F1F5F9', 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  recordingBtn: { 
+    backgroundColor: '#FEE2E2',
+    shadowColor: '#EF4444',
+    shadowOpacity: 0.1,
+  },
+  inputRow: { 
+    flexDirection: 'row', 
+    alignItems: 'flex-end', 
+    gap: 12,
+    paddingHorizontal: 4,
+  },
+  input: { 
+    flex: 1, 
+    backgroundColor: '#F8FAFC', 
+    borderRadius: 26, 
+    paddingHorizontal: 18, 
+    paddingVertical: 14, 
+    fontSize: 16, 
+    maxHeight: 120, 
+    minHeight: 52, 
+    color: '#1E293B',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  sendBtn: { 
+    width: 52, 
+    height: 52, 
+    borderRadius: 26, 
+    backgroundColor: '#3B82F6', 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  sendDisabled: { 
+    backgroundColor: '#CBD5E1',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
 
   // Chip styles for Icon Picker
   chip: { width: 36, height: 36, justifyContent: 'center', alignItems: 'center', marginRight: 8, borderRadius: 12, backgroundColor: '#F3F4F6' },
