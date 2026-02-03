@@ -3,12 +3,15 @@
  * Using Poppins font family
  */
 
-export const FONTS = {
+const FONTS_CONSTANTS = {
   regular: 'Poppins_400Regular',
   medium: 'Poppins_500Medium',
   semiBold: 'Poppins_600SemiBold',
   bold: 'Poppins_700Bold',
 } as const;
+
+export const FONTS = FONTS_CONSTANTS;
+export default FONTS_CONSTANTS;
 
 // Common text styles with Poppins font
 export const TYPOGRAPHY = {
