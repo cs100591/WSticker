@@ -1,5 +1,4 @@
 /**
-import { FONTS } from '@/theme/fonts';
  * Button Component
  * Matches web mobile view button styling
  */
@@ -94,17 +93,17 @@ const styles = StyleSheet.create({
   primaryText: {
     color: '#FFFFFF',
     fontSize: typography.body.fontSize,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
   },
   outlineText: {
     color: colors.primary,
     fontSize: typography.body.fontSize,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
   },
   textText: {
     color: colors.primary,
     fontSize: typography.body.fontSize,
-    fontFamily: FONTS.medium,
+    fontFamily: 'Poppins_500Medium',
   },
   disabled: {
     opacity: 0.5,

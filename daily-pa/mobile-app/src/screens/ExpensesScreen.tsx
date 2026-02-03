@@ -1,5 +1,4 @@
 /**
-import { FONTS } from '@/theme/fonts';
  * Expenses Screen
  * Matches web app layout with monthly spending card, category breakdown, and transaction history
  */
@@ -558,7 +557,7 @@ const styles = StyleSheet.create({
   addButtonText: {
     color: '#fff',
     fontSize: 14,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
   },
   content: {
     flex: 1,
@@ -579,13 +578,13 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 14,
-    fontFamily: FONTS.medium,
+    fontFamily: 'Poppins_500Medium',
     color: '#64748B',
     marginBottom: 10,
   },
   summaryAmount: {
     fontSize: 56,
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
     color: '#0F172A',
     marginBottom: 14,
   },
@@ -597,7 +596,7 @@ const styles = StyleSheet.create({
   },
   summaryBadgeText: {
     fontSize: 12,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#059669',
   },
   section: {
@@ -605,7 +604,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
     color: '#0F172A',
     marginHorizontal: 20,
     marginBottom: 14,
@@ -649,7 +648,7 @@ const styles = StyleSheet.create({
   },
   categoryAmount: {
     fontSize: 17,
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
     color: '#0F172A',
   },
   dateGroup: {
@@ -657,7 +656,7 @@ const styles = StyleSheet.create({
   },
   dateLabel: {
     fontSize: 14,
-    fontFamily: FONTS.medium,
+    fontFamily: 'Poppins_500Medium',
     color: '#94A3B8',
     marginHorizontal: 20,
     marginBottom: 10,
@@ -695,7 +694,7 @@ const styles = StyleSheet.create({
   },
   expenseDescription: {
     fontSize: 16,
-    fontFamily: FONTS.medium,
+    fontFamily: 'Poppins_500Medium',
     color: '#0F172A',
     marginBottom: 5,
   },
@@ -705,7 +704,7 @@ const styles = StyleSheet.create({
   },
   expenseAmount: {
     fontSize: 19,
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
     color: '#EF4444',
     marginRight: 14,
   },
@@ -740,7 +739,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
     color: '#0F172A',
   },
   modalCloseButton: {
@@ -758,7 +757,7 @@ const styles = StyleSheet.create({
   },
   monthTitle: {
     fontSize: 18,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#0F172A',
   },
   budgetContainer: {
@@ -776,7 +775,7 @@ const styles = StyleSheet.create({
   },
   budgetLabel: {
     fontSize: 14,
-    fontFamily: FONTS.medium,
+    fontFamily: 'Poppins_500Medium',
     color: '#64748B',
   },
   progressBarBg: {
@@ -792,7 +791,7 @@ const styles = StyleSheet.create({
   },
   budgetStatus: {
     fontSize: 12,
-    fontFamily: FONTS.medium,
+    fontFamily: 'Poppins_500Medium',
     color: '#64748B',
     marginTop: 6,
     textAlign: 'right',
@@ -813,7 +812,7 @@ const styles = StyleSheet.create({
   },
   budgetModalTitle: {
     fontSize: 18,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#0F172A',
     marginBottom: 4,
   },
@@ -853,12 +852,12 @@ const styles = StyleSheet.create({
   },
   budgetBtnTextCancel: {
     color: '#64748B',
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     fontSize: 16,
   },
   budgetBtnTextSave: {
     color: '#fff',
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     fontSize: 16,
   },
 });

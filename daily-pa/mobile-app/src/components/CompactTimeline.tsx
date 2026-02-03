@@ -7,7 +7,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useThemeStore } from '@/store/themeStore';
-import { FONTS } from '@/theme/fonts';
 
 interface TimelineEvent {
   id: string;
@@ -129,12 +128,12 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
     color: '#1E293B',
   },
   count: {
     fontSize: 14,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#64748B',
   },
   scrollContent: {
@@ -151,7 +150,7 @@ const styles = StyleSheet.create({
   },
   timeLabel: {
     fontSize: 12,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#64748B',
     marginBottom: 6,
   },
@@ -168,14 +167,14 @@ const styles = StyleSheet.create({
   },
   eventTitle: {
     fontSize: 13,
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
     color: '#FFFFFF',
     marginBottom: 4,
   },
   eventTime: {
     fontSize: 11,
     color: 'rgba(255,255,255,0.85)',
-    fontFamily: FONTS.medium,
+    fontFamily: 'Poppins_500Medium',
   },
   connector: {
     width: 20,
@@ -194,13 +193,13 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 15,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#64748B',
     marginBottom: 4,
   },
   emptySubtext: {
     fontSize: 13,
     color: '#94A3B8',
-    fontFamily: FONTS.regular,
+    fontFamily: 'Poppins_400Regular',
   },
 });

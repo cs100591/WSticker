@@ -1,5 +1,4 @@
 /**
-import { FONTS } from '@/theme/fonts';
  * Receipt Scanner Component
  * Camera integration for scanning receipts
  */
@@ -285,7 +284,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#fff',
   },
   closeButton: {
@@ -384,7 +383,7 @@ const styles = StyleSheet.create({
   },
   retakeButtonText: {
     fontSize: 16,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#fff',
   },
   acceptButton: {
@@ -396,7 +395,7 @@ const styles = StyleSheet.create({
   },
   acceptButtonText: {
     fontSize: 16,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#fff',
   },
   permissionContainer: {
@@ -408,7 +407,7 @@ const styles = StyleSheet.create({
   },
   permissionTitle: {
     fontSize: 20,
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
     color: '#333',
     marginBottom: 12,
     textAlign: 'center',
@@ -429,7 +428,7 @@ const styles = StyleSheet.create({
   },
   permissionButtonText: {
     fontSize: 16,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#fff',
   },
   cancelButton: {
@@ -441,7 +440,7 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: 16,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#666',
   },
 });

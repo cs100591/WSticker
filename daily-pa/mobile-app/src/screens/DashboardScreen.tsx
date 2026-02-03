@@ -1,5 +1,4 @@
 /**
-import { FONTS } from '@/theme/fonts';
  * Dashboard Screen (Home)
  * Main overview screen showing:
  * - Todo summary
@@ -468,12 +467,12 @@ const styles = StyleSheet.create({
   },
   bentoLabel: {
     fontSize: 14,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#64748B',
   },
   bentoLabelSmall: {
     fontSize: 12,
-    fontFamily: FONTS.medium,
+    fontFamily: 'Poppins_500Medium',
     color: '#94A3B8',
     marginTop: 4,
   },
@@ -485,12 +484,12 @@ const styles = StyleSheet.create({
   },
   bentoValue: {
     fontSize: 28,
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
     color: '#0F172A',
   },
   bentoSubtext: {
     fontSize: 13,
-    fontFamily: FONTS.medium,
+    fontFamily: 'Poppins_500Medium',
     color: '#94A3B8',
     marginTop: 4,
   },
@@ -505,12 +504,12 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
     color: '#0F172A',
   },
   viewAllLink: {
     fontSize: 13,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#3B82F6',
   },
   card: {
@@ -542,7 +541,7 @@ const styles = StyleSheet.create({
   },
   todoTitle: {
     fontSize: 14,
-    fontFamily: FONTS.medium,
+    fontFamily: 'Poppins_500Medium',
     color: '#0F172A',
     marginBottom: 4,
   },
@@ -562,7 +561,7 @@ const styles = StyleSheet.create({
   },
   priorityText: {
     fontSize: 9,
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
     letterSpacing: 0.5,
   },
   eventItem: {
@@ -579,7 +578,7 @@ const styles = StyleSheet.create({
   },
   eventTimeText: {
     fontSize: 11,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#94A3B8',
     textAlign: 'right',
   },
@@ -604,7 +603,7 @@ const styles = StyleSheet.create({
   },
   eventTitle: {
     fontSize: 14,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#0F172A',
     marginBottom: 2,
   },
@@ -632,7 +631,7 @@ const styles = StyleSheet.create({
   },
   expenseTotal: {
     fontSize: 32,
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
     color: '#fff',
     marginBottom: 4,
   },

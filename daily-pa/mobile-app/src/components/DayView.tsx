@@ -1,5 +1,4 @@
 import React from 'react';
-import { FONTS } from '@/theme/fonts';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 
 interface DayViewProps {
@@ -153,7 +152,7 @@ const styles = StyleSheet.create({
   },
   allDayLabel: {
     fontSize: 12,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#6b7280',
     marginBottom: 8,
   },
@@ -167,7 +166,7 @@ const styles = StyleSheet.create({
   },
   allDayEventText: {
     fontSize: 14,
-    fontFamily: FONTS.medium,
+    fontFamily: 'Poppins_500Medium',
     color: '#fff',
   },
   scrollView: {
@@ -192,7 +191,7 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 12,
     color: '#9ca3af',
-    fontFamily: FONTS.medium,
+    fontFamily: 'Poppins_500Medium',
   },
   hourContent: {
     flex: 1,
@@ -231,7 +230,7 @@ const styles = StyleSheet.create({
   },
   eventTitle: {
     fontSize: 14,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#fff',
     marginBottom: 2,
   },

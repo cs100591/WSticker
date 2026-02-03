@@ -1,5 +1,4 @@
 /**
-import { FONTS } from '@/theme/fonts';
  * Modern Action Card Component
  * Beautiful cards for AI action suggestions with full editing capabilities
  */
@@ -422,14 +421,14 @@ const styles = StyleSheet.create({
   },
   typeLabel: {
     fontSize: 12,
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 2,
   },
   title: {
     fontSize: 16,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#1E293B',
     lineHeight: 22,
   },
@@ -446,7 +445,7 @@ const styles = StyleSheet.create({
   },
   optionLabel: {
     fontSize: 12,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#64748B',
     marginBottom: 8,
   },
@@ -467,7 +466,7 @@ const styles = StyleSheet.create({
   },
   priorityLabel: {
     fontSize: 13,
-    fontFamily: FONTS.medium,
+    fontFamily: 'Poppins_500Medium',
     color: '#64748B',
   },
   iconRow: {
@@ -522,7 +521,7 @@ const styles = StyleSheet.create({
   },
   timePickerText: {
     fontSize: 15,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#1E293B',
     flex: 1,
     marginLeft: 12,
@@ -545,7 +544,7 @@ const styles = StyleSheet.create({
   },
   categoryLabel: {
     fontSize: 11,
-    fontFamily: FONTS.medium,
+    fontFamily: 'Poppins_500Medium',
     color: '#64748B',
   },
   dateRow: {
@@ -565,13 +564,13 @@ const styles = StyleSheet.create({
   },
   dateWeekday: {
     fontSize: 10,
-    fontFamily: FONTS.medium,
+    fontFamily: 'Poppins_500Medium',
     color: '#94A3B8',
     marginBottom: 2,
   },
   dateNum: {
     fontSize: 16,
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
     color: '#1E293B',
   },
   actions: {
@@ -605,17 +604,17 @@ const styles = StyleSheet.create({
   },
   cancelText: {
     fontSize: 14,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#64748B',
   },
   confirmText: {
     fontSize: 14,
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
     color: '#FFFFFF',
   },
   confirmedTitle: {
     fontSize: 15,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#166534',
   },
   confirmedSubtitle: {

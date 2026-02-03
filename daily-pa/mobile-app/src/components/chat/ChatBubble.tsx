@@ -1,5 +1,4 @@
 /**
-import { FONTS } from '@/theme/fonts';
  * Modern Chat Message Bubble Component
  * Sleek, polished message styling
  */
@@ -132,10 +131,10 @@ const styles = StyleSheet.create({
   },
   userText: {
     color: '#FFFFFF',
-    fontFamily: FONTS.medium,
+    fontFamily: 'Poppins_500Medium',
   },
   aiText: {
     color: '#1E293B',
-    fontFamily: FONTS.regular,
+    fontFamily: 'Poppins_400Regular',
   },
 });

@@ -1,5 +1,4 @@
 /**
-import { FONTS } from '@/theme/fonts';
  * Calendar Screen Pro
  * Advanced calendar with split view, themes, and robust sync
  * Re-designed to match specific visual requirements:
@@ -216,7 +215,7 @@ const BlockMonthView: React.FC<{
                   return (
                     <View key={i} style={containerStyle}>
                       <View style={[barStyle, { overflow: 'hidden' }]}>
-                        <Text numberOfLines={1} style={[styles.miniEventText, { color: '#0F172A', marginLeft: 4, fontSize: 10, fontFamily: FONTS.medium }]}>
+                        <Text numberOfLines={1} style={[styles.miniEventText, { color: '#0F172A', marginLeft: 4, fontSize: 10, fontFamily: 'Poppins_500Medium' }]}>
                           {ev.title}
                         </Text>
                       </View>
@@ -657,7 +656,7 @@ const styles = StyleSheet.create({
   },
   navMonthTitle: {
     fontSize: 20,
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
     color: '#0F172A',
     marginLeft: 8,
     marginRight: 8,
@@ -679,12 +678,12 @@ const styles = StyleSheet.create({
   },
   viewTabText: {
     fontSize: 15,
-    fontFamily: FONTS.medium,
+    fontFamily: 'Poppins_500Medium',
     color: '#64748B',
   },
   viewTabTextActive: {
     color: '#3B82F6',
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
   },
 
   // Week View
@@ -693,7 +692,7 @@ const styles = StyleSheet.create({
   weekHeaderLabel: { width: '14.28%', textAlign: 'center', fontSize: 12, color: '#94A3B8' },
   weekGrid: { flexDirection: 'row', justifyContent: 'space-around' },
   weekDayCell: { width: '14.28%', alignItems: 'center', paddingVertical: 8, borderRadius: 8 },
-  weekDayText: { textAlign: 'center', width: '14.28%', fontSize: 13, fontFamily: FONTS.semiBold },
+  weekDayText: { textAlign: 'center', width: '14.28%', fontSize: 13, fontFamily: 'Poppins_600SemiBold' },
 
   // Month
   monthContainer: {
@@ -724,7 +723,7 @@ const styles = StyleSheet.create({
   dayNumber: {
     fontSize: 16,
     color: '#334155',
-    fontFamily: FONTS.medium,
+    fontFamily: 'Poppins_500Medium',
     marginBottom: 4,
   },
   mutedText: {
@@ -732,11 +731,11 @@ const styles = StyleSheet.create({
   },
   todayText: {
     color: '#3B82F6',
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
   },
   selectedDayText: {
     color: '#fff',
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
   },
 
   // Events in Month
@@ -768,7 +767,7 @@ const styles = StyleSheet.create({
   },
   listHeaderDate: {
     fontSize: 14,
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
     color: '#64748B',
     marginTop: 16,
     marginBottom: 8,
@@ -786,7 +785,7 @@ const styles = StyleSheet.create({
   },
   agendaSectionTitle: {
     fontSize: 18,
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
     paddingHorizontal: 16,
     marginBottom: 12,
     color: '#0F172A',
@@ -807,7 +806,7 @@ const styles = StyleSheet.create({
   },
   newScheduleText: {
     fontSize: 14,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#334155',
     marginLeft: 6,
   },
@@ -825,7 +824,7 @@ const styles = StyleSheet.create({
   agendaTime: {
     fontSize: 13,
     color: '#64748B',
-    fontFamily: FONTS.medium,
+    fontFamily: 'Poppins_500Medium',
   },
   agendaCard: {
     flex: 1,
@@ -836,7 +835,7 @@ const styles = StyleSheet.create({
   },
   agendaTitle: {
     fontSize: 15,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#0F172A',
     marginBottom: 4,
   },

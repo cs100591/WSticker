@@ -1,5 +1,4 @@
 /**
-import { FONTS } from '@/theme/fonts';
  * Screen Header Component
  * Shared header with settings button for all screens
  */
@@ -64,7 +63,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
     color: '#0F172A',
   },
   headerRight: {

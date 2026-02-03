@@ -1,5 +1,4 @@
 /**
-import { FONTS } from '@/theme/fonts';
  * ThemePicker Component
  * Animated theme selector with preview
  */
@@ -180,7 +179,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
     marginBottom: 16,
     paddingHorizontal: 4,
   },
@@ -232,7 +231,7 @@ const styles = StyleSheet.create({
   },
   themeName: {
     fontSize: 12,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#374151',
   },
   activeIndicator: {
@@ -248,6 +247,6 @@ const styles = StyleSheet.create({
   checkmark: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
   },
 });

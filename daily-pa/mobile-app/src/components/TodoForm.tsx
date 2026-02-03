@@ -1,5 +1,4 @@
 /**
-import { FONTS } from '@/theme/fonts';
  * Todo Form Component
  * Form for creating and editing todos
  */
@@ -275,7 +274,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#333',
     marginBottom: 8,
   },
@@ -340,7 +339,7 @@ const styles = StyleSheet.create({
   },
   priorityTextSelected: {
     color: '#fff',
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -360,7 +359,7 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: 16,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#666',
   },
   submitButton: {
@@ -368,7 +367,7 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     fontSize: 16,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#fff',
   },
 });

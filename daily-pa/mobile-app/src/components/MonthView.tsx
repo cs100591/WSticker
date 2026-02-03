@@ -1,5 +1,4 @@
 import React from 'react';
-import { FONTS } from '@/theme/fonts';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 
 interface MonthViewProps {
@@ -170,7 +169,7 @@ const styles = StyleSheet.create({
   },
   weekDayText: {
     fontSize: 12,
-    fontFamily: FONTS.semiBold,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#6b7280',
   },
   calendarGrid: {
@@ -194,7 +193,7 @@ const styles = StyleSheet.create({
   },
   dayText: {
     fontSize: 12,
-    fontFamily: FONTS.medium,
+    fontFamily: 'Poppins_500Medium',
     color: '#111827',
     marginBottom: 2,
   },
@@ -203,11 +202,11 @@ const styles = StyleSheet.create({
   },
   todayText: {
     color: '#3b82f6',
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
   },
   selectedDayText: {
     color: '#1e40af',
-    fontFamily: FONTS.bold,
+    fontFamily: 'Poppins_700Bold',
   },
   eventBarsContainer: {
     width: '100%',
@@ -224,7 +223,7 @@ const styles = StyleSheet.create({
   eventBarText: {
     fontSize: 8,
     color: '#fff',
-    fontFamily: FONTS.medium,
+    fontFamily: 'Poppins_500Medium',
   },
   moreEventsText: {
     fontSize: 8,

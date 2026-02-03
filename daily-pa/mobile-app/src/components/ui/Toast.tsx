@@ -1,5 +1,4 @@
 /**
-import { FONTS } from '@/theme/fonts';
  * Toast - In-app notification feedback
  * Success, error, warning, and info messages
  */
@@ -170,7 +169,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 10,
     fontSize: 14,
-    fontFamily: FONTS.medium,
+    fontFamily: 'Poppins_500Medium',
   },
 });
 
