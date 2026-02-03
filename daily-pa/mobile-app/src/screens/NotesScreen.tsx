@@ -9,6 +9,7 @@ import {
     Alert,
     Platform,
     FlatList,
+    SectionList,
     Modal,
     SafeAreaView,
     Animated,
@@ -483,6 +484,43 @@ export const NotesScreen = () => {
         Speech.speak(text, { language: outputLang.code });
     };
 
+    // Group notes by date
+    const groupNotesByDate = (notesList: Note[]) => {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const thisWeekStart = new Date(today);
+        thisWeekStart.setDate(thisWeekStart.getDate() - thisWeekStart.getDay());
+
+        const groups: { title: string; data: Note[] }[] = [
+            { title: 'Today', data: [] },
+            { title: 'Yesterday', data: [] },
+            { title: 'This Week', data: [] },
+            { title: 'Earlier', data: [] },
+        ];
+
+        notesList.forEach(note => {
+            const noteDate = new Date(note.createdAt);
+            const noteDay = new Date(noteDate.getFullYear(), noteDate.getMonth(), noteDate.getDate());
+
+            if (noteDay.getTime() === today.getTime()) {
+                groups[0].data.push(note);
+            } else if (noteDay.getTime() === yesterday.getTime()) {
+                groups[1].data.push(note);
+            } else if (noteDay >= thisWeekStart) {
+                groups[2].data.push(note);
+            } else {
+                groups[3].data.push(note);
+            }
+        });
+
+        // Remove empty groups
+        return groups.filter(g => g.data.length > 0);
+    };
+
+    const groupedNotes = groupNotesByDate(notes);
+
     // --- Render ---
 
     const renderNoteItem = ({ item }: { item: Note }) => {
@@ -693,12 +731,19 @@ export const NotesScreen = () => {
 
                 {/* Main List */}
                 <View style={styles.content}>
-                    <FlatList
-                        data={notes}
+                    <SectionList
+                        sections={groupedNotes}
                         renderItem={renderNoteItem}
+                        renderSectionHeader={({ section: { title } }) => (
+                            <View style={styles.sectionHeader}>
+                                <Text style={styles.sectionTitle}>{title}</Text>
+                                <View style={styles.sectionLine} />
+                            </View>
+                        )}
                         keyExtractor={item => item.id}
                         contentContainerStyle={[styles.listContent, { paddingBottom: 150 }]}
                         showsVerticalScrollIndicator={false}
+                        stickySectionHeadersEnabled={false}
                         ListEmptyComponent={
                             !isRecording && !transcribing ? (
                                 <View style={styles.emptyState}>
@@ -766,6 +811,28 @@ const styles = StyleSheet.create({
     langText: { fontSize: 15, fontWeight: '500', color: '#1F2937' },
     content: { flex: 1, padding: 16 },
     listContent: { paddingBottom: 100 },
+
+    // Section Headers
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 16,
+        marginBottom: 8,
+        paddingHorizontal: 4,
+    },
+    sectionTitle: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#64748B',
+        marginRight: 10,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    sectionLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: '#E2E8F0',
+    },
 
     // Card Styles
     card: { backgroundColor: '#FFF', borderRadius: 12, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
