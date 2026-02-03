@@ -7,6 +7,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useThemeStore } from '@/store/themeStore';
+import { FONTS } from '@/theme/fonts';
 
 interface TimelineEvent {
   id: string;
@@ -114,8 +115,6 @@ export const CompactTimeline: React.FC<CompactTimelineProps> = ({ events }) => {
     </View>
   );
 };
-
-import { FONTS } from '@/theme/fonts';
 
 const styles = StyleSheet.create({
   container: {
