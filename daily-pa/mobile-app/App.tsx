@@ -8,6 +8,7 @@ import React, { useState, useEffect, useRef, createContext, useContext } from 'r
 import { View, Text, ActivityIndicator, AppState, AppStateStatus } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
+import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -97,6 +98,9 @@ const RootStack = createNativeStackNavigator();
 const LoadingFallback = () => (
   <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5' }}>
     <ActivityIndicator size="large" color="#007AFF" />
+    <Text style={{ marginTop: 16, fontFamily: 'Poppins_500Medium', color: '#64748B' }}>
+      Loading...
+    </Text>
   </View>
 );
 
@@ -216,10 +220,22 @@ const AuthenticatedNavigation = () => (
 
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+// Set default font family for all Text components
+Text.defaultProps = Text.defaultProps || {};
+Text.defaultProps.style = { fontFamily: 'Poppins_400Regular' };
+
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [servicesLoaded, setServicesLoaded] = useState(false);
+  
+  // Load Poppins font
+  const [fontsLoaded, fontError] = useFonts({
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+  });
   const [currentRouteName, setCurrentRouteName] = useState<string | undefined>('Home');
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
   const navigationRef = useRef<any>(null);
@@ -427,7 +443,8 @@ export default function App() {
   }, [isAuthenticated, servicesLoaded]);
 
 
-  if (isLoading) {
+  // Wait for fonts to load
+  if (!fontsLoaded || isLoading) {
     return <LoadingFallback />;
   }
 
