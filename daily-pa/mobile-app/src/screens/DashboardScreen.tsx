@@ -88,22 +88,11 @@ export const DashboardScreen: React.FC = () => {
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  // Filter today's events - STRICT validation to exclude corrupted data
+  // Filter today's events
   const todayEvents = calendarEvents.filter((e) => {
-    // Skip if missing required fields
-    if (!e.startTime || !e.endTime || !e.title) return false;
-    
-    // Skip if title looks like a chat message (contains common chat phrases)
-    const lowerTitle = e.title.toLowerCase();
-    if (lowerTitle.includes('help me') || 
-        lowerTitle.includes('i have') || 
-        lowerTitle.includes('tomorrow') ||
-        lowerTitle.includes('schedule') ||
-        lowerTitle.length > 100) return false;
-    
+    if (!e.startTime || !e.title) return false;
     try {
       const eventDate = new Date(e.startTime);
-      // Check if valid date
       if (isNaN(eventDate.getTime())) return false;
       return eventDate >= today && eventDate < tomorrow;
     } catch {
@@ -208,7 +197,7 @@ export const DashboardScreen: React.FC = () => {
       >
         {/* Compact Timeline - Shows events only */}
         <CompactTimeline 
-          events={todayEvents.map(e => ({
+          events={displayEvents.map(e => ({
             id: e.id,
             title: e.title,
             startTime: formatTime(e.startTime),
