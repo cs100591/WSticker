@@ -12,9 +12,17 @@
     "test": "vitest",
     "test:unit": "vitest run",
     "test:property": "vitest run --config vitest.property.config.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "build:mobile": "NEXT_PUBLIC_CAPACITOR=true next build",
+    "sync:android": "npx cap sync android",
+    "open:android": "npx cap open android",
+    "android:build": "npm run build:mobile && npm run sync:android",
+    "android:apk": "cd android && ./gradlew assembleRelease"
   },
   "dependencies": {
+    "@capacitor/android": "^8.0.1",
+    "@capacitor/cli": "^8.0.1",
+    "@capacitor/core": "^8.0.1",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-slot": "^1.1.0",

@@ -1,131 +1,127 @@
-'use server';
+'use client';
 
-import { createClient } from '@/lib/supabase/server';
-import { redirect } from 'next/navigation';
-
-export interface AuthResult {
-  success: boolean;
-  error?: string;
-}
-
-export async function signUp(
-  email: string,
-  password: string,
-  fullName?: string
-): Promise<AuthResult> {
-  const supabase = await createClient();
-
-  const { error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        full_name: fullName,
-      },
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-    },
-  });
-
-  if (error) {
-    return { success: false, error: error.message };
-  }
-
-  return { success: true };
-}
-
-export async function signIn(
-  email: string,
-  password: string
-): Promise<AuthResult> {
-  const supabase = await createClient();
-
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (error) {
-    return { success: false, error: error.message };
-  }
-
-  return { success: true };
-}
-
-export async function signOut(): Promise<void> {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
-  redirect('/login');
-}
-
-export async function signInWithGoogle(): Promise<{ url: string } | AuthResult> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-      scopes: 'openid email profile https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events',
-      queryParams: {
-        access_type: 'offline',
-        prompt: 'consent',
-      },
-    },
-  });
-
-  if (error) {
-    return { success: false, error: error.message };
-  }
-
-  return { url: data.url };
-}
-
-export async function signInWithApple(): Promise<{ url: string } | AuthResult> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'apple',
-    options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-    },
-  });
-
-  if (error) {
-    return { success: false, error: error.message };
-  }
-
-  return { url: data.url };
-}
-
-export async function resetPassword(email: string): Promise<AuthResult> {
-  const supabase = await createClient();
-
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password`,
-  });
-
-  if (error) {
-    return { success: false, error: error.message };
-  }
-
-  return { success: true };
-}
-
-export async function updatePassword(password: string): Promise<AuthResult> {
-  const supabase = await createClient();
-
-  const { error } = await supabase.auth.updateUser({
-    password,
-  });
-
-  if (error) {
-    return { success: false, error: error.message };
-  }
-
-  return { success: true };
-}
+import { createClient } from '@/lib/supabase/client';
 
 export async function getUser() {
-  const supabase = await createClient();
+  const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   return user;
+}
+
+export async function signIn(email: string, password: string) {
+  const supabase = createClient();
+  
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: 'Login failed. Please try again.' };
+  }
+}
+
+export async function signUp(email: string, password: string, fullName: string) {
+  const supabase = createClient();
+  
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: fullName },
+      },
+    });
+    
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: 'Registration failed. Please try again.' };
+  }
+}
+
+export async function signInWithGoogle() {
+  const supabase = createClient();
+  
+  try {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+    
+    if (error) {
+      return { error: error.message };
+    }
+    
+    if (data?.url) {
+      return { url: data.url };
+    }
+    
+    return { error: 'Failed to get Google OAuth URL' };
+  } catch (error) {
+    return { error: 'Google login failed. Please try again.' };
+  }
+}
+
+export async function signOut() {
+  const supabase = createClient();
+  
+  try {
+    const { error } = await supabase.auth.signOut();
+    
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: 'Logout failed. Please try again.' };
+  }
+}
+
+export async function resetPassword(email: string) {
+  const supabase = createClient();
+  
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/reset-password`,
+    });
+    
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: 'Failed to send reset email. Please try again.' };
+  }
+}
+
+export async function updatePassword(password: string) {
+  const supabase = createClient();
+  
+  try {
+    const { error } = await supabase.auth.updateUser({
+      password,
+    });
+    
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: 'Failed to update password. Please try again.' };
+  }
 }

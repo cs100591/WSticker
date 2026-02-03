@@ -1,14 +1,15 @@
 import { redirect } from 'next/navigation';
-import { getUser } from '@/lib/auth/actions';
+import { createClient } from '@/lib/supabase/server';
 
 export default async function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getUser();
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  // 如果用户已登录，重定向到仪表盘
+  // If user is already logged in, redirect to dashboard
   if (user) {
     redirect('/dashboard');
   }

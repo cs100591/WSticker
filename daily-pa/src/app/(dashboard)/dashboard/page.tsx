@@ -1,25 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   CheckCircle2, 
-  Circle, 
   Calendar, 
   DollarSign, 
   TrendingUp,
   Clock,
-  Target,
-  Lightbulb,
   Plus,
-  Zap,
-  ArrowUpRight,
-  MoreHorizontal,
-  Search,
-  Bell
+  Bell,
+  ArrowUpRight
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { useI18n } from '@/lib/i18n';
+import { useTheme } from '@/lib/theme-provider';
+import { motion } from 'framer-motion';
 
 interface Todo {
   id: string;
@@ -46,48 +41,31 @@ interface Expense {
 }
 
 export default function DashboardPage() {
-  const { } = useI18n();
+  useTheme();
   const [displayName, setDisplayName] = useState('');
   const [todos, setTodos] = useState<Todo[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [_isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // Fetch profile
-        const profileRes = await fetch('/api/user/profile');
+        const [profileRes, todosRes, calendarRes, expensesRes] = await Promise.all([
+          fetch('/api/user/profile'),
+          fetch('/api/todos'),
+          fetch(`/api/calendar?start=${new Date().toISOString().split('T')[0]}&end=${new Date().toISOString().split('T')[0]}`),
+          fetch(`/api/expenses?startDate=${new Date().toISOString().slice(0, 7)}-01&endDate=${new Date().toISOString().slice(0, 7)}-${new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate()}`)
+        ]);
+
         if (profileRes.ok) {
           const profileData = await profileRes.json();
           setDisplayName(profileData.fullName || profileData.email?.split('@')[0] || 'User');
         }
-
-        // Fetch todos
-        const todosRes = await fetch('/api/todos');
-        if (todosRes.ok) {
-          const todosData = await todosRes.json();
-          setTodos(todosData.todos || []);
-        }
-
-        // Fetch calendar
-        const today = new Date().toISOString().split('T')[0];
-        const calendarRes = await fetch(`/api/calendar?start=${today}&end=${today}`);
-        if (calendarRes.ok) {
-          const calendarData = await calendarRes.json();
-          setEvents(calendarData.events || []);
-        }
-
-        // Fetch expenses
-        const now = new Date();
-        const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-        const monthEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()}`;
-        const expensesRes = await fetch(`/api/expenses?startDate=${monthStart}&endDate=${monthEnd}`);
-        if (expensesRes.ok) {
-          const expensesData = await expensesRes.json();
-          setExpenses(expensesData.expenses || []);
-        }
+        if (todosRes.ok) setTodos((await todosRes.json()).todos || []);
+        if (calendarRes.ok) setEvents((await calendarRes.json()).events || []);
+        if (expensesRes.ok) setExpenses((await expensesRes.json()).expenses || []);
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
       } finally {
@@ -97,198 +75,222 @@ export default function DashboardPage() {
     fetchData();
   }, []);
 
-  const activeTodos = todos.filter(t => t.status === 'active');
-  const completedTodos = todos.filter(t => t.status === 'completed');
-  const monthlySpending = expenses.reduce((sum, e) => sum + e.amount, 0);
-  const completionRate = todos.length > 0 ? Math.round((completedTodos.length / todos.length) * 100) : 0;
+  const stats = useMemo(() => ({
+    activeTasks: todos.filter(t => t.status === 'active').length,
+    completionRate: todos.length > 0 ? Math.round((todos.filter(t => t.status === 'completed').length / todos.length) * 100) : 0,
+    monthlySpend: expenses.reduce((sum, e) => sum + e.amount, 0),
+    eventsToday: events.length
+  }), [todos, expenses, events]);
+
+  const priorityTodos = useMemo(() => 
+    todos.filter(t => t.status === 'active').slice(0, 5),
+  [todos]);
+
+  const formatTime = (dateString: string) => 
+    new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high': return 'bg-rose-500';
+      case 'medium': return 'bg-amber-500';
+      case 'low': return 'bg-blue-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-color)' }}>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: 'var(--primary)' }} />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50/50">
-      {/* Dashboard Header */}
-      <header className="bg-white border-b border-slate-200 px-8 py-6">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="min-h-screen pb-24" style={{ background: 'var(--bg-color)' }}>
+      {/* Header */}
+      <header className="px-6 py-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Good day, {displayName}</h1>
-            <p className="text-slate-500 text-sm mt-1">Here&apos;s what&apos;s happening with your productivity today.</p>
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+              Good day, {displayName}
+            </h1>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+              Here&apos;s what&apos;s happening today
+            </p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="relative hidden sm:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Search tasks..." 
-                className="pl-10 pr-4 py-2 bg-slate-100 border-transparent rounded-lg text-sm focus:bg-white focus:border-blue-500 focus:ring-0 transition-all w-64"
-              />
-            </div>
-            <Button variant="outline" size="icon" className="rounded-full border-slate-200 relative">
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-blue-600 rounded-full border-2 border-white"></span>
+          <Link href="/profile">
+            <Button variant="outline" size="icon" className="rounded-full theme-card">
+              <Bell className="w-5 h-5" style={{ color: 'var(--text-secondary)' }} />
             </Button>
-            <Link href="/todos">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm">
-                <Plus className="w-4 h-4 mr-2" />
-                New Task
-              </Button>
-            </Link>
-          </div>
+          </Link>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-8 py-8">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {[
-            { label: 'Active Tasks', value: activeTodos.length, icon: CheckCircle2, color: 'text-blue-600', bg: 'bg-blue-50' },
-            { label: 'Completion Rate', value: `${completionRate}%`, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            { label: 'Monthly Spend', value: `$${monthlySpending.toFixed(0)}`, icon: DollarSign, color: 'text-amber-600', bg: 'bg-amber-50' },
-            { label: 'Events Today', value: events.length, icon: Calendar, color: 'text-indigo-600', bg: 'bg-indigo-50' }
-          ].map((stat, i) => (
-            <div key={i} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div className={`w-10 h-10 ${stat.bg} ${stat.color} rounded-lg flex items-center justify-center`}>
-                  <stat.icon className="w-5 h-5" />
-                </div>
-                <button className="text-slate-400 hover:text-slate-600">
-                  <MoreHorizontal className="w-4 h-4" />
-                </button>
+      <main className="max-w-7xl mx-auto px-6 space-y-4">
+        {/* Stats Grid - Bento Style */}
+        <div className="grid grid-cols-2 gap-3">
+          <motion.div 
+            whileHover={{ scale: 1.02 }}
+            className="theme-card p-4"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--border-light)' }}>
+                <CheckCircle2 className="w-5 h-5" style={{ color: 'var(--primary)' }} />
               </div>
-              <p className="text-sm font-medium text-slate-500">{stat.label}</p>
-              <p className="text-2xl font-bold text-slate-900 mt-1">{stat.value}</p>
+              <span className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+                {stats.activeTasks}
+              </span>
             </div>
-          ))}
+            <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Active Tasks</p>
+          </motion.div>
+
+          <motion.div 
+            whileHover={{ scale: 1.02 }}
+            className="theme-card p-4"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--border-light)' }}>
+                <TrendingUp className="w-5 h-5" style={{ color: 'var(--status-success)' }} />
+              </div>
+              <span className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+                {stats.completionRate}%
+              </span>
+            </div>
+            <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Completion</p>
+          </motion.div>
+
+          <motion.div 
+            whileHover={{ scale: 1.02 }}
+            className="theme-card p-4"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--border-light)' }}>
+                <DollarSign className="w-5 h-5" style={{ color: 'var(--status-warning)' }} />
+              </div>
+              <span className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+                ${stats.monthlySpend.toFixed(0)}
+              </span>
+            </div>
+            <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>This Month</p>
+          </motion.div>
+
+          <motion.div 
+            whileHover={{ scale: 1.02 }}
+            className="theme-card p-4"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--border-light)' }}>
+                <Calendar className="w-5 h-5" style={{ color: 'var(--status-info)' }} />
+              </div>
+              <span className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+                {stats.eventsToday}
+              </span>
+            </div>
+            <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Events Today</p>
+          </motion.div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Tasks Section */}
-          <div className="lg:col-span-2 space-y-8">
-            <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                <h2 className="font-bold text-slate-900">Priority Tasks</h2>
-                <Link href="/todos" className="text-xs font-bold text-blue-600 hover:underline">View all</Link>
-              </div>
-              <div className="divide-y divide-slate-50">
-                {activeTodos.length > 0 ? (
-                  activeTodos.slice(0, 5).map((todo) => (
-                    <div key={todo.id} className="px-6 py-4 flex items-center gap-4 hover:bg-slate-50 transition-colors group">
-                      <button className="flex-shrink-0">
-                        <Circle className="w-5 h-5 text-slate-300 group-hover:text-blue-500 transition-colors" />
-                      </button>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-900 truncate">{todo.title}</p>
-                        <div className="flex items-center gap-3 mt-1">
-                          {todo.dueDate && (
-                            <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {new Date(todo.dueDate).toLocaleDateString()}
-                            </span>
-                          )}
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                            todo.priority === 'high' ? 'bg-rose-50 text-rose-600' : 
-                            todo.priority === 'medium' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'
-                          }`}>
-                            {todo.priority}
-                          </span>
-                        </div>
-                      </div>
-                      <button className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <ArrowUpRight className="w-4 h-4 text-slate-400" />
-                      </button>
-                    </div>
-                  ))
-                ) : (
-                  <div className="px-6 py-12 text-center">
-                    <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Zap className="w-6 h-6 text-slate-400" />
-                    </div>
-                    <p className="text-sm text-slate-500">No active tasks. Take a break or create a new one!</p>
+        {/* Today's Schedule */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="theme-card p-4"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-bold" style={{ color: 'var(--text-primary)' }}>Today&apos;s Schedule</h2>
+            <Link href="/calendar" className="text-xs font-medium flex items-center gap-1" style={{ color: 'var(--primary)' }}>
+              View all <ArrowUpRight className="w-3 h-3" />
+            </Link>
+          </div>
+          
+          {events.length > 0 ? (
+            <div className="space-y-3">
+              {events.slice(0, 3).map((event) => (
+                <div key={event.id} className="flex items-center gap-3">
+                  <div className="w-12 text-right">
+                    <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+                      {event.allDay ? 'All Day' : formatTime(event.startTime)}
+                    </p>
                   </div>
-                )}
-              </div>
-            </section>
-
-            {/* Recent Activity / Insights */}
-            <section className="bg-blue-600 rounded-xl p-6 text-white shadow-lg relative overflow-hidden">
-              <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-4">
-                  <Lightbulb className="w-5 h-5 text-blue-200" />
-                  <h2 className="font-bold">Productivity Insight</h2>
+                  <div className="flex-1 pb-3 border-l-2 pl-3" style={{ borderColor: 'var(--border-default)' }}>
+                    <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{event.title}</p>
+                    {!event.allDay && (
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        {formatTime(event.startTime)} - {formatTime(event.endTime)}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <p className="text-blue-100 leading-relaxed">
-                  You&apos;ve completed <span className="font-bold text-white">{completedTodos.length} tasks</span> this week. That&apos;s 15% more than last week! Keep up the momentum to reach your monthly goals.
-                </p>
-                <Button className="mt-6 bg-white text-blue-600 hover:bg-blue-50 font-bold text-xs px-6">
-                  View Full Report
-                </Button>
-              </div>
-              <div className="absolute top-0 right-0 -translate-y-1/4 translate-x-1/4 w-48 h-48 bg-white/10 rounded-full blur-2xl"></div>
-            </section>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <Calendar className="w-8 h-8 mx-auto mb-2" style={{ color: 'var(--text-muted)' }} />
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No events today</p>
+            </div>
+          )}
+        </motion.div>
+
+        {/* Priority Tasks */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="theme-card p-4"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-bold" style={{ color: 'var(--text-primary)' }}>Priority Tasks</h2>
+            <Link href="/todos" className="text-xs font-medium flex items-center gap-1" style={{ color: 'var(--primary)' }}>
+              View all <ArrowUpRight className="w-3 h-3" />
+            </Link>
           </div>
 
-          {/* Sidebar Section */}
-          <div className="space-y-8">
-            {/* Calendar Widget */}
-            <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100">
-                <h2 className="font-bold text-slate-900">Today&apos;s Schedule</h2>
-              </div>
-              <div className="p-6">
-                {events.length > 0 ? (
-                  <div className="space-y-4">
-                    {events.map((event) => (
-                      <div key={event.id} className="flex gap-4">
-                        <div className="flex-shrink-0 w-12 text-right">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase">
-                            {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        </div>
-                        <div className="flex-1 pb-4 border-l-2 border-blue-100 pl-4 relative">
-                          <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-blue-600"></div>
-                          <p className="text-sm font-bold text-slate-900">{event.title}</p>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            {event.allDay ? 'All Day' : `${new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${new Date(event.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
+          {priorityTodos.length > 0 ? (
+            <div className="space-y-3">
+              {priorityTodos.map((todo) => (
+                <div key={todo.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'var(--border-light)' }}>
+                  <div className={`w-2 h-2 rounded-full ${getPriorityColor(todo.priority)}`} />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{todo.title}</p>
+                    {todo.dueDate && (
+                      <p className="text-xs flex items-center gap-1 mt-1" style={{ color: 'var(--text-muted)' }}>
+                        <Clock className="w-3 h-3" />
+                        {new Date(todo.dueDate).toLocaleDateString()}
+                      </p>
+                    )}
                   </div>
-                ) : (
-                  <div className="text-center py-6">
-                    <Calendar className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-                    <p className="text-xs text-slate-500">No events scheduled for today.</p>
-                  </div>
-                )}
-                <Link href="/calendar">
-                  <Button variant="outline" className="w-full mt-4 text-xs font-bold border-slate-200">
-                    Open Calendar
-                  </Button>
-                </Link>
-              </div>
-            </section>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <CheckCircle2 className="w-8 h-8 mx-auto mb-2" style={{ color: 'var(--text-muted)' }} />
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No active tasks</p>
+            </div>
+          )}
+        </motion.div>
 
-            {/* Quick Actions */}
-            <section className="bg-slate-900 rounded-xl p-6 text-white shadow-xl">
-              <h2 className="font-bold mb-4">Quick Actions</h2>
-              <div className="grid grid-cols-2 gap-3">
-                <button className="bg-slate-800 hover:bg-slate-700 p-3 rounded-lg text-center transition-colors">
-                  <Plus className="w-5 h-5 mx-auto mb-2 text-blue-400" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider">Add Task</span>
-                </button>
-                <button className="bg-slate-800 hover:bg-slate-700 p-3 rounded-lg text-center transition-colors">
-                  <DollarSign className="w-5 h-5 mx-auto mb-2 text-emerald-400" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider">Log Spend</span>
-                </button>
-                <button className="bg-slate-800 hover:bg-slate-700 p-3 rounded-lg text-center transition-colors">
-                  <Calendar className="w-5 h-5 mx-auto mb-2 text-indigo-400" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider">Schedule</span>
-                </button>
-                <button className="bg-slate-800 hover:bg-slate-700 p-3 rounded-lg text-center transition-colors">
-                  <Target className="w-5 h-5 mx-auto mb-2 text-rose-400" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider">Set Goal</span>
-                </button>
-              </div>
-            </section>
-          </div>
-        </div>
+        {/* Quick Actions */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="grid grid-cols-2 gap-3"
+        >
+          <Link href="/todos">
+            <Button className="w-full h-14 rounded-xl theme-button">
+              <Plus className="w-5 h-5 mr-2" />
+              New Task
+            </Button>
+          </Link>
+          <Link href="/expenses">
+            <Button className="w-full h-14 rounded-xl theme-button">
+              <DollarSign className="w-5 h-5 mr-2" />
+              Log Expense
+            </Button>
+          </Link>
+        </motion.div>
       </main>
     </div>
   );

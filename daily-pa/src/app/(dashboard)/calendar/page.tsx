@@ -352,7 +352,22 @@ export default function CalendarPage() {
   const getEventsForDate = (dateStr: string) => {
     return events.filter((e) => {
       const eventStart = e.startTime.slice(0, 10);
-      const eventEnd = e.endTime.slice(0, 10);
+      let eventEnd = e.endTime.slice(0, 10);
+      
+      // For all-day events, Google Calendar uses exclusive end dates
+      // end="2026-01-08" means the event ends at the start of Jan 8, so it's only on Jan 7
+      // Adjust the end date for display purposes
+      if (e.allDay && eventStart && eventEnd) {
+        const startDate = new Date(eventStart);
+        const endDate = new Date(eventEnd);
+        // If end is exactly one day after start, it's a single-day event
+        const daysDiff = Math.floor((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
+        if (daysDiff === 1) {
+          // Single-day event: use start date as end date for display
+          eventEnd = eventStart;
+        }
+      }
+      
       return dateStr >= eventStart && dateStr <= eventEnd;
     });
   };
