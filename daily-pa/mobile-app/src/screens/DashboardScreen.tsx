@@ -206,51 +206,6 @@ export const DashboardScreen: React.FC = () => {
           }))}
         />
 
-        {/* Today's Schedule */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: themeColors.text.primary }]}>{t.todaysSchedule}</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Calendar' as never)}>
-              <Text style={[styles.viewAllLink, { color: themeColors.primary[500] }]}>{t.openCalendar} →</Text>
-            </TouchableOpacity>
-          </View>
-          <AnimatedCard variant="default">
-            {displayEvents.length > 0 ? (
-              displayEvents.map((event, index) => (
-                <View
-                  key={event.id}
-                  style={[
-                    styles.eventItem,
-                    index < displayEvents.length - 1 && styles.eventItemBorder,
-                  ]}
-                >
-                  <View style={styles.eventTime}>
-                    <Text style={styles.eventTimeText}>
-                      {event.allDay ? 'All Day' : formatTime(event.startTime)}
-                    </Text>
-                  </View>
-                  <View style={styles.eventContent}>
-                    <View style={styles.eventDot} />
-                    <View style={styles.eventDetails}>
-                      <Text style={styles.eventTitle}>{event.title}</Text>
-                      {!event.allDay && (
-                        <Text style={styles.eventDuration}>
-                          {formatTime(event.startTime)} - {formatTime(event.endTime)}
-                        </Text>
-                      )}
-                    </View>
-                  </View>
-                </View>
-              ))
-            ) : (
-              <View style={styles.emptyState}>
-                <Ionicons name="calendar-outline" size={32} color="#94A3B8" />
-                <Text style={styles.emptyText}>{t.noEventsToday}</Text>
-              </View>
-            )}
-          </AnimatedCard>
-        </View>
-
         {/* Priority Tasks */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>

@@ -68,11 +68,6 @@ export const CompactTimeline: React.FC<CompactTimelineProps> = ({ events }) => {
             
             return (
               <View key={event.id} style={styles.eventWrapper}>
-                {/* Time label */}
-                <Text style={[styles.timeLabel, { color: themeColor }]}>
-                  {event.startTime}
-                </Text>
-                
                 {/* Event card - Always outline style with theme color */}
                 <View style={[
                   styles.eventCard, 
@@ -145,12 +140,6 @@ const styles = StyleSheet.create({
   },
   eventWrapper: {
     alignItems: 'center',
-  },
-  timeLabel: {
-    fontSize: 12,
-    fontFamily: 'Poppins_600SemiBold',
-    color: '#64748B',
-    marginBottom: 6,
   },
   eventCard: {
     minHeight: 70,
