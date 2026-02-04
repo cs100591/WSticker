@@ -88,10 +88,6 @@ export const NotesScreen = () => {
     // Task Linking State
     const [showTaskModal, setShowTaskModal] = useState(false);
 
-    // Playback state
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [playingNoteId, setPlayingNoteId] = useState<string | null>(null);
-
     // Voice Waveform Animation
     const waveformAnim = useRef(new Animated.Value(0)).current;
     const [waveformBars, setWaveformBars] = useState<number[]>(Array(20).fill(0.3));
@@ -487,66 +483,6 @@ export const NotesScreen = () => {
         return `${m}:${s.toString().padStart(2, '0')}`;
     };
 
-    const handlePlayback = async (text: string, noteId: string) => {
-        try {
-            // If already playing this note, stop it
-            if (isPlaying && playingNoteId === noteId) {
-                await Speech.stop();
-                setIsPlaying(false);
-                setPlayingNoteId(null);
-                return;
-            }
-            
-            // Stop any current speech first
-            await Speech.stop();
-            
-            // Map language codes to Speech-compatible locale codes
-            const localeMap: Record<string, string> = {
-                'zh': 'zh-CN',
-                'en': 'en-US',
-                'ms': 'ms-MY',
-                'ta': 'ta-IN',
-                'ja': 'ja-JP',
-                'ko': 'ko-KR',
-                'id': 'id-ID',
-                'es': 'es-ES',
-                'fr': 'fr-FR',
-                'de': 'de-DE',
-                'th': 'th-TH',
-                'vi': 'vi-VN',
-            };
-            
-            const locale = localeMap[outputLang.code] || 'en-US';
-            
-            // Update state
-            setIsPlaying(true);
-            setPlayingNoteId(noteId);
-            
-            // Speak with proper locale
-            Speech.speak(text, {
-                language: locale,
-                pitch: 1.0,
-                rate: 0.9, // Slightly slower for clarity
-                onDone: () => {
-                    setIsPlaying(false);
-                    setPlayingNoteId(null);
-                },
-                onError: () => {
-                    setIsPlaying(false);
-                    setPlayingNoteId(null);
-                    Alert.alert('Playback Error', 'Could not play the text.');
-                },
-            });
-            
-            console.log('Speaking with locale:', locale);
-        } catch (error) {
-            console.error('Speech error:', error);
-            setIsPlaying(false);
-            setPlayingNoteId(null);
-            Alert.alert('Playback Error', 'Could not play the text. Please try again.');
-        }
-    };
-
     // Group notes by date
     const groupNotesByDate = (notesList: Note[]) => {
         const now = new Date();
@@ -606,8 +542,6 @@ export const NotesScreen = () => {
     // --- Render ---
 
     const renderNoteItem = ({ item }: { item: Note }) => {
-        const isThisNotePlaying = isPlaying && playingNoteId === item.id;
-        
         const renderRightActions = () => {
             return (
                 <View style={styles.deleteActionContainer}>
@@ -666,34 +600,12 @@ export const NotesScreen = () => {
                             </TouchableOpacity>
                         )}
 
-                        {/* Footer: Actions + Language Pills */}
+                        {/* Footer: Link + Language Pills */}
                         <View style={styles.cardFooter}>
-                            <View style={styles.cardActions}>
-                                <TouchableOpacity 
-                                    style={[
-                                        styles.actionBtn, 
-                                        isThisNotePlaying && styles.actionBtnActive
-                                    ]} 
-                                    onPress={() => handlePlayback(item.text, item.id)}
-                                >
-                                    <Ionicons 
-                                        name={isThisNotePlaying ? "stop-circle" : "play-circle-outline"} 
-                                        size={20} 
-                                        color={isThisNotePlaying ? "#EF4444" : "#3B82F6"} 
-                                    />
-                                    <Text style={[
-                                        styles.actionText, 
-                                        isThisNotePlaying && styles.actionTextActive
-                                    ]}>
-                                        {isThisNotePlaying ? "Stop" : t.play}
-                                    </Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity style={styles.actionBtn} onPress={() => openLinkModal(item.id)}>
-                                    <Ionicons name="link-outline" size={18} color="#3B82F6" />
-                                    <Text style={styles.actionText}>{t.linkTask}</Text>
-                                </TouchableOpacity>
-                            </View>
+                            <TouchableOpacity style={styles.actionBtn} onPress={() => openLinkModal(item.id)}>
+                                <Ionicons name="link-outline" size={18} color="#3B82F6" />
+                                <Text style={styles.actionText}>{t.linkTask}</Text>
+                            </TouchableOpacity>
 
                             {/* Language Pills - Bottom Right */}
                             <View style={styles.langPills}>
@@ -983,9 +895,7 @@ const styles = StyleSheet.create({
     // Actions
     cardActions: { flexDirection: 'row', justifyContent: 'flex-start', gap: 24 },
     actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    actionBtnActive: { opacity: 0.9 },
     actionText: { fontSize: 13, color: '#3B82F6', fontFamily: 'Poppins_500Medium' },
-    actionTextActive: { color: '#EF4444' },
     // Language Pills
     langPills: {
         flexDirection: 'row',
