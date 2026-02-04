@@ -1,197 +1,272 @@
-# Home Screen Widget Setup Guide
+# iOS Widget Extension 配置指南
 
-This guide explains how to finalize the setup for Home Screen widgets on iOS and Android.
+由于 iOS Widget 需要使用 SwiftUI 并在 Xcode 中配置，请按照以下步骤操作：
 
-## Setup Overview
+## 步骤 1: 在 Xcode 中添加 Widget Extension
 
-The app uses **Shared Storage** to send data from the React Native app to the native widgets.
-*   **iOS**: Uses App Groups (`NSUserDefaults` via `initWithSuiteName`).
-*   **Android**: Uses Shared Preferences (`getSharedPreferences`).
+1. 打开 `ios/DailyPA.xcworkspace`
+2. 点击项目 → File → New → Target
+3. 选择 "Widget Extension"
+4. 命名为 "DailyPAWidget"
+5. 确保勾选 "Include Configuration Intent"
 
----
+## 步骤 2: 配置 App Groups
 
-## 📅 Android Setup (Already Included)
+1. 在项目设置中，选择主 Target 和 Widget Target
+2. 启用 "App Groups" Capability
+3. 添加相同的 App Group: `group.com.dailypa.app.cssee`
 
-I have already created the necessary files for Android:
-1.  **Layout**: `android/app/src/main/res/layout/widget_daily_summary.xml`
-2.  **Provider**: `android/app/src/main/java/com/dailypa/app/DailySummaryWidget.java`
-3.  **Config**: `plugins/withWidgets.js` plugin added to `app.json`.
+## 步骤 3: 替换 Widget 代码
 
-**To test on Android:**
-1.  Run `npx expo prebuild --platform android` (if you haven't already).
-2.  Run `npx expo run:android`.
-3.  Long press on the home screen -> Widgets -> Daily PA -> Drag the widget to the screen.
+创建以下 Swift 文件：
 
----
-
-## 🍎 iOS Setup (Manual Steps Required)
-
-Because iOS widgets require a separate "Target" in the Xcode project, you must add this manually.
-
-### 1. Add Widget Target
-1.  Run `npx expo prebuild --platform ios` to generate the `ios` folder.
-2.  Open `ios/mobileapp.xcworkspace` in **Xcode**.
-3.  Go to **File -> New -> Target**.
-4.  Search for **Widget Extension**.
-5.  Name it: `DailyPAWidget`.
-6.  **Uncheck** "Include Live Activity" (unless you want to implement that later).
-7.  Click **Finish**.
-8.  When asked to "Activate" scheme, click **Activate**.
-
-### 2. Configure App Group
-Both the main app and the widget need to share data.
-1.  In Xcode, select the **main app target** (`mobile-app`).
-2.  Go to **Signing & Capabilities** -> **+ Capability** -> **App Groups**.
-3.  Add a new group named: `group.com.dailypa.app` (Must match `APP_GROUP_IDENTIFIER` in `src/services/widgetService.ts`).
-4.  Now select the **DailyPAWidgetExtension target**.
-5.  Go to **Signing & Capabilities** -> **+ Capability** -> **App Groups**.
-6.  Select the **same group** (`group.com.dailypa.app`).
-
-### 3. Add Widget Code (SwiftUI)
-Replace the contents of `DailyPAWidget/DailyPAWidget.swift` with the following code:
-
+### DailyPAWidget.swift
 ```swift
 import WidgetKit
 import SwiftUI
 
 struct Provider: TimelineProvider {
     func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), nextEvent: "Loading...", taskCount: "0", expenseTotal: "$0.00")
+        SimpleEntry(date: Date(), todos: [], events: [])
     }
 
     func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> ()) {
-        let entry = SimpleEntry(date: Date(), nextEvent: "Team Standup", taskCount: "5", expenseTotal: "$25.00")
+        let entry = loadWidgetData()
         completion(entry)
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> ()) {
-        // 1. Read Shared Data
-        let sharedDefaults = UserDefaults(suiteName: "group.com.dailypa.app")
-        let dataJsonString = sharedDefaults?.string(forKey: "widgetData") ?? "{}"
-        
-        // 2. Parse JSON
-        var nextEvent = "No events"
-        var taskCount = "0"
-        var expenseTotal = "$0.00"
-        
-        if let data = dataJsonString.data(using: .utf8) {
-            do {
-                if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
-                    
-                    // Parse Calendar
-                    if let events = json["calendarEvents"] as? [[String: Any]], let first = events.first {
-                        nextEvent = first["title"] as? String ?? "Event"
-                    }
-                    
-                    // Parse Todos
-                    if let todos = json["todos"] as? [[String: Any]] {
-                        taskCount = "\(todos.count)"
-                    }
-                    
-                    // Parse Expenses
-                    if let expenses = json["expenses"] as? [[String: Any]], let first = expenses.first {
-                         if let total = first["total"] as? Double {
-                             expenseTotal = String(format: "$%.2f", total)
-                         }
-                    }
-                }
-            } catch {
-                print("JSON Error: \(error)")
-            }
-        }
-
-        let entry = SimpleEntry(date: Date(), nextEvent: nextEvent, taskCount: taskCount, expenseTotal: expenseTotal)
-
-        // Update every 15 minutes
-        let nextUpdate = Calendar.current.date(byAdding: .minute, value: 15, to: Date())!
-        let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
+        let entry = loadWidgetData()
+        let timeline = Timeline(entries: [entry], policy: .atEnd)
         completion(timeline)
+    }
+    
+    func loadWidgetData() -> SimpleEntry {
+        let sharedDefaults = UserDefaults(suiteName: "group.com.dailypa.app.cssee")
+        if let data = sharedDefaults?.data(forKey: "widgetData"),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            let todos = json["todos"] as? [[String: Any]] ?? []
+            let events = json["calendarEvents"] as? [[String: Any]] ?? []
+            return SimpleEntry(date: Date(), todos: todos, events: events)
+        }
+        return SimpleEntry(date: Date(), todos: [], events: [])
     }
 }
 
 struct SimpleEntry: TimelineEntry {
     let date: Date
-    let nextEvent: String
-    let taskCount: String
-    let expenseTotal: String
+    let todos: [[String: Any]]
+    let events: [[String: Any]]
 }
 
-struct DailyPAWidgetEntryView : View {
+// Today Schedule Widget View
+struct TodayScheduleWidgetView: View {
     var entry: Provider.Entry
-
+    
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Daily PA")
-                .font(.headline)
-                .foregroundColor(.blue)
-            
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("📅 Next:")
+                Text("🗓️ TODAY")
                     .font(.caption)
+                    .fontWeight(.bold)
+                Spacer()
+                Text("\(entry.events.count) events")
+                    .font(.caption2)
                     .foregroundColor(.gray)
-                Text(entry.nextEvent)
-                    .font(.caption)
-                    .bold()
-                    .lineLimit(1)
             }
             
-            HStack {
-                Text("📝 Tasks:")
-                    .font(.caption)
-                    .foregroundColor(.gray)
-                Text("\(entry.taskCount) active")
-                    .font(.caption)
-                    .bold()
-            }
-            
-            HStack {
-                Text("💰 Spent:")
-                    .font(.caption)
-                    .foregroundColor(.gray)
-                Text(entry.expenseTotal)
-                    .font(.caption)
-                    .bold()
+            ForEach(entry.events.prefix(3).indices, id: \.self) { index in
+                let event = entry.events[index]
+                HStack {
+                    Text(event["startTime"] as? String ?? "")
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                    Text(event["title"] as? String ?? "")
+                        .font(.caption)
+                        .lineLimit(1)
+                }
             }
         }
         .padding()
+        .background(Color(.systemBackground))
     }
 }
 
+// Tasks Widget View
+struct TasksWidgetView: View {
+    var entry: Provider.Entry
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("✅ TASKS")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                Spacer()
+                Text("\(entry.todos.count)")
+                    .font(.caption2)
+                    .foregroundColor(.green)
+            }
+            
+            ForEach(entry.todos.prefix(4).indices, id: \.self) { index in
+                let todo = entry.todos[index]
+                HStack {
+                    Image(systemName: todo["status"] as? String == "completed" ? "checkmark.square.fill" : "square")
+                        .foregroundColor(todo["status"] as? String == "completed" ? .green : .gray)
+                    Text(todo["title"] as? String ?? "")
+                        .font(.caption)
+                        .lineLimit(1)
+                    Spacer()
+                    Circle()
+                        .fill(priorityColor(todo["priority"] as? String ?? "medium"))
+                        .frame(width: 6, height: 6)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+    }
+    
+    func priorityColor(_ priority: String) -> Color {
+        switch priority {
+        case "high": return .red
+        case "medium": return .orange
+        default: return .blue
+        }
+    }
+}
+
+// Combined Widget View
+struct CombinedWidgetView: View {
+    var entry: Provider.Entry
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Schedule Column
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("🗓️")
+                    Text("Schedule")
+                        .font(.caption2)
+                    Text("\(entry.events.count)")
+                        .font(.caption2)
+                        .foregroundColor(.blue)
+                }
+                
+                ForEach(entry.events.prefix(3).indices, id: \.self) { index in
+                    let event = entry.events[index]
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(formatTime(event["startTime"] as? String ?? ""))
+                            .font(.caption2)
+                            .foregroundColor(.gray)
+                        Text(event["title"] as? String ?? "")
+                            .font(.caption)
+                            .lineLimit(1)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            
+            Divider()
+            
+            // Tasks Column
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("✅")
+                    Text("Tasks")
+                        .font(.caption2)
+                    Text("\(entry.todos.count)")
+                        .font(.caption2)
+                        .foregroundColor(.green)
+                }
+                
+                ForEach(entry.todos.prefix(3).indices, id: \.self) { index in
+                    let todo = entry.todos[index]
+                    HStack {
+                        Image(systemName: todo["status"] as? String == "completed" ? "checkmark.square.fill" : "square")
+                            .font(.caption2)
+                        Text(todo["title"] as? String ?? "")
+                            .font(.caption)
+                            .lineLimit(1)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding()
+        .background(Color(.systemBackground))
+    }
+    
+    func formatTime(_ isoString: String) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        if let date = formatter.date(from: isoString) {
+            formatter.dateFormat = "h:mm a"
+            return formatter.string(from: date)
+        }
+        return ""
+    }
+}
+
+// Widget Configuration
 @main
-struct DailyPAWidget: Widget {
-    let kind: String = "DailyPAWidget"
+struct DailyPAWidgets: WidgetBundle {
+    var body: some Widget {
+        TodayScheduleWidget()
+        TasksWidget()
+        CombinedWidget()
+    }
+}
+
+struct TodayScheduleWidget: Widget {
+    let kind: String = "TodayScheduleWidget"
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in
-            DailyPAWidgetEntryView(entry: entry)
+            TodayScheduleWidgetView(entry: entry)
         }
-        .configurationDisplayName("Daily Summary")
-        .description("View your tasks, schedule, and expenses.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .configurationDisplayName("Today's Schedule")
+        .description("View today's schedule at a glance")
+        .supportedFamilies([.systemMedium])
     }
 }
 
-struct DailyPAWidget_Previews: PreviewProvider {
-    static var previews: some View {
-        DailyPAWidgetEntryView(entry: SimpleEntry(date: Date(), nextEvent: "Meeting", taskCount: "3", expenseTotal: "$120"))
-            .previewContext(WidgetPreviewContext(family: .systemSmall))
+struct TasksWidget: Widget {
+    let kind: String = "TasksWidget"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: Provider()) { entry in
+            TasksWidgetView(entry: entry)
+        }
+        .configurationDisplayName("Tasks")
+        .description("Track your tasks and completion rate")
+        .supportedFamilies([.systemMedium])
+    }
+}
+
+struct CombinedWidget: Widget {
+    let kind: String = "CombinedWidget"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: Provider()) { entry in
+            CombinedWidgetView(entry: entry)
+        }
+        .configurationDisplayName("Today's Plan")
+        .description("See today's schedule and tasks together")
+        .supportedFamilies([.systemLarge])
     }
 }
 ```
 
-### 4. Build and Run
-1.  Select the **DailyPAWidgetExtension** scheme up top to test the widget UI in Simulator.
-2.  Or select **mobile-app** scheme and run on your device.
-3.  Add the widget to your home screen!
+## 步骤 4: 构建并运行
 
----
+1. 在 Xcode 中选择 Widget Extension Scheme
+2. 构建运行到设备
+3. 长按主屏幕 → 添加 Widget
+4. 选择 Daily PA Widgets
 
-## 🛠 Troubleshooting
+## 注意事项
 
-*   **Widget shows empty data?**
-    *   Open the main app first.
-    *   Add a task or event to trigger a data save.
-    *   Wait a few moments for the widget to reload (timeline policy).
-*   **Android build fails?**
-    *   Ensure `DailySummaryWidget.java` is in the correct package folder (`com.dailypa.app`).
-    *   Check `AndroidManifest.xml` (in `android/app/src/main`) to see if the `<receiver>` tag was correctly added by the plugin.
+- Widget 数据通过 App Groups 共享
+- 当 App 数据更新时，需要调用 WidgetCenter.shared.reloadAllTimelines() 刷新
+- 目前 React Native 代码已保存数据到 SharedGroupPreferences

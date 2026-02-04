@@ -1,8 +1,8 @@
 import SharedGroupPreferences from 'react-native-shared-group-preferences';
-import { Platform } from 'react-native';
+import { Platform, NativeModules } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const APP_GROUP_IDENTIFIER = 'group.com.dailypa.app.cssee'; // Updated to match your Xcode Team ID
+const APP_GROUP_IDENTIFIER = 'group.com.dailypa.app.cssee';
 
 interface WidgetData {
     todos: any[];
@@ -29,12 +29,12 @@ export const widgetService = {
                     // Note: In a real native implementation, you would call reloadTimelines() here via a native module
                 } catch (error) {
                     console.log('Shared Group Preferences error (iOS):', error);
-                    // Expected in Expo Go
                 }
             } else if (Platform.OS === 'android') {
                 try {
                     await SharedGroupPreferences.setItem('widgetData', newData, APP_GROUP_IDENTIFIER);
-                    // Android update broadcast would happen here
+                    // Trigger Android widget update
+                    this.refreshAndroidWidgets();
                 } catch (error) {
                     console.log('Shared Group Preferences error (Android):', error);
                 }
@@ -45,5 +45,31 @@ export const widgetService = {
         } catch (error) {
             console.error('Failed to update widget data:', error);
         }
-    }
+    },
+
+    /**
+     * Refresh all Android widgets
+     */
+    refreshAndroidWidgets() {
+        if (Platform.OS === 'android') {
+            const { AndroidWidgetBridge } = NativeModules;
+            if (AndroidWidgetBridge) {
+                AndroidWidgetBridge.updateAllWidgets();
+                console.log('Android widgets refresh triggered');
+            }
+        }
+    },
+
+    /**
+     * Refresh specific Android widget
+     */
+    refreshAndroidWidget(widgetType: 'schedule' | 'tasks' | 'combined') {
+        if (Platform.OS === 'android') {
+            const { AndroidWidgetBridge } = NativeModules;
+            if (AndroidWidgetBridge) {
+                AndroidWidgetBridge.updateWidget(widgetType);
+                console.log(`Android ${widgetType} widget refresh triggered`);
+            }
+        }
+    },
 };
