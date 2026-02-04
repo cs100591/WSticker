@@ -335,13 +335,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  
-  // Bento Grid
-    fontSize: 13,
-    fontFamily: 'Poppins_500Medium',
-    color: '#94A3B8',
-    marginTop: 4,
-  },
   section: {
     marginBottom: 24,
   },
