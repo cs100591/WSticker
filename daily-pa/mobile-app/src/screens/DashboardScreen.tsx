@@ -38,6 +38,7 @@ export const DashboardScreen: React.FC = () => {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [isExpensesHidden, setIsExpensesHidden] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -264,7 +265,21 @@ export const DashboardScreen: React.FC = () => {
           </View>
           <AnimatedCard variant="default" style={styles.expenseCard}>
             <View style={styles.expenseHeader}>
-              <Text style={styles.expenseTotal}>{currencySymbol}{displayMonthlySpending.toFixed(2)}</Text>
+              <View style={styles.expenseAmountRow}>
+                <Text style={styles.expenseTotal}>
+                  {currencySymbol}{isExpensesHidden ? '****' : displayMonthlySpending.toFixed(2)}
+                </Text>
+                <TouchableOpacity 
+                  onPress={() => setIsExpensesHidden(!isExpensesHidden)}
+                  style={styles.eyeButton}
+                >
+                  <Ionicons 
+                    name={isExpensesHidden ? 'eye-off-outline' : 'eye-outline'} 
+                    size={24} 
+                    color="#94A3B8" 
+                  />
+                </TouchableOpacity>
+              </View>
               <Text style={styles.expenseLabel}>{t.totalSpentMsg}</Text>
             </View>
             <View style={styles.expenseCategories}>
@@ -584,11 +599,20 @@ const styles = StyleSheet.create({
   expenseHeader: {
     marginBottom: 16,
   },
+  expenseAmountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
   expenseTotal: {
     fontSize: 32,
     fontFamily: 'Poppins_700Bold',
     color: '#fff',
-    marginBottom: 4,
+  },
+  eyeButton: {
+    padding: 8,
+    marginLeft: 12,
   },
   expenseLabel: {
     fontSize: 13,
